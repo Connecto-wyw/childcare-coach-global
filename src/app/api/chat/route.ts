@@ -43,14 +43,24 @@ export async function POST(req: Request) {
       })
 
       // 설문 요약 생성
-      const summarySentences = answers
-        .sort((a, b) => a.question_id - b.question_id)
-        .map((item) => {
-          const q = questionMap[item.question_id]
-          const a = item.answer?.trim()
-          return q && a ? `${q} ${a}입니다.` : null
-        })
-        .filter(Boolean)
+      // 질문 ID에 해당하는 질문 텍스트 매핑
+const questionMap: Record<number, string> = {
+  3: '가장 중요하게 생각하는 육아 가치는',
+  5: '아이와 하루 보내는 시간은',
+  10: '아이의 나이는',
+  11: '아이의 성별은',
+}
+
+// 설문 응답 요약 문장 생성
+const summarySentences = answers
+  .sort((a, b) => a.question_id - b.question_id)
+  .map((item) => {
+    const q = questionMap[item.question_id]
+    const a = item.answer?.trim()
+    return q && a ? `${q} ${a}입니다.` : null
+  })
+  .filter(Boolean)
+
 
       surveySummary = summarySentences.join(' ')
     }
