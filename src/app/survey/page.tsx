@@ -42,7 +42,7 @@ export default function SurveyPage() {
         console.error('질문 불러오기 에러:', qError)
         return
       }
-
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const formatted = qData.map((q: any) => ({
         ...q,
         options: q.survey_options
@@ -208,6 +208,7 @@ export default function SurveyPage() {
                     }`}
                     onClick={() => handleAnswer(currentQuestion.id, opt.label)}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={opt.image_url}
                       alt={opt.label}
