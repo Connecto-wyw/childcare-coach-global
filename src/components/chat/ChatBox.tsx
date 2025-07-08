@@ -1,9 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { saveChatLog } from '@/lib/saveChatLog' // ✅ Supabase 저장 함수 import
+import { saveChatLog } from '@/lib/saveChatLog'
+import { useUser } from '@supabase/auth-helpers-react'
 
-export default function ChatBox() {
+type ChatBoxProps = {
+  systemPrompt?: string
+}
+
+export default function ChatBox({ systemPrompt }: ChatBoxProps) {
+  const userContext = useUser()
+  const user = userContext?.user
+
+  console.log('💡 user_id in ChatBox:', user?.id)
+
   const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
@@ -20,23 +30,30 @@ export default function ChatBox() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          user_id: user?.id || null,
           messages: [
-            { role: 'system', content: '당신은 친절한 육아 전문가입니다.' },
-            { role: 'user', content: message },
+            {
+              role: 'system',
+              content:
+                systemPrompt ||
+                '당신은 친절하지만 현실적인 육아 전문가입니다. 정확하고 신중하게 답변하세요.',
+            },
+            {
+              role: 'user',
+              content: message,
+            },
           ],
         }),
       })
 
       const data = await res.json()
-      const text = data?.choices?.[0]?.message?.content
-      const answer = text || '답변을 가져오지 못했어요.'
+      const answer = data?.reply || '답변을 가져오지 못했어요.'
       setReply(answer)
 
-      // ✅ Supabase에 질문/답변 저장
-      await saveChatLog(message, answer)
+      await saveChatLog(message, answer, user?.id || null)
     } catch (error) {
-      setReply('에러가 발생했어요.')
       console.error('에러:', error)
+      setReply('에러가 발생했어요.')
     } finally {
       setLoading(false)
     }
@@ -52,19 +69,18 @@ export default function ChatBox() {
         onChange={(e) => setMessage(e.target.value)}
       />
 
-      {/* ✅ 버튼 중앙 정렬을 위한 div 추가 */}
       <div className="flex justify-center mt-2">
         <button
           onClick={sendMessage}
           disabled={loading}
-          className="px-4 py-2 bg-[#3fb1df] text-bg[#eae3de] text-base rounded disabled:opacity-50"
+          className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded disabled:opacity-50"
         >
           {loading ? '함께 고민 중..' : '질문하기'}
         </button>
       </div>
 
       {reply && (
-        <div className="mt-4 p-4 border rounded bg-[#333333] whitespace-pre-line text-left text-base">
+        <div className="mt-4 p-4 border rounded bg-[#333333] whitespace-pre-line text-left text-base text-white">
           {reply}
         </div>
       )}

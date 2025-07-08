@@ -1,28 +1,69 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+// ✅ Supabase 서버 클라이언트 설정
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const messages = body.messages
+  const { messages, user_id } = body
   const apiKey = process.env.OPENAI_API_KEY
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'Missing OpenAI API key' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, reply: 'OpenAI API 키가 설정되지 않았습니다.' },
+      { status: 500 }
+    )
   }
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `
+  // ✅ 설문 응답 조회
+  let surveySummary = ''
+  let childAge = ''
+  let childGender = ''
+
+  if (user_id) {
+    const { data: answers } = await supabase
+      .from('survey_answers')
+      .select('question_id, answer')
+      .eq('user_id', user_id)
+
+    if (answers && answers.length > 0) {
+      // 나이 및 성별 추출
+      answers.forEach((item) => {
+        if (item.question_id === 10) {
+          childAge = item.answer?.trim() ?? ''
+        }
+        if (item.question_id === 11) {
+          childGender = item.answer?.trim() === '남아' ? '남자아이' : '여자아이'
+        }
+      })
+
+      // 설문 요약 생성
+      const summarySentences = answers
+        .sort((a, b) => a.question_id - b.question_id)
+        .map((item) => {
+          const q = questionMap[item.question_id]
+          const a = item.answer?.trim()
+          return q && a ? `${q} ${a}입니다.` : null
+        })
+        .filter(Boolean)
+
+      surveySummary = summarySentences.join(' ')
+    }
+  }
+
+  // ✅ 시스템 프롬프트 구성
+  const systemPrompt = `
 당신은 육아 전문 AI 코치입니다. 다음의 가이드를 반드시 따르세요.
+
+🧒 참고 정보:
+- 이 사용자의 아이는 ${childAge || 'N세'} ${childGender || '아이'}입니다.
+- 답변할 때 반드시 아이의 나이와 성별을 **명시적으로 언급**하세요.
+- 예: “5세 남자아이의 경우에는…” 또는 “4세 여자아이에게는…”
 
 🧡 말투 및 표현:
 - 전문가스럽되, 조심스럽고 열린 표현을 사용합니다.
@@ -52,8 +93,26 @@ export async function POST(req: Request) {
 - 스스로를 너무 몰아붙이지 않아도 괜찮습니다. 함께 천천히 가요.
 - 당신의 하루가 조금 더 편안해지길 바라요.
 
-모든 응답은 이 톤과 구조를 유지하며 작성합니다.
-          `,
+${
+  surveySummary
+    ? `\n\n📌 이 사용자는 최근 설문에서 아래와 같은 응답을 했습니다:\n${surveySummary}`
+    : ''
+}
+`.trim()
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
           },
           ...messages,
         ],
@@ -61,9 +120,27 @@ export async function POST(req: Request) {
       }),
     })
 
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ GPT API 오류:', errorText)
+      return NextResponse.json({
+        success: false,
+        reply: 'AI육아코치가 현재 잠시 응답하지 않아요. 잠시 후 다시 시도해 주세요.',
+      })
+    }
+
     const data = await response.json()
-    return NextResponse.json(data)
+    const reply = data.choices?.[0]?.message?.content || '응답을 받지 못했어요.'
+
+    return NextResponse.json({
+      success: true,
+      reply,
+    })
   } catch (error) {
-    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
+    console.error('❌ 예외 발생:', error)
+    return NextResponse.json({
+      success: false,
+      reply: 'AI육아코치 응답 중 문제가 발생했어요. 다시 시도해 주세요.',
+    })
   }
 }
