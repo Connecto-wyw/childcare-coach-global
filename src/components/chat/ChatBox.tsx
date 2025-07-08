@@ -9,10 +9,9 @@ type ChatBoxProps = {
 }
 
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
-  const userContext = useUser()
-  const user = userContext?.user
-
+  const user = useUser()
   console.log('💡 user_id in ChatBox:', user?.id)
+
 
   const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
