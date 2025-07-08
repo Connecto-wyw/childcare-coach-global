@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 export default function HomePage() {
   const user = useUser()
   const supabase = useSupabaseClient()
-  const [systemPrompt, setSystemPrompt] = useState('') // ✅ 추가: GPT system message로 보낼 문장
+  const [systemPrompt, setSystemPrompt] = useState('') // ✅ GPT system message로 보낼 문장
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({ provider: 'google' })
@@ -79,9 +79,7 @@ export default function HomePage() {
 
         {/* 챗봇 */}
         <div className="mb-12">
-           <ChatBox
-            systemPrompt="설문 응답에 따르면, 아이는 6세 남자이고 부모는 하루 3시간 이상 함께 보내며 정서적 성장을 중요하게 여깁니다. 이에 맞춰 육아 코칭을 해주세요."
-  />
+          <ChatBox systemPrompt={systemPrompt} />
         </div>
 
         {/* 추가 영역: 오늘의 팁 + 인디언밥 추천 */}
