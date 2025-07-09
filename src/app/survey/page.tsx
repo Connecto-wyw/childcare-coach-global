@@ -131,8 +131,9 @@ export default function SurveyPage() {
   const currentQuestion = questions[currentIndex]
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center">
+    <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans flex items-center justify-center">
       <div className="max-w-xl w-full p-6">
+      
         {/* 표지 화면 */}
         {currentIndex === -1 && (
           <div className="text-center space-y-6">
@@ -140,9 +141,9 @@ export default function SurveyPage() {
               <Logo />
             </div>
             <h1 className="text-3xl font-bold">육아를 쉽게, AI 육아코치</h1>
-            <p className="text-l">
-              나와 내 아이에게 딱 맞는 코칭을 위해<br />
-              간단한 설문을 진행 후 고민을 해결해드릴게요.
+            <p className="text-base text-amber-100" >
+              AI 육아코치가 아이에게 더 적합한 조언을 드릴 수 있도록,<br />
+              간단한 설문에 참여해주세요. (총 5문항)
             </p>
             <button
               onClick={handleStart}
