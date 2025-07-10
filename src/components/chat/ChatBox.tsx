@@ -12,13 +12,20 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const user = useUser()
   console.log('💡 user_id in ChatBox:', user?.id)
 
-
   const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
 
   const sendMessage = async () => {
     if (!message.trim()) return
+
+    // ✅ 사용자 정보 없으면 중단
+    if (!user?.id) {
+      console.warn('❗ 유저 정보가 아직 준비되지 않았습니다. 로그인 확인 필요.')
+      setReply('로그인 후에 질문하실 수 있어요.')
+      return
+    }
+
     setLoading(true)
     setReply('')
 
@@ -29,7 +36,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: user?.id || null,
+          user_id: user.id, // ✅ null 대신 명확하게 user.id 전달
           messages: [
             {
               role: 'system',
@@ -49,7 +56,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       const answer = data?.reply || '답변을 가져오지 못했어요.'
       setReply(answer)
 
-      await saveChatLog(message, answer, user?.id || null)
+      await saveChatLog(message, answer, user.id)
     } catch (error) {
       console.error('에러:', error)
       setReply('에러가 발생했어요.')

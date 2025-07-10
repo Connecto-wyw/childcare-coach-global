@@ -1,7 +1,7 @@
 'use client'
 
 import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react'
-import { Button } from '@/components/ui/button' // UI 컴포넌트 라이브러리에 맞게 조정
+import { Button } from '@/components/ui/button'
 
 export default function LoginButton() {
   const supabase = useSupabaseClient()
@@ -10,6 +10,9 @@ export default function LoginButton() {
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: process.env.NEXT_PUBLIC_SITE_URL, // ✅ 명시적 리디렉션
+      },
     })
   }
 
