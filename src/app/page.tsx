@@ -15,7 +15,7 @@ export default function Home() {
     } else {
       router.replace('/survey') // 로그인 X → 설문 페이지
     }
-  }, [user])
+  }, [user, router]) // ✅ 수정됨
 
   return null
 }

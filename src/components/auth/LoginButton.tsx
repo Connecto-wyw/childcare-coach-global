@@ -3,15 +3,26 @@
 import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
 
-export default function LoginButton() {
+type Props = {
+  children?: React.ReactNode
+}
+
+export default function LoginButton({ children }: Props) {
   const supabase = useSupabaseClient()
   const user = useUser()
 
   const handleLogin = async () => {
+    const redirectUrl =
+      process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000/coach'
+        : 'https://childcare-coach-pro.vercel.app/auth/callback'
+
+    console.log(`🔁 redirectTo: ${redirectUrl}`)
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: process.env.NEXT_PUBLIC_SITE_URL, // ✅ 명시적 리디렉션
+        redirectTo: redirectUrl,
       },
     })
   }
@@ -29,5 +40,5 @@ export default function LoginButton() {
     )
   }
 
-  return <Button onClick={handleLogin}>구글 로그인</Button>
+  return <Button onClick={handleLogin}>{children || '구글 로그인'}</Button>
 }

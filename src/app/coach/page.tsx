@@ -54,7 +54,7 @@ export default function HomePage() {
   }, [user, supabase])
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+    <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
 
         {/* 🔐 로그인 영역 */}

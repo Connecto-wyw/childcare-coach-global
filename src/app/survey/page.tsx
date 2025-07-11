@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import Logo from '@/components/Logo'
 import { v4 as uuidv4 } from 'uuid'
-import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { useUser } from '@supabase/auth-helpers-react'
+import LoginButton from '@/components/auth/LoginButton'
 
 type Option = {
   id: number
@@ -28,7 +29,7 @@ export default function SurveyPage() {
   const [currentIndex, setCurrentIndex] = useState<number>(-1)
 
   const router = useRouter()
-  const supabaseClient = useSupabaseClient()
+
   const user = useUser()
 
   useEffect(() => {
@@ -42,16 +43,24 @@ export default function SurveyPage() {
         console.error('질문 불러오기 에러:', qError)
         return
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formatted = qData.map((q: any) => ({
-        ...q,
-        options: q.survey_options
-          ? q.survey_options.filter(
-              (opt: Option, index: number, self: Option[]) =>
-                index === self.findIndex(o => o.label === opt.label)
-            )
-          : [],
-      }))
+      type RawQuestion = {
+      id: number
+      question: string
+      type: string
+      order: number
+      question_format: 'multiple_choice' | 'scale' | 'text' | 'image_choice'
+      survey_options?: Option[] // join한 옵션용
+}
+      const formatted = qData.map((q: RawQuestion) => ({
+     ...q,
+      options: q.survey_options
+      ? q.survey_options.filter(
+        (opt, index, self) =>
+          index === self.findIndex(o => o.label === opt.label)
+      )
+    : [],
+}))
+
 
       setQuestions(formatted)
     }
@@ -61,7 +70,7 @@ export default function SurveyPage() {
 
   useEffect(() => {
     if (user && currentIndex === -1) {
-      setCurrentIndex(0) // 로그인 후 자동으로 설문 시작
+      setCurrentIndex(0)
     }
   }, [user, currentIndex])
 
@@ -114,47 +123,27 @@ export default function SurveyPage() {
     router.push('/coach')
   }
 
-  const handleStart = async () => {
-    if (!user) {
-      const { error } = await supabaseClient.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${location.origin}/survey`,
-        },
-      })
-      if (error) console.error('구글 로그인 에러:', error.message)
-    } else {
-      handleNext()
-    }
-  }
-
   const currentQuestion = questions[currentIndex]
 
   return (
     <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans flex items-center justify-center">
       <div className="max-w-xl w-full p-6">
-      
-        {/* 표지 화면 */}
         {currentIndex === -1 && (
           <div className="text-center space-y-6">
             <div className="flex justify-center">
               <Logo />
             </div>
             <h1 className="text-3xl font-bold">육아를 쉽게, AI 육아코치</h1>
-            <p className="text-base text-amber-100" >
+            <p className="text-base text-amber-100">
               AI 육아코치가 아이에게 더 적합한 조언을 드릴 수 있도록,<br />
               간단한 설문에 참여해주세요. (총 5문항)
             </p>
-            <button
-              onClick={handleStart}
-              className="mt-6 px-6 py-3 bg-[#8a1a1d] rounded text-white hover:opacity-90"
-            >
-              구글로 로그인 후 시작하기
-            </button>
+            <div className="mt-6 flex justify-center">
+              <LoginButton>구글로 로그인 후 시작하기</LoginButton>
+            </div>
           </div>
         )}
 
-        {/* 질문 화면 */}
         {currentIndex >= 0 && currentIndex < questions.length && currentQuestion && (
           <div>
             <p className="text-lg font-semibold mb-4">
@@ -209,7 +198,6 @@ export default function SurveyPage() {
                     }`}
                     onClick={() => handleAnswer(currentQuestion.id, opt.label)}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={opt.image_url}
                       alt={opt.label}
@@ -231,7 +219,6 @@ export default function SurveyPage() {
           </div>
         )}
 
-        {/* 완료 화면 */}
         {currentIndex === questions.length && (
           <div className="text-center space-y-4">
             <h2 className="text-2xl font-bold">설문이 완료되었습니다!</h2>
