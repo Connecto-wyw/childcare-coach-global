@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   }
 
   // ✅ systemPrompt 생성 (여기서 반드시 await!)
-  const systemPrompt = await buildSystemPrompt({
+  const systemPrompt = buildSystemPrompt({
     user_id,
     childAge,
     childGender,
