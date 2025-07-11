@@ -40,9 +40,9 @@ export async function POST(req: Request) {
       }
 
       childAge = latestAnswers[10] || ''
-      childGender = latestAnswers[11] === '남아' ? '남자아이'
-                   : latestAnswers[11] === '여아' ? '여자아이'
-                   : ''
+      const rawGender = latestAnswers[11] || ''
+      if (rawGender.includes('남')) childGender = '남자아이'
+      else if (rawGender.includes('여')) childGender = '여자아이'
 
       const questionMap: Record<number, string> = {
         3: '가장 중요하게 생각하는 육아 가치는',
@@ -62,8 +62,9 @@ export async function POST(req: Request) {
     }
   }
 
-  // ✅ systemPrompt 생성
-  const systemPrompt = buildSystemPrompt({
+  // ✅ systemPrompt 생성 (여기서 반드시 await!)
+  const systemPrompt = await buildSystemPrompt({
+    user_id,
     childAge,
     childGender,
     surveySummary,
