@@ -11,32 +11,36 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const checkAndRedirect = async () => {
-      if (user === undefined) return // 아직 유저 확인 중
+      if (user === undefined) return // 아직 세션 로딩 중
 
-      // 로그인 안 된 경우 → 설문 페이지로
       if (!user) {
-        router.replace('/survey')
+        router.replace('/survey') // 로그인 실패 시 설문으로 이동
         return
       }
 
-      // 로그인 O → 설문 여부에 따라 이동
-      const { data, error } = await supabase
-        .from('survey_answers')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1)
+      try {
+        const { data, error } = await supabase
+          .from('survey_answers')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
 
-      if (error) {
-        console.error('❌ 설문 확인 오류:', error)
+        if (error) {
+          console.error('❌ 설문 응답 확인 실패:', error)
+          router.replace('/survey')
+          return
+        }
+
+        const hasSubmitted = data && data.length > 0
+        router.replace(hasSubmitted ? '/coach' : '/survey')
+      } catch (err) {
+        console.error('❌ 예외 발생:', err)
         router.replace('/survey')
-        return
       }
-
-      router.replace(data?.length ? '/coach' : '/survey')
     }
 
     checkAndRedirect()
   }, [user, router])
 
-  return null
+  return <p>로그인 처리 중입니다...</p>
 }
