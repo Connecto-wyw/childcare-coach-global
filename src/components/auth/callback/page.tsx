@@ -11,21 +11,15 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const checkAndRedirect = async () => {
-      // 아직 세션 초기화 중이면 대기
-      if (user === undefined) return
+      if (user === undefined) return // 아직 유저 확인 중
 
-      const baseUrl =
-        process.env.NODE_ENV === 'development'
-          ? 'http://localhost:3000'
-          : 'https://childcare-coach-pro.vercel.app'
-
-      // 로그인 안 된 경우 → /survey 이동
+      // 로그인 안 된 경우 → 설문 페이지로
       if (!user) {
-        router.replace(`${baseUrl}/survey`)
+        router.replace('/survey')
         return
       }
 
-      // 로그인 O → 설문 여부에 따라 분기
+      // 로그인 O → 설문 여부에 따라 이동
       const { data, error } = await supabase
         .from('survey_answers')
         .select('id')
@@ -33,13 +27,12 @@ export default function AuthCallbackPage() {
         .limit(1)
 
       if (error) {
-        console.error('❌ 설문 확인 중 오류:', error)
-        router.replace(`${baseUrl}/survey`)
+        console.error('❌ 설문 확인 오류:', error)
+        router.replace('/survey')
         return
       }
 
-      const hasSubmitted = data && data.length > 0
-      router.replace(`${baseUrl}/${hasSubmitted ? 'coach' : 'survey'}`)
+      router.replace(data?.length ? '/coach' : '/survey')
     }
 
     checkAndRedirect()
