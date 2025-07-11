@@ -10,6 +10,8 @@ export function buildSystemPrompt({
   childGender: string
   surveySummary: string
 }): string {
+  void user_id // 🔧 사용하지 않는 변수 경고 회피 (의도적으로 무시)
+
   return `
 당신은 육아 전문 AI 코치입니다. 다음의 가이드를 반드시 따르세요.
 
