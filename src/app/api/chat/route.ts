@@ -62,13 +62,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // ✅ systemPrompt 생성 (여기서 반드시 await!)
+  // ✅ systemPrompt 생성 및 디버깅 로그
   const systemPrompt = buildSystemPrompt({
     user_id,
     childAge,
     childGender,
     surveySummary,
   })
+
+  console.log('🔧 systemPrompt:\n', systemPrompt)
 
   const messagesToSend = [
     {
