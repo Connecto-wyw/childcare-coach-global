@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   let childGender = ''
 
   if (user_id) {
-    const { data: answers, error } = await supabase
+    const { data: answers } = await supabase
       .from('survey_answers')
       .select('question_id, answer, created_at')
       .eq('user_id', user_id)
