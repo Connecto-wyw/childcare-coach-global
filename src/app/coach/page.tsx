@@ -5,6 +5,7 @@ import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import NewsSection from '@/components/sections/NewsSection'
+import NavBar from '@/components/layout/NavBar' // 상단 메뉴 추가
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabaseClient'
@@ -29,6 +30,7 @@ export default function CoachPage() {
     await supabaseClient.auth.signOut()
   }
 
+  // 설문 응답 기반 systemPrompt 생성
   useEffect(() => {
     const fetchSurveyAnswers = async () => {
       if (!user) return
@@ -61,6 +63,7 @@ export default function CoachPage() {
     fetchSurveyAnswers()
   }, [user, supabaseClient])
 
+  // 인기 키워드 불러오기
   useEffect(() => {
     const fetchKeywords = async () => {
       const { data, error } = await supabase
@@ -80,8 +83,10 @@ export default function CoachPage() {
 
   return (
     <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans">
-      <div className="max-w-5xl mx-auto px-4 py-12">
+      {/* 상단 NavBar (NEWS / TEAM 메뉴 고정) */}
+      <NavBar />
 
+      <div className="max-w-5xl mx-auto px-4 py-12">
         {/* 로그인 영역 */}
         <div className="flex justify-end mb-4">
           {user ? (
@@ -122,18 +127,23 @@ export default function CoachPage() {
 
         {/* 챗봇 */}
         <div className="mb-12">
-          <ChatBox systemPrompt={systemPrompt} initialQuestion={selectedKeyword} />
+          <ChatBox
+            systemPrompt={systemPrompt}
+            initialQuestion={selectedKeyword}
+          />
         </div>
 
         {/* 최신 육아 뉴스 섹션 */}
-        <section id="news">
+        <section id="news" className="mb-12">
           <NewsSection />
         </section>
 
         {/* 팀 게시판 (준비중) */}
         <section id="team" className="mt-16">
-          <h2 className="text-2xl font-bold mb-4">팀 게시판 (준비 중)</h2>
-          <p className="text-gray-400">곧 팀원들과 소통할 수 있는 게시판 기능이 추가됩니다.</p>
+          <h2 className="text-2xl font-bold mb-4">TEAM</h2>
+          <p className="text-gray-400">
+            곧 팀원들과 소통할 수 있는 게시판 기능이 추가됩니다.
+          </p>
         </section>
 
         {/* 오늘의 팁 + 추천 콘텐츠 */}
