@@ -32,13 +32,14 @@ export async function POST(req: Request) {
 
     if (answers && answers.length > 0) {
       const latestAnswers: Record<number, string> = {}
+
+      // 항상 최신 값으로 덮어쓰기
       for (const item of answers) {
         const qid = item.question_id
-        if (!(qid in latestAnswers)) {
-          latestAnswers[qid] = item.answer?.trim() ?? ''
-        }
+        latestAnswers[qid] = item.answer?.trim() ?? ''
       }
 
+      // 아이 나이 & 성별 처리
       childAge = latestAnswers[10] || ''
       const rawGender = latestAnswers[11] || ''
       if (rawGender.includes('남')) childGender = '남자아이'
@@ -62,7 +63,12 @@ export async function POST(req: Request) {
     }
   }
 
-  // ✅ systemPrompt 생성 및 디버깅 로그
+  // 아이 정보 문자열 조합 (나이 없으면 생략)
+  const ageText = childAge ? `${childAge}` : ''
+  const genderText = childGender || '아이'
+  const childInfo = [ageText, genderText].filter(Boolean).join(' ')
+
+  // 시스템 프롬프트 생성
   const systemPrompt = buildSystemPrompt({
     user_id,
     childAge,
@@ -79,7 +85,7 @@ export async function POST(req: Request) {
     },
     {
       role: 'user',
-      content: `질문 전에 참고하세요. 사용자의 아이는 ${childAge || 'N세'} ${childGender || '아이'}입니다. 답변에 꼭 이 정보를 반영해 주세요.`,
+      content: `참고: 사용자의 아이는 ${childInfo}입니다. 답변에 반드시 이 정보를 반영해 주세요.`,
     },
     ...messages,
   ]
