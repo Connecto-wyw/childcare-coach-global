@@ -22,13 +22,15 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "types": ["./env.d.ts", "node"]  // ✅ 환경변수 타입 추가
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "next-env.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "env.d.ts"  // ✅ env.d.ts도 포함
   ],
   "exclude": ["node_modules"]
 }

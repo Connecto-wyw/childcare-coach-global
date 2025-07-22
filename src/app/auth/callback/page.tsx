@@ -11,7 +11,7 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const checkAndRedirect = async () => {
-      if (user === undefined) return // 아직 세션 로딩 중
+      if (user === undefined) return // 세션 로딩 중
 
       if (!user) {
         router.replace('/survey') // 로그인 실패 시 설문으로 이동
@@ -21,9 +21,9 @@ export default function AuthCallbackPage() {
       try {
         const { data, error } = await supabase
           .from('survey_answers')
-          .select('id')
+          .select('question_id')
           .eq('user_id', user.id)
-          .limit(1)
+          .in('question_id', [3, 5, 10, 11]) // 4개 질문만 확인
 
         if (error) {
           console.error('❌ 설문 응답 확인 실패:', error)
@@ -31,8 +31,10 @@ export default function AuthCallbackPage() {
           return
         }
 
-        const hasSubmitted = data && data.length > 0
-        router.replace(hasSubmitted ? '/coach' : '/survey')
+        const answeredCount = data ? data.length : 0
+        const allAnswered = answeredCount === 4 // 4개 다 있어야 완료
+
+        router.replace(allAnswered ? '/coach' : '/survey')
       } catch (err) {
         console.error('❌ 예외 발생:', err)
         router.replace('/survey')
