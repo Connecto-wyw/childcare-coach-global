@@ -6,26 +6,33 @@ import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabaseClient'
 
-export default function HomePage() {
+type Keyword = {
+  id: string
+  keyword: string
+}
+
+export default function CoachPage() {
   const user = useUser()
-  const supabase = useSupabaseClient()
-  const [systemPrompt, setSystemPrompt] = useState('') // ✅ GPT system message로 보낼 문장
+  const supabaseClient = useSupabaseClient()
+  const [systemPrompt, setSystemPrompt] = useState('') // GPT systemPrompt
+  const [keywords, setKeywords] = useState<Keyword[]>([]) // 인기 키워드 리스트
 
   const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'google' })
+    await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await supabaseClient.auth.signOut()
   }
 
-  // ✅ 설문 응답 불러오기
+  // 설문 응답 불러와서 systemPrompt 생성
   useEffect(() => {
     const fetchSurveyAnswers = async () => {
       if (!user) return
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('survey_answers')
         .select('question_id, answer')
         .eq('user_id', user.id)
@@ -51,13 +58,31 @@ export default function HomePage() {
     }
 
     fetchSurveyAnswers()
-  }, [user, supabase])
+  }, [user, supabaseClient])
+
+  // 인기 키워드 불러오기
+  useEffect(() => {
+    const fetchKeywords = async () => {
+      const { data, error } = await supabase
+        .from('popular_keywords')
+        .select('id, keyword')
+        .order('order', { ascending: true })
+
+      if (error) {
+        console.error('❌ 인기 키워드 불러오기 실패:', error.message)
+      } else {
+        setKeywords(data || [])
+      }
+    }
+
+    fetchKeywords()
+  }, [])
 
   return (
     <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
 
-        {/* 🔐 로그인 영역 */}
+        {/* 로그인 영역 */}
         <div className="flex justify-end mb-4">
           {user ? (
             <div className="flex items-center gap-2">
@@ -77,16 +102,35 @@ export default function HomePage() {
           <h1 className="text-4xl font-bold">AI 육아코치</h1>
         </div>
 
+        {/* 인기 검색 키워드 (로고 밑) */}
+        {keywords.length > 0 && (
+          <div className="text-center mb-8">
+            <h2 className="text-lg font-semibold mb-2">인기 검색 키워드</h2>
+            <div className="flex justify-center flex-wrap gap-2">
+              {keywords.map((k) => (
+                <span
+                  key={k.id}
+                  className="px-3 py-1 bg-gray-700 text-white rounded-full text-sm cursor-pointer hover:bg-gray-600"
+                >
+                  {k.keyword}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 챗봇 */}
         <div className="mb-12">
           <ChatBox systemPrompt={systemPrompt} />
         </div>
 
-        {/* 추가 영역: 오늘의 팁 + 인디언밥 추천 */}
+        {/* 오늘의 팁 + 추천 콘텐츠 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <TipSection />
           <aside className="bg-[#444444] p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-3 text-[#eae3de]">✨ 인디언밥 추천 콘텐츠</h2>
+            <h2 className="text-xl font-semibold mb-3 text-[#eae3de]">
+              ✨ 인디언밥 추천 콘텐츠
+            </h2>
             <ul className="text-base space-y-2 text-[#e0dcd7]">
               <li>👨‍👩‍👧 아이 성향 테스트</li>
               <li>🎯 해빗 챌린지로 습관 만들기</li>
