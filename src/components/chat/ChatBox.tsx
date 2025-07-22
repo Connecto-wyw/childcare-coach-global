@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { saveChatLog } from '@/lib/saveChatLog'
 import { useUser } from '@supabase/auth-helpers-react'
 
@@ -15,11 +15,23 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
+  const [ready, setReady] = useState(false) // GPT 호출 가능 여부
+
+  // 1.5초 지연 후 활성화
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setReady(true)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
 
   const sendMessage = async () => {
     if (!message.trim()) return
+    if (!ready) {
+      setReply('잠시만 기다려 주세요. 설문 데이터 동기화 중입니다.')
+      return
+    }
 
-    // ✅ 사용자 정보 없으면 중단
     if (!user?.id) {
       console.warn('❗ 유저 정보가 아직 준비되지 않았습니다. 로그인 확인 필요.')
       setReply('로그인 후에 질문하실 수 있어요.')
@@ -36,7 +48,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: user.id, // ✅ null 대신 명확하게 user.id 전달
+          user_id: user.id,
           messages: [
             {
               role: 'system',
@@ -78,10 +90,14 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       <div className="flex justify-center mt-2">
         <button
           onClick={sendMessage}
-          disabled={loading}
+          disabled={loading || !ready}
           className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded disabled:opacity-50"
         >
-          {loading ? '함께 고민 중..' : '질문하기'}
+          {!ready
+            ? '준비 중...'
+            : loading
+            ? '함께 고민 중..'
+            : '질문하기'}
         </button>
       </div>
 

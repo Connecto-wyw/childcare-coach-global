@@ -7,6 +7,30 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// 설문 답변을 최대 3번까지 재시도하며 가져오는 함수
+async function fetchSurveyAnswers(user_id: string) {
+  for (let i = 0; i < 3; i++) {
+    const { data, error } = await supabase
+      .from('survey_answers')
+      .select('question_id, answer, created_at')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('❌ 설문 조회 실패:', error)
+      return []
+    }
+
+    if (data && data.length > 0) {
+      return data
+    }
+
+    // 0.5초 대기 후 재시도
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+  return []
+}
+
 export async function POST(req: Request) {
   const body = await req.json()
   const { messages, user_id } = body
@@ -24,22 +48,18 @@ export async function POST(req: Request) {
   let childGender = ''
 
   if (user_id) {
-    const { data: answers } = await supabase
-      .from('survey_answers')
-      .select('question_id, answer, created_at')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false })
+    const answers = await fetchSurveyAnswers(user_id) // 재시도 로직 적용
 
-    if (answers && answers.length > 0) {
+    if (answers.length > 0) {
       const latestAnswers: Record<number, string> = {}
 
-      // 항상 최신 값으로 덮어쓰기
+      // 최신값으로 덮어쓰기
       for (const item of answers) {
         const qid = item.question_id
         latestAnswers[qid] = item.answer?.trim() ?? ''
       }
 
-      // 아이 나이 & 성별 처리
+      // 아이 나이 & 성별 추출
       childAge = latestAnswers[10] || ''
       const rawGender = latestAnswers[11] || ''
       if (rawGender.includes('남')) childGender = '남자아이'
@@ -63,7 +83,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // 아이 정보 문자열 조합 (나이 없으면 생략)
+  // 아이 정보 조합 (나이 없으면 생략)
   const ageText = childAge ? `${childAge}` : ''
   const genderText = childGender || '아이'
   const childInfo = [ageText, genderText].filter(Boolean).join(' ')

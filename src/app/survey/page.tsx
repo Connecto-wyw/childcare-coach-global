@@ -29,7 +29,6 @@ export default function SurveyPage() {
   const [currentIndex, setCurrentIndex] = useState<number>(-1)
 
   const router = useRouter()
-
   const user = useUser()
 
   useEffect(() => {
@@ -43,24 +42,25 @@ export default function SurveyPage() {
         console.error('질문 불러오기 에러:', qError)
         return
       }
-      type RawQuestion = {
-      id: number
-      question: string
-      type: string
-      order: number
-      question_format: 'multiple_choice' | 'scale' | 'text' | 'image_choice'
-      survey_options?: Option[] // join한 옵션용
-}
-      const formatted = qData.map((q: RawQuestion) => ({
-     ...q,
-      options: q.survey_options
-      ? q.survey_options.filter(
-        (opt, index, self) =>
-          index === self.findIndex(o => o.label === opt.label)
-      )
-    : [],
-}))
 
+      type RawQuestion = {
+        id: number
+        question: string
+        type: string
+        order: number
+        question_format: 'multiple_choice' | 'scale' | 'text' | 'image_choice'
+        survey_options?: Option[]
+      }
+
+      const formatted = qData.map((q: RawQuestion) => ({
+        ...q,
+        options: q.survey_options
+          ? q.survey_options.filter(
+              (opt, index, self) =>
+                index === self.findIndex(o => o.label === opt.label)
+            )
+          : [],
+      }))
 
       setQuestions(formatted)
     }
@@ -89,6 +89,7 @@ export default function SurveyPage() {
       localStorage.setItem('user_id', userId)
     }
 
+    // 유저 정보 upsert
     const { error: userInsertError } = await supabase
       .from('users')
       .upsert(
@@ -107,19 +108,23 @@ export default function SurveyPage() {
       console.error('🛑 유저 upsert 실패:', userInsertError.message)
     }
 
+    // 설문 답변 저장
     const answerPayload = Object.entries(answers).map(([qId, value]) => ({
       user_id: userId,
       question_id: parseInt(qId),
       answer: value,
     }))
 
-    const { error } = await supabase.from('survey_answers').insert(answerPayload)
-    if (error) {
-      console.error('❌ 설문 저장 실패:', error.message)
-      alert('설문 저장 중 오류가 발생했어요.')
+    const { error: answerError } = await supabase
+      .from('survey_answers')
+      .insert(answerPayload)
+
+    if (answerError) {
+      console.error('🛑 설문 답변 저장 실패:', answerError.message)
       return
     }
 
+    // 모든 저장이 끝난 후에만 /coach로 이동
     router.push('/coach')
   }
 
@@ -155,7 +160,9 @@ export default function SurveyPage() {
                 <button
                   key={opt.id}
                   className={`block w-full text-left p-3 mb-2 rounded border ${
-                    answers[currentQuestion.id] === opt.label ? 'bg-blue-100 text-black' : ''
+                    answers[currentQuestion.id] === opt.label
+                      ? 'bg-blue-100 text-black'
+                      : ''
                   }`}
                   onClick={() => handleAnswer(currentQuestion.id, opt.label)}
                 >
@@ -194,7 +201,9 @@ export default function SurveyPage() {
                   <div
                     key={opt.id}
                     className={`border rounded p-2 cursor-pointer text-center ${
-                      answers[currentQuestion.id] === opt.label ? 'bg-blue-100 text-black' : ''
+                      answers[currentQuestion.id] === opt.label
+                        ? 'bg-blue-100 text-black'
+                        : ''
                     }`}
                     onClick={() => handleAnswer(currentQuestion.id, opt.label)}
                   >
