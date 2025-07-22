@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
-import NewsSection from '@/components/sections/NewsSection'  // 🔹 뉴스 섹션 추가
+import NewsSection from '@/components/sections/NewsSection'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabaseClient'
@@ -17,9 +17,9 @@ type Keyword = {
 export default function CoachPage() {
   const user = useUser()
   const supabaseClient = useSupabaseClient()
-  const [systemPrompt, setSystemPrompt] = useState('') // GPT systemPrompt
-  const [keywords, setKeywords] = useState<Keyword[]>([]) // 인기 키워드 리스트
-  const [selectedKeyword, setSelectedKeyword] = useState<string>('') // 선택된 키워드
+  const [systemPrompt, setSystemPrompt] = useState('')
+  const [keywords, setKeywords] = useState<Keyword[]>([])
+  const [selectedKeyword, setSelectedKeyword] = useState<string>('')
 
   const handleLogin = async () => {
     await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
@@ -29,7 +29,6 @@ export default function CoachPage() {
     await supabaseClient.auth.signOut()
   }
 
-  // 설문 응답 불러와서 systemPrompt 생성
   useEffect(() => {
     const fetchSurveyAnswers = async () => {
       if (!user) return
@@ -45,10 +44,10 @@ export default function CoachPage() {
       }
 
       const answerMap = Object.fromEntries(
-        data.map(item => [item.question_id, item.answer])
+        data.map((item) => [item.question_id, item.answer])
       )
 
-      const sysMsg = `사용자의 육아 설문 결과는 다음과 같습니다. 
+      const sysMsg = `사용자의 육아 설문 결과는 다음과 같습니다.
 - 가장 중요하게 생각하는 육아 가치는: '${answerMap[3]}'
 - 아이와 보내는 하루 시간은: '${answerMap[5]}'
 - 아이의 나이는: '${answerMap[10]}세'
@@ -62,7 +61,6 @@ export default function CoachPage() {
     fetchSurveyAnswers()
   }, [user, supabaseClient])
 
-  // 인기 키워드 불러오기
   useEffect(() => {
     const fetchKeywords = async () => {
       const { data, error } = await supabase
@@ -128,7 +126,15 @@ export default function CoachPage() {
         </div>
 
         {/* 최신 육아 뉴스 섹션 */}
-        <NewsSection />  {/* 🔹 새로 추가된 뉴스 컴포넌트 */}
+        <section id="news">
+          <NewsSection />
+        </section>
+
+        {/* 팀 게시판 (준비중) */}
+        <section id="team" className="mt-16">
+          <h2 className="text-2xl font-bold mb-4">팀 게시판 (준비 중)</h2>
+          <p className="text-gray-400">곧 팀원들과 소통할 수 있는 게시판 기능이 추가됩니다.</p>
+        </section>
 
         {/* 오늘의 팁 + 추천 콘텐츠 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-10">
