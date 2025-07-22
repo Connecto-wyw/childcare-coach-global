@@ -98,6 +98,7 @@ export async function POST(req: Request) {
 
   console.log('🔧 systemPrompt:\n', systemPrompt)
 
+  // GPT로 보낼 메시지 조합 (설문 요약을 명확히 전달)
   const messagesToSend = [
     {
       role: 'system',
@@ -105,7 +106,9 @@ export async function POST(req: Request) {
     },
     {
       role: 'user',
-      content: `참고: 사용자의 아이는 ${childInfo}입니다. 답변에 반드시 이 정보를 반영해 주세요.`,
+      content:
+        `설문 요약: ${surveySummary || '설문 응답이 없습니다.'}\n` +
+        `사용자의 아이는 ${childInfo}입니다. 위 내용을 반드시 답변에 반영해 주세요.`,
     },
     ...messages,
   ]
