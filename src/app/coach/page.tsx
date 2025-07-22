@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
+import NewsSection from '@/components/sections/NewsSection'  // 🔹 뉴스 섹션 추가
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabaseClient'
@@ -18,7 +19,7 @@ export default function CoachPage() {
   const supabaseClient = useSupabaseClient()
   const [systemPrompt, setSystemPrompt] = useState('') // GPT systemPrompt
   const [keywords, setKeywords] = useState<Keyword[]>([]) // 인기 키워드 리스트
-  const [selectedKeyword, setSelectedKeyword] = useState<string>('') // 🔹 선택된 키워드
+  const [selectedKeyword, setSelectedKeyword] = useState<string>('') // 선택된 키워드
 
   const handleLogin = async () => {
     await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
@@ -103,7 +104,7 @@ export default function CoachPage() {
           <h1 className="text-4xl font-bold">AI 육아코치</h1>
         </div>
 
-        {/* 인기 검색 키워드 (로고 밑) */}
+        {/* 인기 검색 키워드 */}
         {keywords.length > 0 && (
           <div className="text-center mb-8">
             <h2 className="text-lg font-semibold mb-2">인기 검색 키워드</h2>
@@ -111,7 +112,7 @@ export default function CoachPage() {
               {keywords.map((k) => (
                 <span
                   key={k.id}
-                  onClick={() => setSelectedKeyword(k.keyword)} // 🔹 클릭 시 ChatBox로 전달할 키워드 저장
+                  onClick={() => setSelectedKeyword(k.keyword)}
                   className="px-3 py-1 bg-gray-700 text-white rounded-full text-sm cursor-pointer hover:bg-gray-600"
                 >
                   {k.keyword}
@@ -126,8 +127,11 @@ export default function CoachPage() {
           <ChatBox systemPrompt={systemPrompt} initialQuestion={selectedKeyword} />
         </div>
 
+        {/* 최신 육아 뉴스 섹션 */}
+        <NewsSection />  {/* 🔹 새로 추가된 뉴스 컴포넌트 */}
+
         {/* 오늘의 팁 + 추천 콘텐츠 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-10">
           <TipSection />
           <aside className="bg-[#444444] p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-3 text-[#eae3de]">
