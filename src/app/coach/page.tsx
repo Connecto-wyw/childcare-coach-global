@@ -18,6 +18,7 @@ export default function CoachPage() {
   const supabaseClient = useSupabaseClient()
   const [systemPrompt, setSystemPrompt] = useState('') // GPT systemPrompt
   const [keywords, setKeywords] = useState<Keyword[]>([]) // 인기 키워드 리스트
+  const [selectedKeyword, setSelectedKeyword] = useState<string>('') // 🔹 선택된 키워드
 
   const handleLogin = async () => {
     await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
@@ -110,6 +111,7 @@ export default function CoachPage() {
               {keywords.map((k) => (
                 <span
                   key={k.id}
+                  onClick={() => setSelectedKeyword(k.keyword)} // 🔹 클릭 시 ChatBox로 전달할 키워드 저장
                   className="px-3 py-1 bg-gray-700 text-white rounded-full text-sm cursor-pointer hover:bg-gray-600"
                 >
                   {k.keyword}
@@ -121,7 +123,7 @@ export default function CoachPage() {
 
         {/* 챗봇 */}
         <div className="mb-12">
-          <ChatBox systemPrompt={systemPrompt} />
+          <ChatBox systemPrompt={systemPrompt} initialQuestion={selectedKeyword} />
         </div>
 
         {/* 오늘의 팁 + 추천 콘텐츠 */}

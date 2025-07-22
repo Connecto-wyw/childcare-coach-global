@@ -6,9 +6,10 @@ import { useUser } from '@supabase/auth-helpers-react'
 
 type ChatBoxProps = {
   systemPrompt?: string
+  initialQuestion?: string // 🔹 추가: 부모(코치 페이지)에서 전달받는 초기 질문
 }
 
-export default function ChatBox({ systemPrompt }: ChatBoxProps) {
+export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps) {
   const user = useUser()
   console.log('💡 user_id in ChatBox:', user?.id)
 
@@ -25,8 +26,18 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return () => clearTimeout(timer)
   }, [])
 
-  const sendMessage = async () => {
-    if (!message.trim()) return
+  // 🔹 인기 키워드 클릭 시 자동 질문 처리
+  useEffect(() => {
+    if (initialQuestion && ready) {
+      setMessage(initialQuestion)
+      sendMessage(initialQuestion)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion, ready])
+
+  const sendMessage = async (customMessage?: string) => {
+    const text = customMessage || message
+    if (!text.trim()) return
     if (!ready) {
       setReply('잠시만 기다려 주세요. 설문 데이터 동기화 중입니다.')
       return
@@ -58,7 +69,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             },
             {
               role: 'user',
-              content: message,
+              content: text,
             },
           ],
         }),
@@ -68,7 +79,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       const answer = data?.reply || '답변을 가져오지 못했어요.'
       setReply(answer)
 
-      await saveChatLog(message, answer, user.id)
+      await saveChatLog(text, answer, user.id)
     } catch (error) {
       console.error('에러:', error)
       setReply('에러가 발생했어요.')
@@ -89,7 +100,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       <div className="flex justify-center mt-2">
         <button
-          onClick={sendMessage}
+          onClick={() => sendMessage()}
           disabled={loading || !ready}
           className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded disabled:opacity-50"
         >
