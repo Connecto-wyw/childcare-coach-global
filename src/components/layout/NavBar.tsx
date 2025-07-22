@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { useUser } from '@supabase/auth-helpers-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 export default function NavBar() {
   const user = useUser()
   const router = useRouter()
+  const [activeMenu, setActiveMenu] = useState<'news' | 'team'>('news') // 기본 NEWS 활성화
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({ provider: 'google' })
@@ -15,7 +17,7 @@ export default function NavBar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/coach') // 로그아웃 후 기본 페이지로
+    router.push('/coach') // 로그아웃 후 기본 페이지로 이동
   }
 
   return (
@@ -23,10 +25,22 @@ export default function NavBar() {
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
         {/* 왼쪽 메뉴 */}
         <div className="flex gap-6 text-base font-medium">
-          <Link href="/coach#news" className="hover:text-[#9F1D23] transition">
+          <Link
+            href="/coach#news"
+            onClick={() => setActiveMenu('news')}
+            className={`transition ${
+              activeMenu === 'news' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
+            }`}
+          >
             NEWS
           </Link>
-          <Link href="/coach#team" className="hover:text-[#9F1D23] transition">
+          <Link
+            href="/coach#team"
+            onClick={() => setActiveMenu('team')}
+            className={`transition ${
+              activeMenu === 'team' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
+            }`}
+          >
             TEAM
           </Link>
         </div>
