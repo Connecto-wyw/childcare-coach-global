@@ -21,14 +21,6 @@ export default function CoachPage() {
   const [keywords, setKeywords] = useState<Keyword[]>([])
   const [selectedKeyword, setSelectedKeyword] = useState<string>('')
 
-  const handleLogin = async () => {
-    await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
-  }
-
-  const handleLogout = async () => {
-    await supabaseClient.auth.signOut()
-  }
-
   // 설문 응답 기반 systemPrompt 생성
   useEffect(() => {
     const fetchSurveyAnswers = async () => {
