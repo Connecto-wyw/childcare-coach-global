@@ -7,7 +7,6 @@ import TipSection from '@/components/tips/TipSection'
 import NewsSection from '@/components/sections/NewsSection'
 import NavBar from '@/components/layout/NavBar' // 상단 메뉴 추가
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
-import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabaseClient'
 
 type Keyword = {
@@ -83,21 +82,11 @@ export default function CoachPage() {
 
   return (
     <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans">
-      {/* 상단 NavBar (NEWS / TEAM 메뉴 고정) */}
+      {/* 상단 NavBar (NEWS / TEAM 메뉴 + 로그인 포함) */}
       <NavBar />
 
       <div className="max-w-5xl mx-auto px-4 py-12">
-        {/* 로그인 영역 */}
-        <div className="flex justify-end mb-4">
-          {user ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{user.email}</span>
-              <Button onClick={handleLogout}>로그아웃</Button>
-            </div>
-          ) : (
-            <Button onClick={handleLogin}>구글 로그인</Button>
-          )}
-        </div>
+        {/* 로그인 영역 제거 (NavBar에서만 로그인 처리) */}
 
         {/* 로고 + 타이틀 */}
         <div className="text-center mb-6">
