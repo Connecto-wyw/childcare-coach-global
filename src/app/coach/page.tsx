@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
-import NewsSection from '@/components/sections/NewsSection'
-import NavBar from '@/components/layout/NavBar' // 상단 메뉴 추가
+import NavBar from '@/components/layout/NavBar'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -14,7 +13,7 @@ type Keyword = {
   keyword: string
 }
 
-export default function CoachPage() {
+export default function HomePage() {
   const user = useUser()
   const supabaseClient = useSupabaseClient()
   const [systemPrompt, setSystemPrompt] = useState('')
@@ -74,12 +73,10 @@ export default function CoachPage() {
 
   return (
     <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans">
-      {/* 상단 NavBar (NEWS / TEAM 메뉴 + 로그인 포함) */}
+      {/* 상단 NavBar (HOME / NEWS / TEAM 메뉴 + 로그인 포함) */}
       <NavBar />
 
       <div className="max-w-5xl mx-auto px-4 py-12">
-        {/* 로그인 영역 제거 (NavBar에서만 로그인 처리) */}
-
         {/* 로고 + 타이틀 */}
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
@@ -113,19 +110,6 @@ export default function CoachPage() {
             initialQuestion={selectedKeyword}
           />
         </div>
-
-        {/* 최신 육아 뉴스 섹션 */}
-        <section id="news" className="mb-12">
-          <NewsSection />
-        </section>
-
-        {/* 팀 게시판 (준비중) */}
-        <section id="team" className="mt-16">
-          <h2 className="text-2xl font-bold mb-4">TEAM</h2>
-          <p className="text-gray-400">
-            곧 팀원들과 소통할 수 있는 게시판 기능이 추가됩니다.
-          </p>
-        </section>
 
         {/* 오늘의 팁 + 추천 콘텐츠 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-10">
