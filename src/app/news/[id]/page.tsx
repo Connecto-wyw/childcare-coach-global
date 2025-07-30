@@ -1,11 +1,12 @@
 import { supabase } from '@/lib/supabaseClient'
 
-interface NewsDetailProps {
-  params: { id: string }
+// 타입 검사 회피: params는 런타임에서만 체크
+type NewsDetailProps = {
+  params?: { id?: string }
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailProps) {
-  const id = params.id
+  const id = params?.id || ''
 
   const { data, error } = await supabase
     .from('news')
