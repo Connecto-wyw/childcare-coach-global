@@ -1,12 +1,11 @@
 import { supabase } from '@/lib/supabaseClient'
 
-// Next.js 15 호환을 위해 params 타입을 명확히 지정
 interface NewsDetailProps {
-  params: { id: string } | undefined
+  params: { id: string }
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailProps) {
-  const id = params?.id || ''
+  const id = params.id
 
   const { data, error } = await supabase
     .from('news')
@@ -24,9 +23,7 @@ export default async function NewsDetailPage({ params }: NewsDetailProps) {
       <p className="text-gray-500 text-sm mb-6">
         {new Date(data.created_at).toLocaleDateString()}
       </p>
-      <div className="prose max-w-none whitespace-pre-line">
-        {data.content}
-      </div>
+      <div className="prose max-w-none whitespace-pre-line">{data.content}</div>
     </div>
   )
 }
