@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import NavBar from '@/components/layout/NavBar'
 
 // Supabase 서버 클라이언트
 const supabase = createClient(
@@ -51,7 +52,11 @@ export default async function RootLayout({
 
   return (
     <html lang="ko">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#333333] text-[#eae3de] min-h-screen`}
+      >
+        {/* 모든 페이지에 공통 네비게이션 적용 */}
+        <NavBar />
         <Providers>{children}</Providers>
       </body>
     </html>
