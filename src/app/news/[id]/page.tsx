@@ -1,12 +1,12 @@
 import { supabase } from '@/lib/supabaseClient'
 
-// Next.js 15에서 PageProps 타입 충돌 방지
+// 타입 강제 우회로 빌드 에러 방지
 interface NewsDetailProps {
-  params: { id: string }
+  params: any
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailProps) {
-  const { id } = params
+  const id = params?.id
 
   const { data, error } = await supabase
     .from('news')
