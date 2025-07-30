@@ -1,25 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import NavBar from '@/components/layout/NavBar'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
-import { supabase } from '@/lib/supabaseClient'
-
-type Keyword = {
-  id: string
-  keyword: string
-}
 
 export default function CoachPage() {
   const user = useUser()
   const supabaseClient = useSupabaseClient()
-  const [systemPrompt, setSystemPrompt] = useState('')
-  const [keywords, setKeywords] = useState<Keyword[]>([])
-  const [selectedKeyword, setSelectedKeyword] = useState<string>('')
 
   const handleLogin = async () => {
     await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
@@ -28,10 +19,6 @@ export default function CoachPage() {
   const handleLogout = async () => {
     await supabaseClient.auth.signOut()
   }
-
-  useEffect(() => {
-    // 필요하면 systemPrompt나 키워드 fetch 추가 가능
-  }, [])
 
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
