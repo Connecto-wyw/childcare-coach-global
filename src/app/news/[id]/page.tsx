@@ -1,12 +1,12 @@
 import { supabase } from '@/lib/supabaseClient'
 
-// 타입 검사 회피: params는 런타임에서만 체크
-type NewsDetailProps = {
-  params?: { id?: string }
+// Next.js 15 호환용 직접 PageProps 타입 정의
+type NewsDetailPageProps = {
+  params: Promise<{ id: string }>
 }
 
-export default async function NewsDetailPage({ params }: NewsDetailProps) {
-  const id = params?.id || ''
+export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
+  const { id } = await params
 
   const { data, error } = await supabase
     .from('news')
