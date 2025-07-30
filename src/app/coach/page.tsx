@@ -1,48 +1,71 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
+import NewsSection from '@/components/NewsSection'
+import NavBar from '@/components/layout/NavBar'
+import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabaseClient'
 
-export default function HomePage() {
+type Keyword = {
+  id: string
+  keyword: string
+}
+
+export default function CoachPage() {
+  const user = useUser()
+  const supabaseClient = useSupabaseClient()
+  const [systemPrompt, setSystemPrompt] = useState('')
+  const [keywords, setKeywords] = useState<Keyword[]>([])
+  const [selectedKeyword, setSelectedKeyword] = useState<string>('')
+
+  const handleLogin = async () => {
+    await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
+  }
+
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut()
+  }
+
+  useEffect(() => {
+    // 나중에 systemPrompt나 키워드 불러오는 로직 추가 가능
+  }, [])
+
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+      <NavBar />
+
       <div className="max-w-5xl mx-auto px-4 py-12">
-        {/* 로고 + 타이틀 */}
-        <div className="text-center mb-6">
-          <div className="flex justify-center mb-4">
-            <Logo />
-          </div>
-          <h1 className="text-4xl font-bold">AI 육아코치</h1>
+        {/* 로고 */}
+        <div className="flex justify-center mb-8">
+          <Logo />
         </div>
+
+        {/* 뉴스 섹션 */}
+        <NewsSection />
 
         {/* 챗봇 */}
         <div className="mb-12">
           <ChatBox />
         </div>
 
-        {/* 추가 영역: 오늘의 팁 + 인디언밥 추천 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 오늘의 육아 팁 컴포넌트 */}
-          <TipSection />
+        {/* 오늘의 팁 */}
+        <TipSection />
 
-          {/* 인디언밥 추천 콘텐츠 */}
-          <aside className="bg-[#444444] p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-3 text-[#eae3de]">✨ 인디언밥 추천 콘텐츠</h2>
-            <ul className="text-base space-y-2 text-[#e0dcd7]">
-              <li>👨‍👩‍👧 아이 성향 테스트</li>
-              <li>🎯 해빗 챌린지로 습관 만들기</li>
-              <li>📍 요즘 육아 뉴스 확인</li>
-            </ul>
-            <a
-              href="https://indianbob.me"
-              target="_blank"
-              className="inline-block mt-4 px-4 py-2 text-base bg-[#8a1a1d] text-[#eae3de] rounded hover:opacity-90"
-            >
-              인디언밥 앱 다운로드 →
-            </a>
-          </aside>
-        </div>
+        {/* 로그인 버튼 (테스트용) */}
+        {!user && (
+          <Button onClick={handleLogin} className="bg-[#8a1a1d] mt-6">
+            구글 로그인
+          </Button>
+        )}
+        {user && (
+          <Button onClick={handleLogout} className="bg-[#3EB6F1] mt-6">
+            로그아웃
+          </Button>
+        )}
       </div>
     </main>
   )
