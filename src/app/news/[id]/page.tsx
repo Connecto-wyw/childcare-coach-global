@@ -1,12 +1,12 @@
 import { supabase } from '@/lib/supabaseClient'
 
-// 타입 강제 우회로 빌드 에러 방지
+// Next.js 15 호환을 위해 params 타입을 명확히 지정
 interface NewsDetailProps {
-  params: any
+  params: { id: string } | undefined
 }
 
 export default async function NewsDetailPage({ params }: NewsDetailProps) {
-  const id = params?.id
+  const id = params?.id || ''
 
   const { data, error } = await supabase
     .from('news')
