@@ -9,7 +9,7 @@ type NewsItem = {
   content?: string
   url?: string
   thumbnail?: string
-  published_at: string
+  created_at?: string
 }
 
 export default function AdminNewsPage() {
@@ -19,12 +19,12 @@ export default function AdminNewsPage() {
   const [url, setUrl] = useState('')
   const [thumbnail, setThumbnail] = useState('')
 
-  // 뉴스 불러오기
+  // 뉴스 불러오기 (news 테이블 기준)
   const fetchNews = async () => {
     const { data, error } = await supabase
-      .from('parenting_news')
-      .select('*')
-      .order('published_at', { ascending: false })
+      .from('news')
+      .select('id, title, content, url, thumbnail, created_at')
+      .order('created_at', { ascending: false })
     if (!error && data) setNews(data)
   }
 
@@ -35,8 +35,14 @@ export default function AdminNewsPage() {
   // 뉴스 등록
   const addNews = async () => {
     if (!title) return
-    const { error } = await supabase.from('parenting_news').insert([
-      { title, content, url, thumbnail },
+    const { error } = await supabase.from('news').insert([
+      {
+        title,
+        content,
+        url,
+        thumbnail
+        // created_at은 Supabase가 now()로 자동 채움
+      },
     ])
     if (!error) {
       setTitle('')
@@ -49,7 +55,7 @@ export default function AdminNewsPage() {
 
   // 뉴스 삭제
   const deleteNews = async (id: string) => {
-    await supabase.from('parenting_news').delete().eq('id', id)
+    await supabase.from('news').delete().eq('id', id)
     fetchNews()
   }
 
