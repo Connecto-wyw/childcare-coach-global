@@ -1,14 +1,17 @@
 import { supabase } from '@/lib/supabaseClient'
 
-type NewsDetailProps = {
+// Next.js 15에서 PageProps 타입 충돌 방지
+interface NewsDetailProps {
   params: { id: string }
 }
 
-export default async function NewsDetail({ params }: NewsDetailProps) {
+export default async function NewsDetailPage({ params }: NewsDetailProps) {
+  const { id } = params
+
   const { data, error } = await supabase
     .from('news')
     .select('title, content, created_at')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error || !data) {
@@ -21,7 +24,9 @@ export default async function NewsDetail({ params }: NewsDetailProps) {
       <p className="text-gray-500 text-sm mb-6">
         {new Date(data.created_at).toLocaleDateString()}
       </p>
-      <div className="prose max-w-none whitespace-pre-line">{data.content}</div>
+      <div className="prose max-w-none whitespace-pre-line">
+        {data.content}
+      </div>
     </div>
   )
 }
