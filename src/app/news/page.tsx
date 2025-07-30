@@ -37,7 +37,7 @@ export default function NewsPage() {
             <li key={item.id} className="border-b border-gray-700 pb-3">
               <Link
                 href={`/news/${item.id}`}
-                className="text-[#9F1D23] hover:underline text-xl"
+                className="text-[#eae3de] hover:text-[#9F1D23] text-lg transition-colors duration-200"
               >
                 {item.title}
               </Link>
