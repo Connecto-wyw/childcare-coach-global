@@ -1,13 +1,8 @@
 'use client'
 
-import NavBar from '@/components/layout/NavBar'
-
 export default function TeamPage() {
   return (
-    <main className="min-h-screen bg-[#191919] text-[#eae3de] font-sans">
-      {/* 상단 네비게이션바 */}
-      <NavBar />
-
+    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
         <h1 className="text-4xl font-bold mb-8">TEAM</h1>
         <p className="text-gray-400">
