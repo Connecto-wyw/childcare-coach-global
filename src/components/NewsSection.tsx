@@ -10,7 +10,7 @@ type NewsItem = {
   created_at: string
 }
 
-export default function NewsPage() {
+export default function NewsSection() {
   const [newsList, setNewsList] = useState<NewsItem[]>([])
 
   useEffect(() => {
@@ -27,17 +27,17 @@ export default function NewsPage() {
   }, [])
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-12 text-[#eae3de]">
-      <h1 className="text-3xl font-bold mb-6">NEWS</h1>
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">NEWS</h2>
       {newsList.length === 0 ? (
-        <p className="text-gray-400">등록된 뉴스가 없습니다.</p>
+        <p className="text-gray-500">등록된 뉴스가 없습니다.</p>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {newsList.map((item) => (
-            <li key={item.id} className="border-b border-gray-700 pb-3">
+            <li key={item.id} className="border-b pb-2">
               <Link
                 href={`/news/${item.id}`}
-                className="text-blue-400 hover:underline text-xl"
+                className="text-blue-600 hover:underline font-medium"
               >
                 {item.title}
               </Link>
@@ -48,6 +48,6 @@ export default function NewsPage() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   )
 }
