@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
