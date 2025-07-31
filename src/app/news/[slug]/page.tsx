@@ -2,8 +2,6 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
-// props 타입 직접 명시 ❌ (Next 15에서 충돌 유발 가능)
-// 구조 분해로 직접 꺼내 쓰기 ✅
 export default async function Page({ params }: { params: { slug: string } }) {
   const supabase = createServerComponentClient<Database>({ cookies })
 
@@ -18,7 +16,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12">
+    <div className="max-w-5xl mx-auto px-4 py-12 bg-[#111] text-white min-h-screen">
       <h1 className="text-3xl font-bold mb-4">{data.title}</h1>
       <p className="text-sm text-gray-400 text-right mb-6">
         {new Date(data.created_at).toLocaleDateString()}
