@@ -6,7 +6,7 @@ import { useUser } from '@supabase/auth-helpers-react'
 
 type ChatBoxProps = {
   systemPrompt?: string
-  initialQuestion?: string // 🔹 추가: 부모(코치 페이지)에서 전달받는 초기 질문
+  initialQuestion?: string // 부모(코치 페이지)에서 전달받는 초기 질문
 }
 
 export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps) {
@@ -26,7 +26,7 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
     return () => clearTimeout(timer)
   }, [])
 
-  // 🔹 인기 키워드 클릭 시 자동 질문 처리
+  // 인기 키워드 클릭 시 자동 질문 처리
   useEffect(() => {
     if (initialQuestion && ready) {
       setMessage(initialQuestion)
