@@ -48,14 +48,14 @@ export default function CoachPage() {
           <Logo />
         </div>
 
-        {/* 인기 키워드 */}
-        <section className="mb-8">
+        {/* 인기 키워드 (중앙 정렬) */}
+        <section className="mb-8 text-center">
           <h2 className="text-xl font-semibold mb-3">요즘 인기 키워드</h2>
-          <div className="flex gap-3">
+          <div className="flex justify-center gap-3">
             {keywords.map((kw) => (
               <button
                 key={kw}
-                className="bg-[#9F1D23] px-4 py-1 rounded text-white hover:opacity-90 transition"
+                className="bg-[#3fb1df] px-4 py-1 rounded text-white hover:opacity-90 transition"
                 onClick={() => handleKeywordClick(kw)}
               >
                 {kw}
@@ -67,8 +67,10 @@ export default function CoachPage() {
         {/* 챗봇: chatInput과 setChatInput props 전달 필요 */}
         <ChatBox chatInput={chatInput} setChatInput={setChatInput} />
 
-        {/* 오늘의 팁 */}
-        <TipSection />
+        {/* 오늘의 팁 (중앙 정렬) */}
+        <section className="mt-12 text-center max-w-xl mx-auto">
+          <TipSection />
+        </section>
 
         {/* 로그인 버튼만 보여줌 */}
         {!user && (
