@@ -14,9 +14,7 @@ export default function CoachPage() {
     await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
   }
 
-  const handleLogout = async () => {
-    await supabaseClient.auth.signOut()
-  }
+  // 로그아웃 버튼 삭제 (NavBar에서만 보여줌)
 
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
@@ -34,14 +32,10 @@ export default function CoachPage() {
         {/* 오늘의 팁 */}
         <TipSection />
 
-        {/* 로그인/로그아웃 버튼 */}
-        {!user ? (
+        {/* 로그인 버튼만 보여줌 */}
+        {!user && (
           <Button onClick={handleLogin} className="bg-[#8a1a1d] mt-6">
             구글 로그인
-          </Button>
-        ) : (
-          <Button onClick={handleLogout} className="bg-[#3EB6F1] mt-6">
-            로그아웃
           </Button>
         )}
       </div>
