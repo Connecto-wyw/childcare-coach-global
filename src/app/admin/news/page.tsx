@@ -8,7 +8,6 @@ type NewsItem = {
   title: string
   content?: string
   url?: string
-  thumbnail?: string
   created_at?: string
 }
 
@@ -17,13 +16,12 @@ export default function AdminNewsPage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [url, setUrl] = useState('')
-  const [thumbnail, setThumbnail] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // 뉴스 불러오기 (news 테이블 기준)
   const fetchNews = async () => {
     const { data, error } = await supabase
       .from('news')
-      .select('id, title, content, url, thumbnail, created_at')
+      .select('id, title, content, url, created_at')
       .order('created_at', { ascending: false })
     if (!error && data) setNews(data)
   }
@@ -32,7 +30,6 @@ export default function AdminNewsPage() {
     fetchNews()
   }, [])
 
-  // 뉴스 등록 (fetch 직접 호출 버전)
   const addNews = async () => {
     if (!title) return
     try {
@@ -42,13 +39,12 @@ export default function AdminNewsPage() {
           apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
           Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
           'Content-Type': 'application/json',
-          Prefer: 'return=representation', // 삽입 후 결과 받기
+          Prefer: 'return=representation',
         },
         body: JSON.stringify({
           title,
           content,
           url,
-          thumbnail,
         }),
       })
       if (!res.ok) {
@@ -61,24 +57,25 @@ export default function AdminNewsPage() {
       setTitle('')
       setContent('')
       setUrl('')
-      setThumbnail('')
       fetchNews()
     } catch (err) {
       console.error('뉴스 등록 중 에러:', err)
     }
   }
 
-  // 뉴스 삭제
   const deleteNews = async (id: string) => {
     await supabase.from('news').delete().eq('id', id)
     fetchNews()
+  }
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => (prev === id ? null : id))
   }
 
   return (
     <main className="p-6 text-black bg-white min-h-screen">
       <h1 className="text-2xl font-bold mb-4">육아 뉴스 관리</h1>
 
-      {/* 뉴스 등록 폼 */}
       <div className="mb-6 space-y-3">
         <input
           className="w-full p-2 border rounded"
@@ -98,12 +95,6 @@ export default function AdminNewsPage() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <input
-          className="w-full p-2 border rounded"
-          placeholder="썸네일 이미지 URL (선택)"
-          value={thumbnail}
-          onChange={(e) => setThumbnail(e.target.value)}
-        />
         <button
           onClick={addNews}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:opacity-90"
@@ -112,22 +103,40 @@ export default function AdminNewsPage() {
         </button>
       </div>
 
-      {/* 뉴스 리스트 */}
       <div className="space-y-4">
         {news.map((item) => (
           <div
             key={item.id}
-            className="border p-4 rounded flex justify-between items-center"
+            className="border p-4 rounded flex flex-col"
           >
-            <div>
-              <h2 className="text-lg font-semibold">{item.title}</h2>
-              <p className="text-sm text-gray-600">
-                {item.content?.slice(0, 80)}...
-              </p>
-            </div>
+            <h2
+              className="text-lg font-semibold cursor-pointer"
+              onClick={() => toggleExpand(item.id)}
+            >
+              {item.title}
+            </h2>
+
+            {expandedId === item.id && (
+              <div className="mt-2 text-gray-700">
+                {item.content ?? '내용이 없습니다.'}
+                {item.url && (
+                  <p className="mt-1">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline"
+                    >
+                      원문 보기
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => deleteNews(item.id)}
-              className="text-red-500 hover:underline"
+              className="self-end mt-2 text-red-500 hover:underline"
             >
               삭제
             </button>
