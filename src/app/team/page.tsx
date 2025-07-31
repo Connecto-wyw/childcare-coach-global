@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -8,22 +6,25 @@ type Post = {
   title: string
   nickname: string
   created_at: string
+  content: string  // 내용도 타입에 추가해야 해
 }
 
 export default function TeamPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [showModal, setShowModal] = useState(false)
 
+  // 새로 추가한 상태
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
   // 글 작성 폼 상태
   const [title, setTitle] = useState('')
   const [nickname, setNickname] = useState('')
   const [content, setContent] = useState('')
 
-  // 게시글 불러오기
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from('team_posts')
-      .select('id, title, nickname, created_at')
+      .select('id, title, nickname, created_at, content') // content도 같이 조회
       .order('created_at', { ascending: false })
     if (!error && data) setPosts(data)
   }
@@ -32,7 +33,6 @@ export default function TeamPage() {
     fetchPosts()
   }, [])
 
-  // 게시글 등록
   const addPost = async () => {
     if (!title || !nickname || !content) {
       alert('모든 필드를 입력해 주세요.')
@@ -55,12 +55,16 @@ export default function TeamPage() {
     }
   }
 
+  // 제목 클릭 시 토글 함수
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => (prev === id ? null : id))
+  }
+
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans relative">
       <div className="max-w-5xl mx-auto px-4 py-12">
         <h1 className="text-4xl font-bold mb-8">TEAM 게시판</h1>
 
-        {/* 게시글 리스트 */}
         {posts.length === 0 ? (
           <p className="text-gray-400">게시글이 없습니다.</p>
         ) : (
@@ -68,15 +72,25 @@ export default function TeamPage() {
             {posts.map(post => (
               <li
                 key={post.id}
-                className="border-b border-gray-600 pb-2 flex justify-between items-center"
+                className="border-b border-gray-600 pb-2 flex flex-col"
               >
-                <div>
+                <div
+                  className="flex justify-between items-center cursor-pointer"
+                  onClick={() => toggleExpand(post.id)}
+                >
                   <p className="text-lg">{post.title}</p>
                   <p className="text-sm text-gray-400">작성자: {post.nickname}</p>
+                  <span className="text-sm text-gray-500">
+                    {new Date(post.created_at).toLocaleString()}
+                  </span>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {new Date(post.created_at).toLocaleString()}
-                </span>
+
+                {/* 내용 펼쳐진 경우에만 노출 */}
+                {expandedId === post.id && (
+                  <div className="mt-2 text-gray-300 whitespace-pre-wrap">
+                    {post.content}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -94,13 +108,11 @@ export default function TeamPage() {
       {/* 모달 */}
       {showModal && (
         <>
-          {/* 백드롭 */}
           <div
             className="fixed inset-0 bg-black bg-opacity-60"
             onClick={() => setShowModal(false)}
           ></div>
 
-          {/* 모달 박스 */}
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <div className="bg-[#444] rounded-lg p-6 w-full max-w-md relative">
               <h2 className="text-2xl font-semibold mb-4 text-white">글 작성</h2>
