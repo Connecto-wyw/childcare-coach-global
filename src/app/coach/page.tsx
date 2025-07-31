@@ -34,7 +34,16 @@ export default function CoachPage() {
         {/* 오늘의 팁 */}
         <TipSection />
 
-        
+        {/* 로그인/로그아웃 버튼 */}
+        {!user ? (
+          <Button onClick={handleLogin} className="bg-[#8a1a1d] mt-6">
+            구글 로그인
+          </Button>
+        ) : (
+          <Button onClick={handleLogout} className="bg-[#3EB6F1] mt-6">
+            로그아웃
+          </Button>
+        )}
       </div>
     </main>
   )
