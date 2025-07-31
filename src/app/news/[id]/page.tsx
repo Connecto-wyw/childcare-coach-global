@@ -1,4 +1,3 @@
-// src/app/news/[id]/page.tsx
 import { supabase } from '@/lib/supabaseClient'
 
 export default async function NewsDetailPage({
