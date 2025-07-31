@@ -62,20 +62,20 @@ export default function TeamNewPage() {
         placeholder="제목"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="w-full p-2 mb-4 rounded text-black"
+        className="w-full p-2 mb-4 rounded bg-[#444] text-white placeholder:text-gray-400"
       />
       <input
         type="text"
         placeholder="닉네임"
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
-        className="w-full p-2 mb-4 rounded text-black"
+        className="w-full p-2 mb-4 rounded bg-[#444] text-white placeholder:text-gray-400"
       />
       <textarea
         placeholder="내용"
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        className="w-full p-2 mb-4 rounded text-black h-40 resize-none"
+        className="w-full p-2 mb-4 rounded bg-[#444] text-white placeholder:text-gray-400 h-40 resize-none"
       />
       <button
         onClick={addPost}
