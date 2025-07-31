@@ -10,7 +10,7 @@ type NewsItem = {
   content: string
   created_at: string
 }
-
+// ✅ 여기가 핵심! generateStaticParams 없이 쓸 때는 이 구조가 필요
 export default function NewsDetailPage({ params }: { params: { id: string } }) {
   const [news, setNews] = useState<NewsItem | null>(null)
 
