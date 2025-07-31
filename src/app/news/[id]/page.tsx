@@ -1,34 +1,49 @@
-import { supabase } from '@/lib/supabaseClient'
+// app/news/[id]/page.tsx
+'use client'
 
-// Next.js 15 호환용 직접 PageProps 타입 정의
-type NewsDetailPageProps = {
-  params: Promise<{ id: string }>
+import { supabase } from '@/lib/supabaseClient'
+import { notFound } from 'next/navigation'
+import { useEffect, useState } from 'react'
+
+type NewsItem = {
+  id: string
+  title: string
+  content: string
+  created_at: string
 }
 
-export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
-  const { id } = await params
+export default function NewsDetailPage({ params }: { params: { id: string } }) {
+  const [news, setNews] = useState<NewsItem | null>(null)
 
-  const { data, error } = await supabase
-    .from('news')
-    .select('title, content, created_at')
-    .eq('id', id)
-    .single()
+  useEffect(() => {
+    const fetchNews = async () => {
+      const { data, error } = await supabase
+        .from('news')
+        .select('id, title, content, created_at')
+        .eq('id', params.id)
+        .single()
 
-  if (error || !data) {
-    return (
-      <main className="min-h-screen bg-[#333333] text-[#eae3de] p-6">
-        뉴스를 불러올 수 없습니다.
-      </main>
-    )
+      if (!error && data) setNews(data)
+    }
+
+    fetchNews()
+  }, [params.id])
+
+  if (!news) {
+    return <p className="text-gray-400 p-4">뉴스를 불러오는 중입니다...</p>
   }
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] p-6 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4">{data.title}</h1>
-      <p className="text-gray-400 text-sm mb-8">
-        {new Date(data.created_at).toLocaleDateString()}
-      </p>
-      <div className="prose max-w-none whitespace-pre-line">{data.content}</div>
+    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+      <div className="max-w-5xl mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-4">{news.title}</h1>
+        <p className="text-sm text-gray-400 text-right mb-6">
+          {new Date(news.created_at).toLocaleDateString()}
+        </p>
+        <div className="whitespace-pre-wrap text-base text-gray-100">
+          {news.content}
+        </div>
+      </div>
     </main>
   )
 }
