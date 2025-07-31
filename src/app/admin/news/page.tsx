@@ -32,23 +32,39 @@ export default function AdminNewsPage() {
     fetchNews()
   }, [])
 
-  // 뉴스 등록
+  // 뉴스 등록 (fetch 직접 호출 버전)
   const addNews = async () => {
     if (!title) return
-    const { error } = await supabase.from('news').insert([
-      {
-        title,
-        content,
-        url,
-        thumbnail,
-      },
-    ])
-    if (!error) {
+    try {
+      const res = await fetch('https://hrvbdyusoybsviiuboac.supabase.co/rest/v1/news', {
+        method: 'POST',
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation', // 삽입 후 결과 받기
+        },
+        body: JSON.stringify({
+          title,
+          content,
+          url,
+          thumbnail,
+        }),
+      })
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error('뉴스 등록 실패:', errorText)
+        return
+      }
+      const data = await res.json()
+      console.log('등록된 뉴스:', data)
       setTitle('')
       setContent('')
       setUrl('')
       setThumbnail('')
       fetchNews()
+    } catch (err) {
+      console.error('뉴스 등록 중 에러:', err)
     }
   }
 
