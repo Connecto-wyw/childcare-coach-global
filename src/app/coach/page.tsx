@@ -50,12 +50,12 @@ export default function CoachPage() {
 
         {/* 인기 키워드 (중앙 정렬) */}
         <section className="mb-8 text-center">
-          <h2 className="text-xl font-semibold mb-3">요즘 인기 키워드</h2>
+          <h2 className="text-lg font-semibold mb-3">요즘 인기 키워드</h2>
           <div className="flex justify-center gap-3">
             {keywords.map((kw) => (
               <button
                 key={kw}
-                className="bg-[#3fb1df] px-4 py-1 rounded text-white hover:opacity-90 transition"
+                className="bg-gray-600 text-white text-sm px-4 py-1 rounded hover:opacity-90 transition"
                 onClick={() => handleKeywordClick(kw)}
               >
                 {kw}
