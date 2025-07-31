@@ -8,17 +8,13 @@ type Post = {
   title: string
   nickname: string
   created_at: string
-  content: string  // 내용도 타입에 추가해야 해
+  content: string
 }
 
 export default function TeamPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [showModal, setShowModal] = useState(false)
-
-  // 새로 추가한 상태
   const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  // 글 작성 폼 상태
   const [title, setTitle] = useState('')
   const [nickname, setNickname] = useState('')
   const [content, setContent] = useState('')
@@ -26,7 +22,7 @@ export default function TeamPage() {
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from('team_posts')
-      .select('id, title, nickname, created_at, content') // content도 같이 조회
+      .select('id, title, nickname, created_at, content')
       .order('created_at', { ascending: false })
     if (!error && data) setPosts(data)
   }
@@ -57,7 +53,6 @@ export default function TeamPage() {
     }
   }
 
-  // 제목 클릭 시 토글 함수
   const toggleExpand = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id))
   }
@@ -65,7 +60,7 @@ export default function TeamPage() {
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans relative">
       <div className="max-w-5xl mx-auto px-4 py-12">
-        <h1 className="text-4xl font-bold mb-8">TEAM 게시판</h1>
+        <h1 className="text-4xl font-bold mb-8">TALK</h1>
 
         {posts.length === 0 ? (
           <p className="text-gray-400">게시글이 없습니다.</p>
@@ -81,10 +76,11 @@ export default function TeamPage() {
                   onClick={() => toggleExpand(post.id)}
                 >
                   <p className="text-lg">{post.title}</p>
-                  <p className="text-sm text-gray-400">작성자: {post.nickname}</p>
-                  <span className="text-sm text-gray-500">
-                    {new Date(post.created_at).toLocaleString()}
-                  </span>
+                </div>
+
+                {/* 작성자 및 작성일시 */}
+                <div className="text-sm text-gray-400 text-right mt-1">
+                  작성자: {post.nickname} · {new Date(post.created_at).toLocaleString()}
                 </div>
 
                 {/* 내용 펼쳐진 경우에만 노출 */}

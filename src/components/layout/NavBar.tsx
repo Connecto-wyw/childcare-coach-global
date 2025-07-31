@@ -4,12 +4,12 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
 export default function NavBar() {
-  const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'team'>('home')
+  const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'talk'>('home')
 
   useEffect(() => {
     const path = window.location.pathname
     if (path.startsWith('/news')) setActiveMenu('news')
-    else if (path.startsWith('/team')) setActiveMenu('team')
+    else if (path.startsWith('/team')) setActiveMenu('talk') // 경로는 그대로 '/team'
     else setActiveMenu('home')
   }, [])
 
@@ -36,13 +36,13 @@ export default function NavBar() {
             NEWS
           </Link>
           <Link
-            href="/team"
-            onClick={() => setActiveMenu('team')}
+            href="/team" // 경로는 '/team' 유지
+            onClick={() => setActiveMenu('talk')}
             className={`transition ${
-              activeMenu === 'team' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
+              activeMenu === 'talk' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
             }`}
           >
-            TEAM
+            TALK
           </Link>
         </div>
       </div>
