@@ -1,55 +1,48 @@
+// app/news/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-type NewsItem = {
+type NewsPost = {
   id: string
   title: string
+  slug: string
   created_at: string
 }
 
-export default function NewsPage() {
-  const [newsList, setNewsList] = useState<NewsItem[]>([])
+export default function NewsListPage() {
+  const [newsList, setNewsList] = useState<NewsPost[]>([])
+
+  const fetchNews = async () => {
+    const { data } = await supabase
+      .from('news_posts')
+      .select('id, title, slug, created_at')
+      .order('created_at', { ascending: false })
+
+    setNewsList(data || [])
+  }
 
   useEffect(() => {
-    const fetchNews = async () => {
-      const { data, error } = await supabase
-        .from('news')
-        .select('id, title, created_at')
-        .order('created_at', { ascending: false })
-      if (!error && data) {
-        setNewsList(data)
-      }
-    }
     fetchNews()
   }, [])
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-6">NEWS</h1>
-        {newsList.length === 0 ? (
-          <p className="text-gray-400">등록된 뉴스가 없습니다.</p>
-        ) : (
-          <ul className="space-y-4">
-            {newsList.map((item) => (
-              <li key={item.id} className="border-b border-gray-700 pb-3">
-                <Link
-                  href={`/news/${item.id}`}
-                  className="text-[#eae3de] hover:text-[#9F1D23] text-lg transition-colors duration-200"
-                >
-                  {item.title}
-                </Link>
-                <p className="text-sm text-gray-500">
-                  {new Date(item.created_at).toLocaleDateString()}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
+    <div className="max-w-3xl mx-auto px-4 py-12">
+      <h1 className="text-2xl font-bold mb-6">📰 뉴스</h1>
+      <ul className="space-y-4">
+        {newsList.map((post) => (
+          <li key={post.id}>
+            <Link href={`/news/${post.slug}`}>
+              <div className="text-lg text-blue-600 hover:underline">{post.title}</div>
+            </Link>
+            <p className="text-sm text-gray-500">
+              {new Date(post.created_at).toLocaleDateString()}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
