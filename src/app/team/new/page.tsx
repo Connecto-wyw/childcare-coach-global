@@ -1,69 +1,88 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { supabase } from '@/lib/supabaseClient'
+import { useState } from 'react'
+import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { useRouter } from 'next/navigation'
 
-type Post = {
-  id: string
-  title: string
-  nickname: string
-  created_at: string
-}
+export default function TeamNewPage() {
+  const user = useUser()
+  const supabaseClient = useSupabaseClient()
+  const router = useRouter()
 
-export default function TeamPage() {
-  const [posts, setPosts] = useState<Post[]>([])
+  const [title, setTitle] = useState('')
+  const [nickname, setNickname] = useState('')
+  const [content, setContent] = useState('')
 
-  // 게시글 불러오기
-  const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from('team_posts')
-      .select('id, title, nickname, created_at')
-      .order('created_at', { ascending: false })
-    if (!error && data) {
-      setPosts(data)
+  const handleLogin = async () => {
+    await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
+  }
+
+  const addPost = async () => {
+    if (!title || !nickname || !content) {
+      alert('모든 필드를 입력해 주세요.')
+      return
+    }
+
+    const { error } = await supabaseClient.from('team_posts').insert([
+      {
+        title,
+        nickname,
+        content,
+        user_id: user?.id ?? null,
+      },
+    ])
+
+    if (error) {
+      alert('글 작성에 실패했습니다.')
+      console.error(error)
+    } else {
+      router.push('/team')
     }
   }
 
-  useEffect(() => {
-    fetchPosts()
-  }, [])
+  if (!user) {
+    // 로그인 안 된 상태에서는 로그인 버튼만 보여줌
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] flex items-center justify-center">
+        <button
+          onClick={handleLogin}
+          className="px-6 py-3 bg-[#8a1a1d] rounded text-white hover:opacity-90"
+        >
+          구글 로그인 후 글 작성 가능
+        </button>
+      </main>
+    )
+  }
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans relative">
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <h1 className="text-4xl font-bold mb-8">TEAM 게시판</h1>
-
-        {/* 게시글 리스트 */}
-        {posts.length === 0 ? (
-          <p className="text-gray-400">게시글이 없습니다.</p>
-        ) : (
-          <ul className="space-y-4">
-            {posts.map((post) => (
-              <li
-                key={post.id}
-                className="border-b border-gray-600 pb-2 flex justify-between items-center"
-              >
-                <div>
-                  <p className="text-lg">{post.title}</p>
-                  <p className="text-sm text-gray-400">작성자: {post.nickname}</p>
-                </div>
-                <span className="text-sm text-gray-500">
-                  {new Date(post.created_at).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* 글 작성 페이지로 이동하는 플로팅 버튼 */}
-      <Link
-        href="/team/new"
-        className="fixed bottom-6 right-6 px-5 py-3 bg-[#8a1a1d] text-white rounded-full shadow-lg hover:opacity-80"
+    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans max-w-3xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">글 작성</h1>
+      <input
+        type="text"
+        placeholder="제목"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="w-full p-2 mb-4 rounded text-black"
+      />
+      <input
+        type="text"
+        placeholder="닉네임"
+        value={nickname}
+        onChange={(e) => setNickname(e.target.value)}
+        className="w-full p-2 mb-4 rounded text-black"
+      />
+      <textarea
+        placeholder="내용"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="w-full p-2 mb-4 rounded text-black h-40 resize-none"
+      />
+      <button
+        onClick={addPost}
+        className="px-6 py-3 bg-[#8a1a1d] rounded text-white hover:opacity-90"
       >
-        글 작성
-      </Link>
+        등록
+      </button>
     </main>
   )
 }

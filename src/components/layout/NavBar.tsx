@@ -4,12 +4,20 @@ import Link from 'next/link'
 import { useUser } from '@supabase/auth-helpers-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function NavBar() {
   const user = useUser()
   const router = useRouter()
-  const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'team'>('home') // 기본 HOME 활성화
+  const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'team'>('home')
+
+  // 현재 경로에 따라 activeMenu 업데이트 (초기 진입 시 처리)
+  useEffect(() => {
+    const path = window.location.pathname
+    if (path.startsWith('/news')) setActiveMenu('news')
+    else if (path.startsWith('/team')) setActiveMenu('team')
+    else setActiveMenu('home')
+  }, [])
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({ provider: 'google' })
@@ -60,6 +68,7 @@ export default function NavBar() {
             <button
               onClick={handleLogout}
               className="hover:text-[#9F1D23] transition"
+              title="로그아웃"
             >
               로그아웃
             </button>
@@ -67,6 +76,7 @@ export default function NavBar() {
             <button
               onClick={handleLogin}
               className="hover:text-[#9F1D23] transition"
+              title="로그인"
             >
               로그인
             </button>

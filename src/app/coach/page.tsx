@@ -3,6 +3,7 @@
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
+import NavBar from '@/components/layout/NavBar'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { Button } from '@/components/ui/button'
 
@@ -20,6 +21,8 @@ export default function CoachPage() {
 
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+      <NavBar />
+
       <div className="max-w-5xl mx-auto px-4 py-12">
         {/* 로고 */}
         <div className="flex justify-center mb-8">
@@ -35,15 +38,17 @@ export default function CoachPage() {
         <TipSection />
 
         {/* 로그인/로그아웃 버튼 */}
-        {!user ? (
-          <Button onClick={handleLogin} className="bg-[#8a1a1d] mt-6">
-            구글 로그인
-          </Button>
-        ) : (
-          <Button onClick={handleLogout} className="bg-[#3EB6F1] mt-6">
-            로그아웃
-          </Button>
-        )}
+        <div className="mt-6 flex justify-center">
+          {!user ? (
+            <Button onClick={handleLogin} className="bg-[#8a1a1d]">
+              구글 로그인
+            </Button>
+          ) : (
+            <Button onClick={handleLogout} className="bg-[#3EB6F1]">
+              로그아웃
+            </Button>
+          )}
+        </div>
       </div>
     </main>
   )
