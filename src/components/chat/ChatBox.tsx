@@ -7,16 +7,30 @@ import { useUser } from '@supabase/auth-helpers-react'
 type ChatBoxProps = {
   systemPrompt?: string
   initialQuestion?: string // 부모(코치 페이지)에서 전달받는 초기 질문
+  chatInput?: string // 부모에서 넘겨주는 채팅 입력값
+  setChatInput?: React.Dispatch<React.SetStateAction<string>> // 부모 상태 변경 함수
 }
 
-export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps) {
+export default function ChatBox({
+  systemPrompt,
+  initialQuestion,
+  chatInput,
+  setChatInput,
+}: ChatBoxProps) {
   const user = useUser()
   console.log('💡 user_id in ChatBox:', user?.id)
 
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(chatInput || '')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false) // GPT 호출 가능 여부
+
+  // chatInput이 바뀌면 message 상태도 같이 변경
+  useEffect(() => {
+    if (chatInput !== undefined) {
+      setMessage(chatInput)
+    }
+  }, [chatInput])
 
   // 1.5초 지연 후 활성화
   useEffect(() => {
@@ -31,6 +45,7 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
     if (initialQuestion && ready) {
       setMessage(initialQuestion)
       sendMessage(initialQuestion)
+      if (setChatInput) setChatInput(initialQuestion)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion, ready])
@@ -88,6 +103,11 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
     }
   }
 
+  const onChangeMessage = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value)
+    if (setChatInput) setChatInput(e.target.value)
+  }
+
   return (
     <div className="p-4 max-w-xl mx-auto mt-4">
       <textarea
@@ -95,7 +115,7 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
         rows={4}
         placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
         value={message}
-        onChange={(e) => setMessage(e.target.value)}
+        onChange={onChangeMessage}
       />
 
       <div className="flex justify-center mt-2">
@@ -104,11 +124,7 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
           disabled={loading || !ready}
           className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded disabled:opacity-50"
         >
-          {!ready
-            ? '준비 중...'
-            : loading
-            ? '함께 고민 중..'
-            : '질문하기'}
+          {!ready ? '준비 중...' : loading ? '함께 고민 중..' : '질문하기'}
         </button>
       </div>
 
