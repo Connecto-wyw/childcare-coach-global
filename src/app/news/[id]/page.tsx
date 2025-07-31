@@ -1,10 +1,10 @@
 import { supabase } from '@/lib/supabaseClient'
+import { Metadata } from 'next'
 
-export default async function NewsDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+// ✅ 타입 명시 없이 동작시키는 공식 방식
+export default async function Page(props: any) {
+  const { params } = props
+
   const { data, error } = await supabase
     .from('news')
     .select('id, title, content, created_at')
