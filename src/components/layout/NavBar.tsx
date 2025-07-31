@@ -1,17 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useUser } from '@supabase/auth-helpers-react'
-import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 export default function NavBar() {
-  const user = useUser()
-  const router = useRouter()
   const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'team'>('home')
 
-  // 현재 경로에 따라 activeMenu 업데이트 (초기 진입 시 처리)
   useEffect(() => {
     const path = window.location.pathname
     if (path.startsWith('/news')) setActiveMenu('news')
@@ -19,19 +13,9 @@ export default function NavBar() {
     else setActiveMenu('home')
   }, [])
 
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'google' })
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/') // 로그아웃 후 홈으로 이동
-  }
-
   return (
     <nav className="w-full bg-[#191919] text-[#eae3de] border-b border-gray-700">
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-        {/* 왼쪽 메뉴 */}
         <div className="flex gap-6 text-base font-medium">
           <Link
             href="/"
@@ -60,27 +44,6 @@ export default function NavBar() {
           >
             TEAM
           </Link>
-        </div>
-
-        {/* 오른쪽 로그인/로그아웃 */}
-        <div className="flex gap-4 text-base font-medium">
-          {user ? (
-            <button
-              onClick={handleLogout}
-              className="hover:text-[#9F1D23] transition"
-              title="로그아웃"
-            >
-              로그아웃
-            </button>
-          ) : (
-            <button
-              onClick={handleLogin}
-              className="hover:text-[#9F1D23] transition"
-              title="로그인"
-            >
-              로그인
-            </button>
-          )}
         </div>
       </div>
     </nav>

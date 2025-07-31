@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabaseClient'
 import Logo from '@/components/Logo'
 import { v4 as uuidv4 } from 'uuid'
 import { useUser } from '@supabase/auth-helpers-react'
-import LoginButton from '@/components/auth/LoginButton'
 
 type Option = {
   id: number
@@ -143,9 +142,6 @@ export default function SurveyPage() {
               AI 육아코치가 아이에게 더 적합한 조언을 드릴 수 있도록,<br />
               간단한 설문에 참여해주세요. (총 5문항)
             </p>
-            <div className="mt-6 flex justify-center">
-              <LoginButton>구글로 로그인 후 시작하기</LoginButton>
-            </div>
           </div>
         )}
 
