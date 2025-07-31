@@ -1,4 +1,3 @@
-// app/news/[id]/page.tsx
 'use client'
 
 import { supabase } from '@/lib/supabaseClient'
@@ -10,8 +9,13 @@ type NewsItem = {
   content: string
   created_at: string
 }
-// ✅ 여기가 핵심! generateStaticParams 없이 쓸 때는 이 구조가 필요
-export default function NewsDetailPage({ params }: { params: { id: string } }) {
+
+// ✅ 이 타입을 따로 빼서 선언해줘
+interface PageProps {
+  params: { id: string }
+}
+
+export default function NewsDetailPage({ params }: PageProps) {
   const [news, setNews] = useState<NewsItem | null>(null)
 
   useEffect(() => {
