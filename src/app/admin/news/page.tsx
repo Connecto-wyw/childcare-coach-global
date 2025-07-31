@@ -35,7 +35,7 @@ export default function AdminNewsPage() {
   // 뉴스 등록
   const addNews = async () => {
     if (!title) return
-    const { error } = await supabase.from('news').insert([
+    const { data, error } = await supabase.from('news').insert([
       {
         title,
         content,
@@ -44,7 +44,10 @@ export default function AdminNewsPage() {
         // created_at은 Supabase가 now()로 자동 채움
       },
     ])
-    if (!error) {
+    if (error) {
+      console.error('뉴스 등록 오류:', error)
+      alert(`뉴스 등록 실패: ${error.message}`)
+    } else {
       setTitle('')
       setContent('')
       setUrl('')
