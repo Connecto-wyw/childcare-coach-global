@@ -30,7 +30,7 @@ export default function NewsListPage() {
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-4xl font-bold mb-8">📰 뉴스</h1>
+        <h1 className="text-4xl font-bold mb-8">NEWS</h1>
         <ul className="space-y-4">
           {newsList.map((post) => (
             <li key={post.id} className="border-b border-gray-600 pb-2">
