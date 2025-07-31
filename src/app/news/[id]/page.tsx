@@ -2,7 +2,6 @@
 'use client'
 
 import { supabase } from '@/lib/supabaseClient'
-import { notFound } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 type NewsItem = {
