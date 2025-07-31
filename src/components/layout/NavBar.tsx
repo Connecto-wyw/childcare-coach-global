@@ -9,14 +9,13 @@ import { useState, useEffect } from 'react'
 export default function NavBar() {
   const user = useUser()
   const router = useRouter()
-  const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'team' | 'keywords'>('home')
+  const [activeMenu, setActiveMenu] = useState<'home' | 'news' | 'team'>('home')
 
   // 현재 경로에 따라 activeMenu 업데이트 (초기 진입 시 처리)
   useEffect(() => {
     const path = window.location.pathname
     if (path.startsWith('/news')) setActiveMenu('news')
     else if (path.startsWith('/team')) setActiveMenu('team')
-    else if (path.startsWith('/admin/keywords')) setActiveMenu('keywords')
     else setActiveMenu('home')
   }, [])
 
@@ -60,15 +59,6 @@ export default function NavBar() {
             }`}
           >
             TEAM
-          </Link>
-          <Link
-            href="/admin/keywords"
-            onClick={() => setActiveMenu('keywords')}
-            className={`transition ${
-              activeMenu === 'keywords' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
-            }`}
-          >
-            KEYWORDS
           </Link>
         </div>
 
