@@ -1,7 +1,6 @@
-import '../../../globals.css'
+import '@/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import '../../globals.css'  // app/globals.css 경로에 맞게 조정
 import { Providers } from '@/app/providers'  // Providers 경로 확인 필요
 
 const geistSans = Geist({
