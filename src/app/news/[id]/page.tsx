@@ -1,14 +1,14 @@
+// src/app/news/[id]/page.tsx
 import { supabase } from '@/lib/supabaseClient'
-import { Metadata } from 'next'
 
-// ✅ 타입 명시 없이 동작시키는 공식 방식
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function Page(props: any) {
-  const { params } = props
+  const id = props.params?.id
 
   const { data, error } = await supabase
     .from('news')
     .select('id, title, content, created_at')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error || !data) {
