@@ -59,7 +59,7 @@ export default function TeamPage() {
 
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
-      <div className="max-w-3xl mx-auto px-4 py-12 text-center">
+      <div className="max-w-3xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold mb-8">TALK</h1>
 
         {posts.length === 0 ? (
