@@ -58,9 +58,9 @@ export default function TeamPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans relative">
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <h1 className="text-4xl font-bold mb-8">TALK</h1>
+    <main className="min-h-screen bg-[#282828] text-white font-sans relative">
+      <div className="max-w-3xl mx-auto px-4 py-12 text-center">
+        <h1 className="text-3xl font-bold mb-8">TALK</h1>
 
         {posts.length === 0 ? (
           <p className="text-gray-400">게시글이 없습니다.</p>
@@ -69,21 +69,19 @@ export default function TeamPage() {
             {posts.map(post => (
               <li
                 key={post.id}
-                className="border-b border-gray-600 pb-2 flex flex-col"
+                className="border-b border-gray-700 pb-2 text-center"
               >
                 <div
-                  className="flex justify-between items-center cursor-pointer"
+                  className="flex justify-center items-center cursor-pointer"
                   onClick={() => toggleExpand(post.id)}
                 >
-                  <p className="text-lg">{post.title}</p>
+                  <p className="text-lg text-[#3EB6F1] hover:underline">{post.title}</p>
                 </div>
 
-                {/* 작성자 및 작성일시 */}
-                <div className="text-sm text-gray-400 text-right mt-1">
+                <div className="text-sm text-gray-400 text-center mt-1">
                   작성자: {post.nickname} · {new Date(post.created_at).toLocaleString()}
                 </div>
 
-                {/* 내용 펼쳐진 경우에만 노출 */}
                 {expandedId === post.id && (
                   <div className="mt-2 text-gray-300 whitespace-pre-wrap">
                     {post.content}
@@ -98,7 +96,7 @@ export default function TeamPage() {
       {/* 글 작성 버튼 */}
       <button
         onClick={() => setShowModal(true)}
-        className="fixed bottom-6 right-6 px-5 py-3 bg-[#8a1a1d] text-white rounded-full shadow-lg hover:opacity-80"
+        className="fixed bottom-6 right-6 px-5 py-3 bg-[#9F1D23] text-white rounded-full shadow-lg hover:opacity-80"
       >
         글 작성
       </button>
@@ -107,32 +105,33 @@ export default function TeamPage() {
       {showModal && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-60"
+            className="fixed inset-0 bg-opacity-60"
+            style={{ backgroundColor: '#282828' }}
             onClick={() => setShowModal(false)}
           ></div>
 
           <div className="fixed inset-0 flex items-center justify-center p-4">
-            <div className="bg-[#444] rounded-lg p-6 w-full max-w-md relative">
+            <div className="bg-[#222] rounded-lg p-6 w-full max-w-md">
               <h2 className="text-2xl font-semibold mb-4 text-white">글 작성</h2>
               <input
                 type="text"
                 placeholder="제목"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="w-full p-2 mb-3 rounded bg-[#666] text-white placeholder-gray-400"
+                className="w-full p-2 mb-3 rounded bg-[#444] text-white placeholder-gray-400"
               />
               <input
                 type="text"
                 placeholder="닉네임"
                 value={nickname}
                 onChange={e => setNickname(e.target.value)}
-                className="w-full p-2 mb-3 rounded bg-[#666] text-white placeholder-gray-400"
+                className="w-full p-2 mb-3 rounded bg-[#444] text-white placeholder-gray-400"
               />
               <textarea
                 placeholder="내용"
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                className="w-full p-2 mb-4 rounded bg-[#666] text-white placeholder-gray-400 resize-none h-32"
+                className="w-full p-2 mb-4 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-32"
               />
               <div className="flex justify-end gap-2">
                 <button
@@ -143,7 +142,7 @@ export default function TeamPage() {
                 </button>
                 <button
                   onClick={addPost}
-                  className="px-4 py-2 bg-[#8a1a1d] rounded text-white hover:opacity-90"
+                  className="px-4 py-2 bg-[#9F1D23] rounded text-white hover:opacity-90"
                 >
                   등록
                 </button>

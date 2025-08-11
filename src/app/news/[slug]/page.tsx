@@ -12,11 +12,11 @@ export default async function Page({ params }: { params: { slug: string } }) {
     .single()
 
   if (!data || error) {
-    return <div className="min-h-screen bg-black p-4 text-red-400">뉴스를 찾을 수 없습니다.</div>
+    return <div className="min-h-screen bg-[#282828] p-4 text-red-400">뉴스를 찾을 수 없습니다.</div>
   }
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-12">
+    <div className="min-h-screen bg-[#282828] text-white px-4 py-12">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold mb-4">{data.title}</h1>
         <p className="text-sm text-gray-400 text-right mb-6">
