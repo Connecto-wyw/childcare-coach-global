@@ -58,7 +58,7 @@ export default function TeamPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#282828] text-white font-sans relative">
+    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
       <div className="max-w-3xl mx-auto px-4 py-12 text-center">
         <h1 className="text-3xl font-bold mb-8">TALK</h1>
 
@@ -66,21 +66,17 @@ export default function TeamPage() {
           <p className="text-gray-400">게시글이 없습니다.</p>
         ) : (
           <ul className="space-y-4">
-            {posts.map(post => (
-              <li
-                key={post.id}
-                className="border-b border-gray-700 pb-2 text-center"
-              >
+            {posts.map((post) => (
+              <li key={post.id} className="border-b border-gray-600 pb-2">
                 <div
-                  className="flex justify-center items-center cursor-pointer"
+                  className="text-lg text-[#3EB6F1] hover:underline cursor-pointer"
                   onClick={() => toggleExpand(post.id)}
                 >
-                  <p className="text-lg text-[#3EB6F1] hover:underline">{post.title}</p>
+                  {post.title}
                 </div>
-
-                <div className="text-sm text-gray-400 text-center mt-1">
+                <p className="text-sm text-gray-400">
                   작성자: {post.nickname} · {new Date(post.created_at).toLocaleString()}
-                </div>
+                </p>
 
                 {expandedId === post.id && (
                   <div className="mt-2 text-gray-300 whitespace-pre-wrap">
