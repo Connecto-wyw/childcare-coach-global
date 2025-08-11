@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -40,6 +39,7 @@ export default function NewsListPage() {
         <ul className="space-y-4">
           {newsList.map((post) => (
             <li key={post.id} className="border-b border-gray-600 pb-2">
+              {/* 제목 클릭 시 본문 펼치기 */}
               <div
                 className="text-lg text-[#3EB6F1] hover:underline cursor-pointer"
                 onClick={() => toggleExpand(post.id)} // 제목 클릭 시 펼침
