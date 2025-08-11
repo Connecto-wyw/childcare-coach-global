@@ -14,12 +14,12 @@ type NewsPost = {
 
 export default function NewsListPage() {
   const [newsList, setNewsList] = useState<NewsPost[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null) // 펼쳐진 뉴스 아이디 관리
+  const [expandedId, setExpandedId] = useState<string | null>(null) // 펼쳐진 뉴스 관리
 
   const fetchNews = async () => {
     const { data } = await supabase
       .from('news_posts')
-      .select('id, title, slug, created_at, content') // content도 포함
+      .select('id, title, slug, created_at, content') // content 추가
       .order('created_at', { ascending: false })
 
     setNewsList(data || [])
@@ -30,7 +30,7 @@ export default function NewsListPage() {
   }, [])
 
   const toggleExpand = (id: string) => {
-    setExpandedId(prev => (prev === id ? null : id)) // 클릭한 뉴스의 펼침/접힘 상태 토글
+    setExpandedId(prev => (prev === id ? null : id)) // 클릭한 뉴스의 내용 펼침/접힘
   }
 
   return (
@@ -42,7 +42,7 @@ export default function NewsListPage() {
             <li key={post.id} className="border-b border-gray-600 pb-2">
               <div
                 className="text-lg text-[#3EB6F1] hover:underline cursor-pointer"
-                onClick={() => toggleExpand(post.id)} // 클릭 시 펼쳐짐
+                onClick={() => toggleExpand(post.id)} // 제목 클릭 시 펼침
               >
                 {post.title}
               </div>
@@ -50,7 +50,7 @@ export default function NewsListPage() {
                 {new Date(post.created_at).toLocaleDateString()}
               </p>
 
-              {/* 해당 뉴스가 펼쳐졌을 때 내용 표시 */}
+              {/* 클릭된 뉴스의 내용 표시 */}
               {expandedId === post.id && (
                 <div className="mt-2 text-gray-300 whitespace-pre-wrap">
                   {post.content}
