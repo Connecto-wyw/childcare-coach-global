@@ -3,15 +3,10 @@
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
-import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
-import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function CoachPage() {
-  const user = useUser()
-  const supabaseClient = useSupabaseClient()
-
   const [keywords, setKeywords] = useState<string[]>([])
   const [chatInput, setChatInput] = useState('')
 
@@ -34,10 +29,6 @@ export default function CoachPage() {
   // 키워드 클릭 시 질문 입력창에 자동 입력
   const handleKeywordClick = (keyword: string) => {
     setChatInput(keyword)
-  }
-
-  const handleLogin = async () => {
-    await supabaseClient.auth.signInWithOAuth({ provider: 'google' })
   }
 
   return (
@@ -64,20 +55,13 @@ export default function CoachPage() {
           </div>
         </section>
 
-        {/* 챗봇: chatInput과 setChatInput props 전달 필요 */}
+        {/* 챗봇 */}
         <ChatBox chatInput={chatInput} setChatInput={setChatInput} />
 
-        {/* 오늘의 팁 (중앙 정렬) */}
+        {/* 오늘의 팁 */}
         <section className="mt-12 text-center max-w-xl mx-auto">
           <TipSection />
         </section>
-
-        {/* 로그인 버튼만 보여줌 */}
-        {!user && (
-          <Button onClick={handleLogin} className="bg-[#8a1a1d] mt-6">
-            구글 로그인
-          </Button>
-        )}
       </div>
     </main>
   )
