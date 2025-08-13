@@ -19,16 +19,15 @@ export default function ChatBox({
   setChatInput,
 }: ChatBoxProps) {
   const user = useUser()
-
   const [message, setMessage] = useState(chatInput || '')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
 
+  // ── 설정 ─────────────────────────────────────────────────────────────
   const KAKAO_REDIRECT = 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback'
-  const MAX_FREE_TRIES = 2 // 1~2회 허용, 3번째에 팝업
+  const MAX_FREE_TRIES = 2 // 비로그인 시 1~2회 버튼 클릭 허용, 3번째에 팝업
 
-  // 날짜별 시도 카운트 (버튼 클릭 기준)
   const dayKey = () => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
@@ -38,26 +37,39 @@ export default function ChatBox({
   const TRY_KEY = `aiCoachAnonTry:${dayKey()}`
   const readTry = () =>
     typeof window === 'undefined' ? 0 : Number(localStorage.getItem(TRY_KEY)) || 0
-  const [anonTry, setAnonTry] = useState(0)
-  const writeTry = (n: number) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(TRY_KEY, String(n))
-    setAnonTry(n)
-  }
 
+  const [anonTry, setAnonTry] = useState(0)
+  const incTry = () => {
+    setAnonTry(prev => {
+      const next = prev + 1
+      if (typeof window !== 'undefined') localStorage.setItem(TRY_KEY, String(next))
+      return next
+    })
+  }
+  const syncTryFromStorage = () => {
+    const cur = readTry()
+    localStorage.setItem(TRY_KEY, String(cur)) // 키 없으면 0으로 고정
+    setAnonTry(cur)
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  // 비로그인 진입 시 시도 수 동기화
   useEffect(() => {
-    if (!user?.id) writeTry(readTry()) // 비로그인 초기 동기화
+    if (!user?.id) syncTryFromStorage()
   }, [user?.id])
 
+  // 외부 입력 동기화
   useEffect(() => {
     if (chatInput !== undefined) setMessage(chatInput)
   }, [chatInput])
 
+  // 준비 타이머
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 1500)
     return () => clearTimeout(t)
   }, [])
 
+  // initialQuestion 자동 전송
   useEffect(() => {
     if (initialQuestion && ready) {
       setMessage(initialQuestion)
@@ -75,7 +87,7 @@ export default function ChatBox({
       return
     }
 
-    // 비로그인: 3번째 시 팝업 → 동의 시 카카오 로그인
+    // 비로그인: 3번째 클릭 시 팝업 → 동의하면 카카오 로그인, 아니면 안내
     if (!user?.id) {
       if (anonTry >= MAX_FREE_TRIES) {
         const ok = window.confirm(
@@ -91,8 +103,8 @@ export default function ChatBox({
         }
         return
       }
-      // 1~2번째는 시도 즉시 +1 (성공/실패 무관)
-      writeTry(anonTry + 1)
+      // 1~2번째: 버튼 클릭 즉시 시도 +1 (API 성공/실패 무관)
+      incTry()
     }
 
     setLoading(true)
@@ -100,7 +112,7 @@ export default function ChatBox({
 
     try {
       const payload = {
-        user_id: user?.id,
+        user_id: user?.id, // 비로그인 시 undefined
         messages: [
           {
             role: 'system',
@@ -111,6 +123,7 @@ export default function ChatBox({
           { role: 'user', content: text },
         ],
       }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,7 +149,7 @@ export default function ChatBox({
     setChatInput?.(e.target.value)
   }
 
-  const remaining = Math.max(0, MAX_FREE_TRIES - anonTry)
+  const remaining = !user?.id ? Math.max(0, MAX_FREE_TRIES - anonTry) : Infinity
 
   return (
     <div className="p-4 max-w-xl mx-auto mt-4">
@@ -149,7 +162,7 @@ export default function ChatBox({
           onChange={onChangeMessage}
         />
 
-        {/* 오른쪽 상단 작게 표시 (비로그인만) */}
+        {/* 비로그인일 때만 우측 상단 작게 표기 */}
         {!user?.id && (
           <div className="absolute top-2 right-2 text-[11px] text-gray-500">
             오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
@@ -158,7 +171,7 @@ export default function ChatBox({
       </div>
 
       <div className="mt-2 flex items-center justify-between">
-        <div />{/* 좌측 비움 (정렬용) */}
+        <div /> {/* 정렬용 */}
         <button
           onClick={() => sendMessage()}
           disabled={loading || !ready}
