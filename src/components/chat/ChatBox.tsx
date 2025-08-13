@@ -19,49 +19,43 @@ export default function ChatBox({
   setChatInput,
 }: ChatBoxProps) {
   const user = useUser()
+
   const [message, setMessage] = useState(chatInput || '')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
 
   const KAKAO_REDIRECT = 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback'
+  const MAX_FREE_TRIES = 2 // 1~2회 허용, 3번째에 팝업
 
-  // ---- localStorage 기반 데일리 카운터 + state 동기화 ----
-  const dailyKey = () => {
+  // 날짜별 시도 카운트 (버튼 클릭 기준)
+  const dayKey = () => {
     const d = new Date()
-    const yyyy = d.getFullYear()
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `aiCoachAnonCount:${yyyy}-${mm}-${dd}`
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate()
+    ).padStart(2, '0')}`
   }
-  const readAnon = () => {
-    if (typeof window === 'undefined') return 0
-    const raw = localStorage.getItem(dailyKey())
-    return raw ? Number(raw) || 0 : 0
-  }
-  const writeAnon = (n: number) => {
+  const TRY_KEY = `aiCoachAnonTry:${dayKey()}`
+  const readTry = () =>
+    typeof window === 'undefined' ? 0 : Number(localStorage.getItem(TRY_KEY)) || 0
+  const [anonTry, setAnonTry] = useState(0)
+  const writeTry = (n: number) => {
     if (typeof window === 'undefined') return
-    localStorage.setItem(dailyKey(), String(n))
-    setAnonCount(n) // state도 동기화
+    localStorage.setItem(TRY_KEY, String(n))
+    setAnonTry(n)
   }
-
-  const [anonCount, setAnonCount] = useState(0)
 
   useEffect(() => {
-    if (!user?.id) {
-      writeAnon(readAnon()) // 초기 동기화 (키 없으면 0으로 세팅됨)
-    }
+    if (!user?.id) writeTry(readTry()) // 비로그인 초기 동기화
   }, [user?.id])
-
-  // -------------------------------------------------------
 
   useEffect(() => {
     if (chatInput !== undefined) setMessage(chatInput)
   }, [chatInput])
 
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 1500)
-    return () => clearTimeout(timer)
+    const t = setTimeout(() => setReady(true), 1500)
+    return () => clearTimeout(t)
   }, [])
 
   useEffect(() => {
@@ -81,9 +75,9 @@ export default function ChatBox({
       return
     }
 
-    // ✅ 비로그인 3번째 시도: 먼저 팝업 → 확인 시 카카오 로그인
+    // 비로그인: 3번째 시 팝업 → 동의 시 카카오 로그인
     if (!user?.id) {
-      if (anonCount >= 2) {
+      if (anonTry >= MAX_FREE_TRIES) {
         const ok = window.confirm(
           '카카오톡 로그인을 하시면 질문을 무제한으로 사용할 수 있어요.\n지금 로그인하시겠어요?'
         )
@@ -97,6 +91,8 @@ export default function ChatBox({
         }
         return
       }
+      // 1~2번째는 시도 즉시 +1 (성공/실패 무관)
+      writeTry(anonTry + 1)
     }
 
     setLoading(true)
@@ -104,7 +100,7 @@ export default function ChatBox({
 
     try {
       const payload = {
-        user_id: user?.id, // 비로그인 시 undefined
+        user_id: user?.id,
         messages: [
           {
             role: 'system',
@@ -115,7 +111,6 @@ export default function ChatBox({
           { role: 'user', content: text },
         ],
       }
-
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,12 +122,9 @@ export default function ChatBox({
 
       if (user?.id) {
         await saveChatLog(text, answer, user.id)
-      } else {
-        // ✅ 비로그인: 성공적으로 질문 처리되면 즉시 카운트 +1 (UI에 바로 반영됨)
-        writeAnon(anonCount + 1)
       }
     } catch (e) {
-      console.error(e)
+      console.error('에러:', e)
       setReply('에러가 발생했어요.')
     } finally {
       setLoading(false)
@@ -144,19 +136,29 @@ export default function ChatBox({
     setChatInput?.(e.target.value)
   }
 
-  const remaining = Math.max(0, 2 - anonCount)
+  const remaining = Math.max(0, MAX_FREE_TRIES - anonTry)
 
   return (
     <div className="p-4 max-w-xl mx-auto mt-4">
-      <textarea
-        className="w-full p-2 border rounded"
-        rows={4}
-        placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
-        value={message}
-        onChange={onChangeMessage}
-      />
+      <div className="relative">
+        <textarea
+          className="w-full p-2 border rounded"
+          rows={4}
+          placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
+          value={message}
+          onChange={onChangeMessage}
+        />
 
-      <div className="flex justify-center mt-2">
+        {/* 오른쪽 상단 작게 표시 (비로그인만) */}
+        {!user?.id && (
+          <div className="absolute top-2 right-2 text-[11px] text-gray-500">
+            오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between">
+        <div />{/* 좌측 비움 (정렬용) */}
         <button
           onClick={() => sendMessage()}
           disabled={loading || !ready}
@@ -165,12 +167,6 @@ export default function ChatBox({
           {!ready ? '준비 중...' : loading ? '함께 고민 중..' : '질문하기'}
         </button>
       </div>
-
-      {!user?.id && (
-        <div className="mt-2 text-xs text-gray-500 text-right">
-          오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
-        </div>
-      )}
 
       {reply && (
         <div className="mt-4 p-4 border rounded bg-[#333333] whitespace-pre-line text-left text-base text-white">
