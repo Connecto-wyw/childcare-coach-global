@@ -25,7 +25,7 @@ export default function ChatBox({
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
 
-  // 카카오 로그인 세션 판정 (provider === 'kakao')
+  // 카카오 로그인 여부 확정(세션 provider)
   const [isKakaoAuthed, setIsKakaoAuthed] = useState(false)
   useEffect(() => {
     let cancel = false
@@ -37,7 +37,7 @@ export default function ChatBox({
     return () => { cancel = true }
   }, [user])
 
-  // 시도 카운트(1~2회 허용, 3번째에 팝업)
+  // 비(카카오) 시도 카운트: 1~2회 허용, 3번째에 팝업
   const MAX_FREE_TRIES = 2
   const dayKey = () => {
     const d = new Date()
@@ -60,7 +60,6 @@ export default function ChatBox({
       return next
     })
   }
-
   useEffect(() => {
     if (!isKakaoAuthed) syncTryFromStorage()
   }, [isKakaoAuthed])
@@ -81,10 +80,9 @@ export default function ChatBox({
   const [showLoginModal, setShowLoginModal] = useState(false)
   const handleConfirmLogin = async () => {
     setShowLoginModal(false)
-    // ✅ 여기서 '현재 사이트 콜백'으로 보내야 카카오 로그인 화면으로 이동함
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: { redirectTo: `${location.origin}/auth/callback` }, // ✅ 현재 사이트 콜백
     })
   }
 
@@ -93,13 +91,13 @@ export default function ChatBox({
     if (!text) return
     if (!ready) { setReply('초기화 중입니다. 잠시만 기다려 주세요.'); return }
 
-    // 비(카카오) 사용자: 3번째 클릭에 커스텀 팝업
+    // 비(카카오): 3번째 클릭에 모달
     if (!isKakaoAuthed) {
       if (anonTry >= MAX_FREE_TRIES) {
         setShowLoginModal(true)
         return
       }
-      incTry()
+      incTry() // 1~2번째 시도 즉시 +1
     }
 
     setLoading(true)
@@ -137,7 +135,7 @@ export default function ChatBox({
           onChange={(e)=>setMessage(e.target.value)}
         />
         {!isKakaoAuthed && (
-          <div className="absolute top-2 right-2 text-[12px] text-whihte/70">
+          <div className="absolute top-2 right-2 text-[11px] text-gray-400">
             오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
           </div>
         )}
@@ -148,7 +146,7 @@ export default function ChatBox({
         <button
           onClick={()=>sendMessage()}
           disabled={loading || !ready}
-          className="px-4 py-2 bg-[#8a1a1d] text-white text-base rounded hover:opacity-90 disabled:opacity-50"
+          className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded hover:opacity-90 disabled:opacity-50"
         >
           {!ready ? '준비 중...' : loading ? '함께 고민 중..' : '질문하기'}
         </button>
@@ -160,12 +158,10 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* 로그인 유도 모달 */}
+      {/* 로그인 유도 모달 (AI 육아코치 톤) */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* dim */}
           <div className="absolute inset-0 bg-black/60" onClick={()=>setShowLoginModal(false)} />
-          {/* card */}
           <div className="relative bg-[#222] text-[#eae3de] rounded-2xl shadow-xl w-[92%] max-w-sm p-5">
             <h3 className="text-lg font-semibold mb-2">카카오톡 로그인</h3>
             <p className="text-sm text-gray-300 mb-4 leading-6">
@@ -181,7 +177,7 @@ export default function ChatBox({
               </button>
               <button
                 onClick={handleConfirmLogin}
-                className="px-4 py-2 rounded-lg bg-[#8a1a1d] text-white hover:opacity-90"
+                className="px-4 py-2 rounded-lg bg-[#3fb1df] text-white hover:opacity-90"
               >
                 카카오로 계속하기
               </button>
