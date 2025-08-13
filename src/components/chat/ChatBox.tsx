@@ -25,7 +25,7 @@ export default function ChatBox({
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
 
-  // 현재 세션의 provider가 kakao일 때만 무제한
+  // 카카오 로그인 세션 판정 (provider === 'kakao')
   const [isKakaoAuthed, setIsKakaoAuthed] = useState(false)
   useEffect(() => {
     let cancel = false
@@ -37,8 +37,7 @@ export default function ChatBox({
     return () => { cancel = true }
   }, [user])
 
-  // 시도 카운트(비카카오: 1~2회 허용, 3번째 팝업)
-  const KAKAO_REDIRECT = 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback'
+  // 시도 카운트(1~2회 허용, 3번째에 팝업)
   const MAX_FREE_TRIES = 2
   const dayKey = () => {
     const d = new Date()
@@ -66,6 +65,7 @@ export default function ChatBox({
     if (!isKakaoAuthed) syncTryFromStorage()
   }, [isKakaoAuthed])
 
+  // 입력/준비/초기질문
   useEffect(() => { if (chatInput !== undefined) setMessage(chatInput) }, [chatInput])
   useEffect(() => { const t = setTimeout(() => setReady(true), 500); return () => clearTimeout(t) }, [])
   useEffect(() => {
@@ -77,20 +77,26 @@ export default function ChatBox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion, ready])
 
+  // 로그인 유도 모달
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const handleConfirmLogin = async () => {
+    setShowLoginModal(false)
+    // ✅ 여기서 '현재 사이트 콜백'으로 보내야 카카오 로그인 화면으로 이동함
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: `${location.origin}/auth/callback` },
+    })
+  }
+
   const sendMessage = async (customMessage?: string) => {
     const text = (customMessage ?? message).trim()
     if (!text) return
-    if (!ready) { setReply('초기화 중입니다. 잠시만 기다려 주세요.'); return } // ← 문구 교체
+    if (!ready) { setReply('초기화 중입니다. 잠시만 기다려 주세요.'); return }
 
-    // 비카카오: 3번째 클릭에 로그인 유도
+    // 비(카카오) 사용자: 3번째 클릭에 커스텀 팝업
     if (!isKakaoAuthed) {
       if (anonTry >= MAX_FREE_TRIES) {
-        const ok = window.confirm('카카오톡 로그인을 하시면 질문을 무제한으로 사용할 수 있어요.\n지금 로그인하시겠어요?')
-        if (ok) {
-          await supabase.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: KAKAO_REDIRECT } })
-        } else {
-          setReply('로그인 없이 이용 시 오늘은 최대 2회까지만 질문할 수 있어요.')
-        }
+        setShowLoginModal(true)
         return
       }
       incTry()
@@ -111,7 +117,8 @@ export default function ChatBox({
       setReply(data?.reply || '답변을 가져오지 못했어요.')
       if (isKakaoAuthed) await saveChatLog(text, data?.reply ?? '', user!.id)
     } catch (e) {
-      console.error(e); setReply('에러가 발생했어요.')
+      console.error(e)
+      setReply('에러가 발생했어요.')
     } finally {
       setLoading(false)
     }
@@ -130,7 +137,7 @@ export default function ChatBox({
           onChange={(e)=>setMessage(e.target.value)}
         />
         {!isKakaoAuthed && (
-          <div className="absolute top-2 right-2 text-[11px] text-gray-500">
+          <div className="absolute top-2 right-2 text-[12px] text-whihte/70">
             오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
           </div>
         )}
@@ -141,7 +148,7 @@ export default function ChatBox({
         <button
           onClick={()=>sendMessage()}
           disabled={loading || !ready}
-          className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded disabled:opacity-50"
+          className="px-4 py-2 bg-[#8a1a1d] text-white text-base rounded hover:opacity-90 disabled:opacity-50"
         >
           {!ready ? '준비 중...' : loading ? '함께 고민 중..' : '질문하기'}
         </button>
@@ -150,6 +157,36 @@ export default function ChatBox({
       {reply && (
         <div className="mt-4 p-4 border rounded bg-[#333333] whitespace-pre-line text-left text-base text-white">
           {reply}
+        </div>
+      )}
+
+      {/* 로그인 유도 모달 */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* dim */}
+          <div className="absolute inset-0 bg-black/60" onClick={()=>setShowLoginModal(false)} />
+          {/* card */}
+          <div className="relative bg-[#222] text-[#eae3de] rounded-2xl shadow-xl w-[92%] max-w-sm p-5">
+            <h3 className="text-lg font-semibold mb-2">카카오톡 로그인</h3>
+            <p className="text-sm text-gray-300 mb-4 leading-6">
+              로그인하시면 <span className="font-semibold">질문을 무제한</span>으로 사용할 수 있어요.
+              지금 로그인할까요?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={()=>setShowLoginModal(false)}
+                className="px-4 py-2 rounded-lg bg-[#444] text-white hover:opacity-90"
+              >
+                나중에
+              </button>
+              <button
+                onClick={handleConfirmLogin}
+                className="px-4 py-2 rounded-lg bg-[#8a1a1d] text-white hover:opacity-90"
+              >
+                카카오로 계속하기
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
