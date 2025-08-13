@@ -7,9 +7,9 @@ import { supabase } from '@/lib/supabaseClient'
 
 type ChatBoxProps = {
   systemPrompt?: string
-  initialQuestion?: string
-  chatInput?: string
-  setChatInput?: React.Dispatch<React.SetStateAction<string>>
+  initialQuestion?: string // 부모(코치 페이지)에서 전달받는 초기 질문
+  chatInput?: string // 부모에서 넘겨주는 채팅 입력값
+  setChatInput?: React.Dispatch<React.SetStateAction<string>> // 부모 상태 변경 함수
 }
 
 export default function ChatBox({
@@ -24,9 +24,9 @@ export default function ChatBox({
   const [message, setMessage] = useState(chatInput || '')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(false) // GPT 호출 가능 여부
 
-  // === 비로그인 2회 허용 + 3번째 시 카카오 로그인 ===
+  // ==== 비로그인 2회 허용 + 3번째 시 확인 팝업 후 카카오 로그인 ====
   const KAKAO_REDIRECT = 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback'
   const dailyKey = () => {
     const d = new Date()
@@ -44,14 +44,20 @@ export default function ChatBox({
     if (typeof window === 'undefined') return
     localStorage.setItem(dailyKey(), String(n))
   }
-  // ================================================
+  // =======================================================
 
+  // chatInput이 바뀌면 message 상태도 같이 변경
   useEffect(() => {
-    if (chatInput !== undefined) setMessage(chatInput)
+    if (chatInput !== undefined) {
+      setMessage(chatInput)
+    }
   }, [chatInput])
 
+  // 1.5초 지연 후 활성화
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 1500)
+    const timer = setTimeout(() => {
+      setReady(true)
+    }, 1500)
     return () => clearTimeout(timer)
   }, [])
 
@@ -62,6 +68,7 @@ export default function ChatBox({
     }
   }, [user?.id])
 
+  // 인기 키워드 클릭 시 자동 질문 처리
   useEffect(() => {
     if (initialQuestion && ready) {
       setMessage(initialQuestion)
@@ -79,14 +86,21 @@ export default function ChatBox({
       return
     }
 
-    // 비로그인: 3번째 시 카카오 로그인
+    // 🔸 비로그인 사용자의 1~2번째 질문은 허용, 3번째 시 확인 팝업 → 동의하면 카카오 로그인
     if (!user?.id) {
       const count = getAnonCount()
       if (count >= 2) {
-        await supabase.auth.signInWithOAuth({
-          provider: 'kakao',
-          options: { redirectTo: KAKAO_REDIRECT },
-        })
+        const ok = window.confirm(
+          '카카오톡 로그인을 하시면 질문을 무제한으로 사용할 수 있어요.\n지금 로그인하시겠어요?'
+        )
+        if (ok) {
+          await supabase.auth.signInWithOAuth({
+            provider: 'kakao',
+            options: { redirectTo: KAKAO_REDIRECT },
+          })
+        } else {
+          setReply('로그인 없이 이용 시 오늘은 최대 2회까지만 질문할 수 있어요.')
+        }
         return
       }
     }
@@ -96,7 +110,7 @@ export default function ChatBox({
 
     try {
       const payload = {
-        user_id: user?.id,
+        user_id: user?.id, // 비로그인 시 undefined 전달
         messages: [
           {
             role: 'system',
@@ -104,7 +118,10 @@ export default function ChatBox({
               systemPrompt ||
               '당신은 친절하지만 현실적인 육아 전문가입니다. 정확하고 신중하게 답변하세요.',
           },
-          { role: 'user', content: text },
+          {
+            role: 'user',
+            content: text,
+          },
         ],
       }
 
@@ -121,7 +138,8 @@ export default function ChatBox({
       if (user?.id) {
         await saveChatLog(text, answer, user.id)
       } else {
-        setAnonCount(getAnonCount() + 1) // 비로그인 성공 시 카운트 증가
+        // 비로그인 성공 시 카운트 증가 (1~2번째)
+        setAnonCount(getAnonCount() + 1)
       }
     } catch (error) {
       console.error('에러:', error)
