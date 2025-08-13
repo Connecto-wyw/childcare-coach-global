@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { saveChatLog } from '@/lib/saveChatLog'
-import { useUser } from '@supabase/auth-helpers-react'
-import { supabase } from '@/lib/supabaseClient'
+import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 
 type ChatBoxProps = {
   systemPrompt?: string
@@ -19,13 +18,14 @@ export default function ChatBox({
   setChatInput,
 }: ChatBoxProps) {
   const user = useUser()
+  const supabase = useSupabaseClient()
 
   const [message, setMessage] = useState(chatInput || '')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
 
-  // 카카오 로그인 여부 확정(세션 provider)
+  // kakao 세션 여부
   const [isKakaoAuthed, setIsKakaoAuthed] = useState(false)
   useEffect(() => {
     let cancel = false
@@ -34,14 +34,18 @@ export default function ChatBox({
       const prov = data.user?.app_metadata?.provider
       if (!cancel) setIsKakaoAuthed(!!data.user && prov === 'kakao')
     })()
-    return () => { cancel = true }
-  }, [user])
+    return () => {
+      cancel = true
+    }
+  }, [user, supabase])
 
-  // 비(카카오) 시도 카운트: 1~2회 허용, 3번째에 팝업
+  // 비(카카오) 시도 카운트 (1~2회 허용, 3번째 모달)
   const MAX_FREE_TRIES = 2
   const dayKey = () => {
     const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate()
+    ).padStart(2, '0')}`
   }
   const TRY_KEY = `aiCoachAnonTry:${dayKey()}`
   const readTry = () =>
@@ -60,13 +64,21 @@ export default function ChatBox({
       return next
     })
   }
+
   useEffect(() => {
     if (!isKakaoAuthed) syncTryFromStorage()
   }, [isKakaoAuthed])
 
   // 입력/준비/초기질문
-  useEffect(() => { if (chatInput !== undefined) setMessage(chatInput) }, [chatInput])
-  useEffect(() => { const t = setTimeout(() => setReady(true), 500); return () => clearTimeout(t) }, [])
+  useEffect(() => {
+    if (chatInput !== undefined) setMessage(chatInput)
+  }, [chatInput])
+
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 500)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     if (initialQuestion && ready) {
       setMessage(initialQuestion)
@@ -82,14 +94,17 @@ export default function ChatBox({
     setShowLoginModal(false)
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: `${location.origin}/auth/callback` }, // ✅ 현재 사이트 콜백
+      options: { redirectTo: `${location.origin}/auth/callback` },
     })
   }
 
   const sendMessage = async (customMessage?: string) => {
     const text = (customMessage ?? message).trim()
     if (!text) return
-    if (!ready) { setReply('초기화 중입니다. 잠시만 기다려 주세요.'); return }
+    if (!ready) {
+      setReply('초기화 중입니다. 잠시만 기다려 주세요.')
+      return
+    }
 
     // 비(카카오): 3번째 클릭에 모달
     if (!isKakaoAuthed) {
@@ -97,23 +112,37 @@ export default function ChatBox({
         setShowLoginModal(true)
         return
       }
-      incTry() // 1~2번째 시도 즉시 +1
+      incTry()
     }
 
     setLoading(true)
     setReply('')
+
     try {
       const payload = {
         user_id: isKakaoAuthed ? user!.id : undefined,
         messages: [
-          { role: 'system', content: systemPrompt || '당신은 친절하지만 현실적인 육아 전문가입니다. 정확하고 신중하게 답변하세요.' },
+          {
+            role: 'system',
+            content:
+              systemPrompt ||
+              '당신은 친절하지만 현실적인 육아 전문가입니다. 정확하고 신중하게 답변하세요.',
+          },
           { role: 'user', content: text },
         ],
       }
-      const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
       const data = await res.json()
       setReply(data?.reply || '답변을 가져오지 못했어요.')
-      if (isKakaoAuthed) await saveChatLog(text, data?.reply ?? '', user!.id)
+
+      if (isKakaoAuthed) {
+        await saveChatLog(text, data?.reply ?? '', user!.id)
+      }
     } catch (e) {
       console.error(e)
       setReply('에러가 발생했어요.')
@@ -132,11 +161,11 @@ export default function ChatBox({
           rows={4}
           placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
           value={message}
-          onChange={(e)=>setMessage(e.target.value)}
+          onChange={e => setMessage(e.target.value)}
         />
         {!isKakaoAuthed && (
-          <div className="absolute top-2 right-2 text-[11px] text-gray-400">
-            오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
+          <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded bg-black/40 backdrop-blur-sm text-[11px] text-white/80">
+            오늘 남은 무료 질문: <span className="font-semibold text-white">{remaining}</span>개
           </div>
         )}
       </div>
@@ -144,7 +173,7 @@ export default function ChatBox({
       <div className="mt-2 flex items-center justify-between">
         <div />
         <button
-          onClick={()=>sendMessage()}
+          onClick={() => sendMessage()}
           disabled={loading || !ready}
           className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded hover:opacity-90 disabled:opacity-50"
         >
@@ -158,10 +187,9 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* 로그인 유도 모달 (AI 육아코치 톤) */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={()=>setShowLoginModal(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowLoginModal(false)} />
           <div className="relative bg-[#222] text-[#eae3de] rounded-2xl shadow-xl w-[92%] max-w-sm p-5">
             <h3 className="text-lg font-semibold mb-2">카카오톡 로그인</h3>
             <p className="text-sm text-gray-300 mb-4 leading-6">
@@ -170,7 +198,7 @@ export default function ChatBox({
             </p>
             <div className="flex justify-end gap-2">
               <button
-                onClick={()=>setShowLoginModal(false)}
+                onClick={() => setShowLoginModal(false)}
                 className="px-4 py-2 rounded-lg bg-[#444] text-white hover:opacity-90"
               >
                 나중에
