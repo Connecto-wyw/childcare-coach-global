@@ -18,10 +18,12 @@ export default function NavBar() {
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex gap-6 text-base font-medium">
           <Link
-            href="/"
+            href="/home" // 기존 "/" 대신 "/home"
             onClick={() => setActiveMenu('home')}
             className={`transition ${
-              activeMenu === 'home' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
+              activeMenu === 'home'
+                ? 'text-[#9F1D23] font-semibold'
+                : 'hover:text-[#9F1D23]'
             }`}
           >
             HOME
@@ -30,7 +32,9 @@ export default function NavBar() {
             href="/news"
             onClick={() => setActiveMenu('news')}
             className={`transition ${
-              activeMenu === 'news' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
+              activeMenu === 'news'
+                ? 'text-[#9F1D23] font-semibold'
+                : 'hover:text-[#9F1D23]'
             }`}
           >
             NEWS
@@ -39,7 +43,9 @@ export default function NavBar() {
             href="/team" // 경로는 '/team' 유지
             onClick={() => setActiveMenu('talk')}
             className={`transition ${
-              activeMenu === 'talk' ? 'text-[#9F1D23] font-semibold' : 'hover:text-[#9F1D23]'
+              activeMenu === 'talk'
+                ? 'text-[#9F1D23] font-semibold'
+                : 'hover:text-[#9F1D23]'
             }`}
           >
             TALK
