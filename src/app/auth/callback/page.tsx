@@ -30,7 +30,7 @@ export default function AuthCallback() {
       }
 
       // 3) PKCE code → 세션 교환
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
       if (error) {
         console.error('exchangeCodeForSession error:', error)
         router.replace(`/login?error=${encodeURIComponent(error.message)}`)
