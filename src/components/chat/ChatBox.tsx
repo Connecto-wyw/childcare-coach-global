@@ -123,9 +123,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           <button
             onClick={ask}
             disabled={loading}
-            className="h-10 rounded-md bg-[#3EB6F1] text-white px-6 text-sm hover:bg-[#299ed9] disabled:opacity-60"
+            className="h-10 rounded-md bg-[#3EB6F1] text-white px-8 text-M hover:bg-[#299ed9] disabled:opacity-60"
           >
-            {loading ? '질문 중' : '질문하기'}
+            {loading ? '함께 고민 중' : '질문하기'}
           </button>
         </div>
         {!user && (

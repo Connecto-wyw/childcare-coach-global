@@ -39,7 +39,7 @@ export default function CoachPage() {
                  <button
       key={kw}
       onClick={() => fill(kw)}
-      className="bg-[#3a3a3a] text-[var(--foreground)] text-sm font-bold px-4 py-1 rounded hover:opacity-90 transition"
+      className="bg-[#3a3a3a] text-[var(--foreground)] text-sm text-white px-4 py-1 rounded hover:opacity-90 transition"
     >
       {kw}
     </button>
