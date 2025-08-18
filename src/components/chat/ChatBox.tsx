@@ -137,10 +137,17 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         )}
       </div>
 
-      {/* 응답 (Markdown 렌더) */}
+      {/* 응답: 문단 사이 한 줄 띄우기 */}
       {reply && (
-        <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-[#eae3de] prose prose-invert max-w-none leading-7">
-          <ReactMarkdown>{reply}</ReactMarkdown>
+        <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-[#eae3de] prose prose-invert max-w-none leading-7 space-y-3">
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p className="whitespace-pre-wrap">{children}</p>,
+              li: ({ children }) => <li className="mb-1">{children}</li>,
+            }}
+          >
+            {reply}
+          </ReactMarkdown>
         </div>
       )}
 
