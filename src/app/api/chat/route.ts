@@ -2,9 +2,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-
-const SYSTEM_PROMPT =
-  '너는 AI 육아코치다. 부모의 질문을 간결하고 실용적으로 답한다. 단정은 피하고 조심스럽게 조언한다. 300자 이내.'
+import { cookies } from 'next/headers'
+import { getSystemPrompt } from '@/lib/systemPrompt'
 
 type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
@@ -23,6 +22,14 @@ export async function POST(req: Request) {
   const body = (await req.json()) as { messages?: ChatMessage[] }
   const messages = body?.messages ?? []
 
+  // 오늘 인사 여부 쿠키 확인
+  const jar = await cookies()
+  const today = new Date().toISOString().slice(0, 10)
+  const greetedToday = jar.get('coach_last_greet')?.value === today
+
+  // 공통 시스템 프롬프트
+  const systemPrompt = getSystemPrompt({ greetedToday })
+
   try {
     const ac = new AbortController()
     const timer = setTimeout(() => ac.abort(), 15_000)
@@ -37,7 +44,7 @@ export async function POST(req: Request) {
         model: 'gpt-4o',
         temperature: 0.3,
         max_tokens: 400,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
       }),
       cache: 'no-store',
       signal: ac.signal,
@@ -53,20 +60,25 @@ export async function POST(req: Request) {
       )
     }
 
-    const data: {
-      choices?: { message?: { content?: string } }[]
-    } = await resp.json()
+    const data: { choices?: { message?: { content?: string } }[] } =
+      await resp.json()
 
     const reply =
       data.choices?.[0]?.message?.content?.trim() || '응답을 받지 못했습니다.'
 
-    return NextResponse.json({ success: true, reply }, { status: 200 })
+    // 응답 + 오늘 인사 쿠키 설정
+    const res = NextResponse.json({ success: true, reply }, { status: 200 })
+    if (!greetedToday) {
+      res.cookies.set('coach_last_greet', today, {
+        path: '/',
+        maxAge: 60 * 60 * 24,
+        sameSite: 'lax',
+      })
+    }
+    return res
   } catch (e: unknown) {
-    const errMsg =
-      e instanceof Error ? `${e.name}: ${e.message}` : 'unknown error'
-    const isAbort =
-      e instanceof DOMException ? e.name === 'AbortError' : false
-
+    const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : 'unknown error'
+    const isAbort = e instanceof DOMException && e.name === 'AbortError'
     console.error('예외:', errMsg)
 
     return NextResponse.json(

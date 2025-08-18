@@ -2,22 +2,13 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { getSystemPrompt } from '@/lib/systemPrompt'
 
 const GUEST_LIMIT = 2
 const guestMap = new Map<string, number>()
 const key = (ip: string) => `${new Date().toISOString().slice(0, 10)}:${ip}`
-
-const SYSTEM_PROMPT = `
-당신은 AI육아코치입니다. 
-첫 번째 답변을 시작할 때는 반드시 "안녕하세요. 육아에 진심인 AI육아코치입니다." 라고 인사하세요. 
-단, 동일한 날짜에 두 번째 답변부터는 인사를 반복하지 마세요. 
-부모의 질문에는 친절하면서도 전문가처럼 답변하되, 단정적인 표현은 피하고 조심스럽게 조언을 제시하세요. 
-답변은 최대 600자로 제한하며, 2~3개의 문단으로 나누어 작성하세요. 
-또한 각 답변에는 이모티콘을 약 3개 포함하세요. 
-추가로, 아이의 성별과 나이가 제공되면 이를 반영해 보다 알맞은 답변을 하세요. 
-아이의 성향이나 다른 개인 정보가 주어지는 경우, 그 정보를 고려하여 전문가처럼 맞춤형 조언을 제공하세요.
-`
 
 type AskBody = { user_id?: string; question?: string }
 
@@ -53,6 +44,14 @@ export async function POST(req: Request) {
     )
   }
 
+  // 오늘 인사 여부 쿠키로 판별
+  const jar = await cookies()
+  const today = new Date().toISOString().slice(0, 10)
+  const greetedToday = jar.get('coach_last_greet')?.value === today
+
+  // 단일 시스템 프롬프트 생성
+  const systemPrompt = getSystemPrompt({ greetedToday })
+
   // 답변 생성
   let answer = ''
   try {
@@ -70,7 +69,7 @@ export async function POST(req: Request) {
         temperature: 0.3,
         max_tokens: 400,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: question },
         ],
       }),
@@ -88,7 +87,8 @@ export async function POST(req: Request) {
       )
     }
 
-    const data: { choices?: { message?: { content?: string } }[] } = await resp.json()
+    const data: { choices?: { message?: { content?: string } }[] } =
+      await resp.json()
     answer = data.choices?.[0]?.message?.content?.trim() || '응답을 받지 못했습니다.'
   } catch (e: unknown) {
     const isAbort = e instanceof DOMException && e.name === 'AbortError'
@@ -116,5 +116,14 @@ export async function POST(req: Request) {
     console.error('로그 저장 실패:', e)
   }
 
-  return NextResponse.json({ answer }, { status: 200 })
+  // 응답 + 쿠키 세팅(오늘 첫 응답이면 기록)
+  const res = NextResponse.json({ answer }, { status: 200 })
+  if (!greetedToday) {
+    res.cookies.set('coach_last_greet', today, {
+      path: '/',
+      maxAge: 60 * 60 * 24,
+      sameSite: 'lax',
+    })
+  }
+  return res
 }

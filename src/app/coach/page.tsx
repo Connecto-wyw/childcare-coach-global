@@ -33,13 +33,13 @@ export default function CoachPage() {
         </div>
 
         <section className="mb-8 text-center">
-          <h2 className="text-lg font-semibold mb-3">요즘 인기 키워드</h2>
+          <h2 className="text-lg font-semibold mb-3 text-white">요즘 인기 키워드</h2>
           <div className="flex justify-center gap-3 flex-wrap">
             {keywords.map((kw) => (
               <button
                 key={kw}
                 onClick={() => fill(kw)}
-                className="bg-gray-200 text-[var(--foreground)] text-sm px-4 py-1 rounded hover:opacity-90 transition"
+                className="bg-gray-400 text-[var(--foreground)] text-sm px-4 py-1 rounded hover:opacity-90 transition"
               >
                 {kw}
               </button>
