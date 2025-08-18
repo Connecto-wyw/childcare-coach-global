@@ -3,38 +3,43 @@
 import { useEffect, useState } from 'react'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 
-type ChatBoxProps = {
-  systemPrompt?: string
-  initialQuestion?: string
-}
+type ChatBoxProps = { systemPrompt?: string }
 
-export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps) {
+export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const user = useUser()
   const supabase = useSupabaseClient()
 
-  const [message, setMessage] = useState(initialQuestion ?? '')
+  const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // 게스트 질문 횟수(브라우저 로컬 저장, 날짜 기준 초기화)
+  // 게스트 2회 제한
   const [guestCount, setGuestCount] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
-
   const LS_KEY = 'guest_q_count'
   const LS_DAY = 'guest_q_day'
   const GUEST_LIMIT = 2
   const today = () => new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
-    const savedDay = localStorage.getItem(LS_DAY)
-    const savedCnt = parseInt(localStorage.getItem(LS_KEY) || '0', 10)
-    if (savedDay !== today()) {
+    const d = localStorage.getItem(LS_DAY)
+    const c = parseInt(localStorage.getItem(LS_KEY) || '0', 10)
+    if (d !== today()) {
       localStorage.setItem(LS_DAY, today())
       localStorage.setItem(LS_KEY, '0')
       setGuestCount(0)
-    } else {
-      setGuestCount(Number.isFinite(savedCnt) ? savedCnt : 0)
+    } else setGuestCount(Number.isFinite(c) ? c : 0)
+  }, [])
+
+  // 키워드 → 입력창 자동 채우기
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail
+      setMessage(text ?? '')
     }
+    window.addEventListener('coach:setMessage', handler as EventListener)
+    return () =>
+      window.removeEventListener('coach:setMessage', handler as EventListener)
   }, [])
 
   const bumpGuest = () => {
@@ -46,17 +51,13 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
 
   const ask = async () => {
     if (!message.trim()) return
-
-    // 3번째 시도부터 로그인 유도
     if (!user && guestCount >= GUEST_LIMIT) {
       setShowLoginModal(true)
       return
     }
-
     try {
       setLoading(true)
       setReply('')
-
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,30 +67,24 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
           user_id: user?.id ?? null,
         }),
       })
-
       if (!res.ok) {
         if (res.status === 403) {
-          // 서버 한도 초과(게스트 2회 제한) → 모달
           setShowLoginModal(true)
           return
         }
         throw new Error('request_failed')
       }
-
       const data = await res.json()
-      setReply(data.answer ?? '(응답 없음)')
-
+      setReply(data.answer ?? '')
       if (!user) bumpGuest()
       setMessage('')
-    } catch (e) {
-      setReply('오류가 발생했어. 잠시 후 다시 시도해줘.')
     } finally {
       setLoading(false)
     }
   }
 
-  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const onEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && e.shiftKey === false) {
       e.preventDefault()
       void ask()
     }
@@ -99,8 +94,7 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo:
-          'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback',
+        redirectTo: 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback',
       },
     })
   }
@@ -108,32 +102,32 @@ export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps)
   return (
     <div className="w-full max-w-3xl mx-auto px-4">
       {/* 입력 영역 */}
-      <div className="flex gap-2 mt-4">
-        <input
+      <div className="mt-6">
+        <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={onEnter}
-          placeholder="아이 고민을 물어봐줘"
-          className="flex-1 rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-2 outline-none"
+          placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
+          className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
           disabled={loading}
         />
-        <button
-          onClick={ask}
-          disabled={loading}
-          className="rounded-md bg-[#9F1D23] text-white px-4 py-2 text-sm hover:bg-[#7e171c] disabled:opacity-60"
-        >
-          {loading ? '질문 중' : '질문하기'}
-        </button>
+        <div className="flex justify-center mt-3">
+          <button
+            onClick={ask}
+            disabled={loading}
+            className="h-10 rounded-md bg-[#3EB6F1] text-white px-6 text-sm hover:bg-[#299ed9] disabled:opacity-60"
+          >
+            {loading ? '질문 중' : '질문하기'}
+          </button>
+        </div>
+        {!user && (
+          <p className="mt-2 text-xs text-gray-400">
+            오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
+          </p>
+        )}
       </div>
 
-      {/* 게스트 안내 */}
-      {!user && (
-        <p className="mt-2 text-xs text-gray-400">
-          게스트 모드: 오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
-        </p>
-      )}
-
-      {/* 응답 영역 */}
+      {/* 응답 */}
       {reply && (
         <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-sm text-[#eae3de]">
           {reply}

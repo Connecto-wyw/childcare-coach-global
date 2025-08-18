@@ -1,16 +1,15 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
-import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function CoachPage() {
   const [keywords, setKeywords] = useState<string[]>([])
-  const [chatInput, setChatInput] = useState('')
 
-  // 인기 키워드 4개
+  // 인기 키워드 4개 로드
   useEffect(() => {
     async function fetchKeywords() {
       const { data, error } = await supabase
@@ -18,12 +17,14 @@ export default function CoachPage() {
         .select('keyword')
         .order('order', { ascending: true })
         .limit(4)
-      if (!error && data) setKeywords(data.map(k => k.keyword))
+      if (!error && data) setKeywords(data.map((k) => k.keyword))
     }
     fetchKeywords()
   }, [])
 
-  const handleKeywordClick = (kw: string) => setChatInput(kw)
+  const fill = (kw: string) => {
+    window.dispatchEvent(new CustomEvent('coach:setMessage', { detail: kw }))
+  }
 
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
@@ -34,12 +35,12 @@ export default function CoachPage() {
 
         <section className="mb-8 text-center">
           <h2 className="text-lg font-semibold mb-3">요즘 인기 키워드</h2>
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 flex-wrap">
             {keywords.map((kw) => (
               <button
                 key={kw}
+                onClick={() => fill(kw)}
                 className="bg-gray-600 text-white text-sm px-4 py-1 rounded hover:opacity-90 transition"
-                onClick={() => handleKeywordClick(kw)}
               >
                 {kw}
               </button>
@@ -47,7 +48,7 @@ export default function CoachPage() {
           </div>
         </section>
 
-        <ChatBox chatInput={chatInput} setChatInput={setChatInput} />
+        <ChatBox />
 
         <section className="mt-12 text-center max-w-xl mx-auto">
           <TipSection />
