@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabaseClient'
 export default function CoachPage() {
   const [keywords, setKeywords] = useState<string[]>([])
 
-  // 인기 키워드 4개 로드
   useEffect(() => {
     async function fetchKeywords() {
       const { data, error } = await supabase
@@ -27,7 +26,7 @@ export default function CoachPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
         <div className="flex justify-center mb-6">
           <Logo />
@@ -40,7 +39,7 @@ export default function CoachPage() {
               <button
                 key={kw}
                 onClick={() => fill(kw)}
-                className="bg-gray-600 text-white text-sm px-4 py-1 rounded hover:opacity-90 transition"
+                className="bg-gray-200 text-[var(--foreground)] text-sm px-4 py-1 rounded hover:opacity-90 transition"
               >
                 {kw}
               </button>
