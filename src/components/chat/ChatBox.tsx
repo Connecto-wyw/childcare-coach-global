@@ -158,9 +158,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             <h3 className="text-base font-semibold text-[#eae3de]">
               카카오톡 로그인하고 <br /> AI육아코치 무제한으로 사용하세요.
             </h3>
-            <p className="mt-2 text-xs text-gray-400">
-              로그인 안 하면 하루 2번, 카카오톡 로그인하면 제한 없이 쓸 수 있어요
-            </p>
             <div className="mt-5 grid gap-2">
               <button
                 onClick={loginKakao}

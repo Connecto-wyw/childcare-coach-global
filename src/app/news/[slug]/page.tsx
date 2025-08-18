@@ -1,38 +1,37 @@
 // src/app/news/[slug]/page.tsx
-export const dynamic = 'force-dynamic'
-
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { notFound } from 'next/navigation'
 import type { Database } from '@/lib/database.types'
 
-type Params = { params: { slug: string } }
-
-export async function generateMetadata({ params }: Params) {
-  return { title: `뉴스 | ${params.slug}` }
-}
-
-export default async function Page({ params }: Params) {
+export default async function Page({ params }: { params: { slug: string } }) {
   const supabase = createServerComponentClient<Database>({ cookies })
+
   const { data, error } = await supabase
     .from('news_posts')
-    .select('id,title,slug,content,created_at')
+    .select('id, title, content, created_at')
     .eq('slug', params.slug)
     .single()
 
-  if (error || !data) notFound()
+  if (!data || error) {
+    return (
+      <div className="min-h-screen bg-[#282828] text-red-400 px-4 py-12">
+        뉴스를 찾을 수 없습니다.
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-[#282828] text-white px-4 py-12">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">{data.title}</h1>
-        <p className="text-sm text-gray-400 text-right mb-6">
-          {new Date(data.created_at).toLocaleDateString()}
+    <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-2">{data.title}</h1>
+        <p className="text-sm text-gray-400 mb-6">
+          {new Date(data.created_at).toLocaleString()}
         </p>
-        <div className="whitespace-pre-wrap text-base text-gray-100">
+
+        <article className="whitespace-pre-wrap text-base text-gray-200 leading-7">
           {data.content}
-        </div>
+        </article>
       </div>
-    </div>
+    </main>
   )
 }
