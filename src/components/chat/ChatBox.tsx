@@ -38,9 +38,16 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       setMessage(text ?? '')
     }
     window.addEventListener('coach:setMessage', handler as EventListener)
-    return () =>
-      window.removeEventListener('coach:setMessage', handler as EventListener)
+    return () => window.removeEventListener('coach:setMessage', handler as EventListener)
   }, [])
+
+  // 로그인 완료되면 모달 닫기
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) setShowLoginModal(false)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [supabase])
 
   const bumpGuest = () => {
     const next = guestCount + 1
@@ -91,10 +98,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   }
 
   const loginKakao = async () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo: 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback',
+        redirectTo: `${origin}/auth/callback?next=/coach`,
       },
     })
   }
@@ -121,9 +129,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           </button>
         </div>
         {!user && (
-          <p className="mt-2 text-xs text-gray-400">
-            오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
-          </p>
+          <p className="mt-2 text-xs text-gray-400">오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용</p>
         )}
       </div>
 
@@ -138,9 +144,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
-            <h3 className="text-base font-semibold text-[#eae3de]">
-              로그인 후 계속할 수 있어
-            </h3>
+            <h3 className="text-base font-semibold text-[#eae3de]">로그인 후 계속할 수 있어</h3>
             <p className="mt-2 text-xs text-gray-400">
               게스트는 하루 2개까지 질문 가능. 로그인하면 제한 없이 이용 가능.
             </p>
