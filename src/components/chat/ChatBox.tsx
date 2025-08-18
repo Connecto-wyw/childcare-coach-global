@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import ReactMarkdown from 'react-markdown'
 
 type ChatBoxProps = { systemPrompt?: string }
 
@@ -136,10 +137,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         )}
       </div>
 
-      {/* 응답 */}
+      {/* 응답 (Markdown 렌더) */}
       {reply && (
-        <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-sm text-[#eae3de]">
-          {reply}
+        <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-[#eae3de] prose prose-invert max-w-none leading-7">
+          <ReactMarkdown>{reply}</ReactMarkdown>
         </div>
       )}
 
