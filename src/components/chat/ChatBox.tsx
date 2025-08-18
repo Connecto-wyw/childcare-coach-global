@@ -1,3 +1,4 @@
+// src/components/chat/ChatBox.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -28,7 +29,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       localStorage.setItem(LS_DAY, today())
       localStorage.setItem(LS_KEY, '0')
       setGuestCount(0)
-    } else setGuestCount(Number.isFinite(c) ? c : 0)
+    } else {
+      setGuestCount(Number.isFinite(c) ? c : 0)
+    }
   }, [])
 
   // 키워드 → 입력창 자동 채우기
@@ -123,7 +126,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           <button
             onClick={ask}
             disabled={loading}
-            className="h-10 rounded-md bg-[#3EB6F1] text-white px-8 text-M hover:bg-[#299ed9] disabled:opacity-60"
+            className="h-10 rounded-md bg-[#3EB6F1] text-white px-8 text-base hover:bg-[#299ed9] disabled:opacity-60"
           >
             {loading ? '함께 고민 중' : '질문하기'}
           </button>
@@ -144,16 +147,18 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
-            <h3 className="text-base font-semibold text-[#eae3de]">로그인 후 계속할 수 있어</h3>
+            <h3 className="text-base font-semibold text-[#eae3de]">
+              카카오톡 로그인하고 <br /> AI육아코치 무제한으로 사용하세요.
+            </h3>
             <p className="mt-2 text-xs text-gray-400">
-              게스트는 하루 2개까지 질문 가능. 로그인하면 제한 없이 이용 가능.
+              로그인 안 하면 하루 2번, 카카오톡 로그인하면 제한 없이 쓸 수 있어요
             </p>
             <div className="mt-5 grid gap-2">
               <button
                 onClick={loginKakao}
-                className="rounded-lg bg-[#9F1D23] py-2.5 text-sm font-medium text-white hover:bg-[#7e171c]"
+                className="rounded-lg bg-[#FEE500] py-2.5 text-sm font-medium text-black hover:bg-[#F2D000] transition"
               >
-                카카오로 로그인
+                카카오로 2초 로그인
               </button>
               <button
                 onClick={() => setShowLoginModal(false)}
