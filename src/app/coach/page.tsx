@@ -26,7 +26,7 @@ export default function CoachPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans">
+    <main className="min-h-screen bg-[#282828] text-[var(--foreground)] font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
         <div className="flex justify-center mb-6">
           <Logo />
