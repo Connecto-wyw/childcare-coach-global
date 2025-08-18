@@ -1,155 +1,170 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { saveChatLog } from '@/lib/saveChatLog'
-import { useUser } from '@supabase/auth-helpers-react'
-import { supabase } from '@/lib/supabaseClient'
+import { useEffect, useState } from 'react'
+import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 
 type ChatBoxProps = {
   systemPrompt?: string
   initialQuestion?: string
-  chatInput?: string
-  setChatInput?: React.Dispatch<React.SetStateAction<string>>
 }
 
-export default function ChatBox({
-  systemPrompt,
-  initialQuestion,
-  chatInput,
-  setChatInput,
-}: ChatBoxProps) {
+export default function ChatBox({ systemPrompt, initialQuestion }: ChatBoxProps) {
   const user = useUser()
+  const supabase = useSupabaseClient()
 
-  const [message, setMessage] = useState(chatInput || '')
+  const [message, setMessage] = useState(initialQuestion ?? '')
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(false)
-  const [ready, setReady] = useState(false)
 
-  // 현재 세션의 provider가 kakao일 때만 무제한
-  const [isKakaoAuthed, setIsKakaoAuthed] = useState(false)
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      const { data } = await supabase.auth.getUser()
-      const prov = data.user?.app_metadata?.provider
-      if (!cancel) setIsKakaoAuthed(!!data.user && prov === 'kakao')
-    })()
-    return () => { cancel = true }
-  }, [user])
+  // 게스트 질문 횟수(브라우저 로컬 저장, 날짜 기준 초기화)
+  const [guestCount, setGuestCount] = useState(0)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
-  // 시도 카운트(비카카오: 1~2회 허용, 3번째 팝업)
-  const KAKAO_REDIRECT = 'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback'
-  const MAX_FREE_TRIES = 2
-  const dayKey = () => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-  }
-  const TRY_KEY = `aiCoachAnonTry:${dayKey()}`
-  const readTry = () =>
-    typeof window === 'undefined' ? 0 : Number(localStorage.getItem(TRY_KEY)) || 0
-
-  const [anonTry, setAnonTry] = useState(0)
-  const syncTryFromStorage = () => {
-    const cur = readTry()
-    if (typeof window !== 'undefined') localStorage.setItem(TRY_KEY, String(cur))
-    setAnonTry(cur)
-  }
-  const incTry = () => {
-    setAnonTry(prev => {
-      const next = prev + 1
-      if (typeof window !== 'undefined') localStorage.setItem(TRY_KEY, String(next))
-      return next
-    })
-  }
+  const LS_KEY = 'guest_q_count'
+  const LS_DAY = 'guest_q_day'
+  const GUEST_LIMIT = 2
+  const today = () => new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
-    if (!isKakaoAuthed) syncTryFromStorage()
-  }, [isKakaoAuthed])
-
-  useEffect(() => { if (chatInput !== undefined) setMessage(chatInput) }, [chatInput])
-  useEffect(() => { const t = setTimeout(() => setReady(true), 500); return () => clearTimeout(t) }, [])
-  useEffect(() => {
-    if (initialQuestion && ready) {
-      setMessage(initialQuestion)
-      sendMessage(initialQuestion)
-      setChatInput?.(initialQuestion)
+    const savedDay = localStorage.getItem(LS_DAY)
+    const savedCnt = parseInt(localStorage.getItem(LS_KEY) || '0', 10)
+    if (savedDay !== today()) {
+      localStorage.setItem(LS_DAY, today())
+      localStorage.setItem(LS_KEY, '0')
+      setGuestCount(0)
+    } else {
+      setGuestCount(Number.isFinite(savedCnt) ? savedCnt : 0)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuestion, ready])
+  }, [])
 
-  const sendMessage = async (customMessage?: string) => {
-    const text = (customMessage ?? message).trim()
-    if (!text) return
-    if (!ready) { setReply('초기화 중입니다. 잠시만 기다려 주세요.'); return } // ← 문구 교체
+  const bumpGuest = () => {
+    const next = guestCount + 1
+    setGuestCount(next)
+    localStorage.setItem(LS_KEY, String(next))
+    localStorage.setItem(LS_DAY, today())
+  }
 
-    // 비카카오: 3번째 클릭에 로그인 유도
-    if (!isKakaoAuthed) {
-      if (anonTry >= MAX_FREE_TRIES) {
-        const ok = window.confirm('카카오톡 로그인을 하시면 질문을 무제한으로 사용할 수 있어요.\n지금 로그인하시겠어요?')
-        if (ok) {
-          await supabase.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: KAKAO_REDIRECT } })
-        } else {
-          setReply('로그인 없이 이용 시 오늘은 최대 2회까지만 질문할 수 있어요.')
-        }
-        return
-      }
-      incTry()
+  const ask = async () => {
+    if (!message.trim()) return
+
+    // 3번째 시도부터 로그인 유도
+    if (!user && guestCount >= GUEST_LIMIT) {
+      setShowLoginModal(true)
+      return
     }
 
-    setLoading(true)
-    setReply('')
     try {
-      const payload = {
-        user_id: isKakaoAuthed ? user!.id : undefined,
-        messages: [
-          { role: 'system', content: systemPrompt || '당신은 친절하지만 현실적인 육아 전문가입니다. 정확하고 신중하게 답변하세요.' },
-          { role: 'user', content: text },
-        ],
+      setLoading(true)
+      setReply('')
+
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: systemPrompt ?? '',
+          question: message,
+          user_id: user?.id ?? null,
+        }),
+      })
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          // 서버 한도 초과(게스트 2회 제한) → 모달
+          setShowLoginModal(true)
+          return
+        }
+        throw new Error('request_failed')
       }
-      const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+
       const data = await res.json()
-      setReply(data?.reply || '답변을 가져오지 못했어요.')
-      if (isKakaoAuthed) await saveChatLog(text, data?.reply ?? '', user!.id)
+      setReply(data.answer ?? '(응답 없음)')
+
+      if (!user) bumpGuest()
+      setMessage('')
     } catch (e) {
-      console.error(e); setReply('에러가 발생했어요.')
+      setReply('오류가 발생했어. 잠시 후 다시 시도해줘.')
     } finally {
       setLoading(false)
     }
   }
 
-  const remaining = !isKakaoAuthed ? Math.max(0, MAX_FREE_TRIES - anonTry) : Infinity
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void ask()
+    }
+  }
+
+  const loginKakao = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo:
+          'https://hrvbdyusoybsviiuboac.supabase.co/auth/v1/callback',
+      },
+    })
+  }
 
   return (
-    <div className="p-4 max-w-xl mx-auto mt-4">
-      <div className="relative">
-        <textarea
-          className="w-full p-2 border rounded"
-          rows={4}
-          placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
+    <div className="w-full max-w-3xl mx-auto px-4">
+      {/* 입력 영역 */}
+      <div className="flex gap-2 mt-4">
+        <input
           value={message}
-          onChange={(e)=>setMessage(e.target.value)}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={onEnter}
+          placeholder="아이 고민을 물어봐줘"
+          className="flex-1 rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-2 outline-none"
+          disabled={loading}
         />
-        {!isKakaoAuthed && (
-          <div className="absolute top-2 right-2 text-[11px] text-gray-500">
-            오늘 남은 무료 질문: <span className="font-semibold">{remaining}</span>개
-          </div>
-        )}
-      </div>
-
-      <div className="mt-2 flex items-center justify-between">
-        <div />
         <button
-          onClick={()=>sendMessage()}
-          disabled={loading || !ready}
-          className="px-4 py-2 bg-[#3fb1df] text-white text-base rounded disabled:opacity-50"
+          onClick={ask}
+          disabled={loading}
+          className="rounded-md bg-[#9F1D23] text-white px-4 py-2 text-sm hover:bg-[#7e171c] disabled:opacity-60"
         >
-          {!ready ? '준비 중...' : loading ? '함께 고민 중..' : '질문하기'}
+          {loading ? '질문 중' : '질문하기'}
         </button>
       </div>
 
+      {/* 게스트 안내 */}
+      {!user && (
+        <p className="mt-2 text-xs text-gray-400">
+          게스트 모드: 오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
+        </p>
+      )}
+
+      {/* 응답 영역 */}
       {reply && (
-        <div className="mt-4 p-4 border rounded bg-[#333333] whitespace-pre-line text-left text-base text-white">
+        <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-sm text-[#eae3de]">
           {reply}
+        </div>
+      )}
+
+      {/* 로그인 모달 */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
+            <h3 className="text-base font-semibold text-[#eae3de]">
+              로그인 후 계속할 수 있어
+            </h3>
+            <p className="mt-2 text-xs text-gray-400">
+              게스트는 하루 2개까지 질문 가능. 로그인하면 제한 없이 이용 가능.
+            </p>
+            <div className="mt-5 grid gap-2">
+              <button
+                onClick={loginKakao}
+                className="rounded-lg bg-[#9F1D23] py-2.5 text-sm font-medium text-white hover:bg-[#7e171c]"
+              >
+                카카오로 로그인
+              </button>
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="rounded-lg border border-gray-600 py-2.5 text-sm text-[#eae3de] hover:bg-gray-800"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
