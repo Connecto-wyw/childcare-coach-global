@@ -36,15 +36,15 @@ export default function CoachPage() {
           <h2 className="text-lg font-semibold mb-3 text-white">요즘 인기 키워드</h2>
           <div className="flex justify-center gap-3 flex-wrap">
             {keywords.map((kw) => (
-              <button
-                key={kw}
-                onClick={() => fill(kw)}
-                className="bg-gray-400 text-[var(--foreground)] text-sm px-4 py-1 rounded hover:opacity-90 transition"
-              >
-                {kw}
-              </button>
-            ))}
-          </div>
+                 <button
+      key={kw}
+      onClick={() => fill(kw)}
+      className="bg-[#3a3a3a] text-[var(--foreground)] text-sm font-bold px-4 py-1 rounded hover:opacity-90 transition"
+    >
+      {kw}
+    </button>
+  ))}
+</div>
         </section>
 
         <ChatBox />
