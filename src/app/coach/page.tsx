@@ -1,37 +1,37 @@
 // src/app/coach/page.tsx  (Server Component)
-import Link from 'next/link';
-import { cookies } from 'next/headers';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import Link from 'next/link'
+import { cookies } from 'next/headers'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 
-import Logo from '@/components/Logo';
-import ChatBox from '@/components/chat/ChatBox';
+import Logo from '@/components/Logo'
+import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import KeywordButtons from './KeywordButtons'
-import type { Database } from '@/lib/database.types';
+import type { Database } from '@/lib/database.types'
 
 export default async function CoachPage() {
-  const supabase = createServerComponentClient<Database>({ cookies });
+  const supabase = createServerComponentClient<Database>({ cookies })
 
   // 인기 키워드 4개
   const { data: kwRes, error: kwErr } = await supabase
     .from('popular_keywords')
     .select('keyword, "order"')
     .order('order', { ascending: true })
-    .limit(4);
+    .limit(4)
 
   const keywords =
     kwErr || !kwRes || kwRes.length === 0
       ? ['수면', '식습관', '학습', '정서']
-      : kwRes.map((k) => String(k.keyword));
+      : kwRes.map((k) => String(k.keyword))
 
   // 뉴스 최대 3개
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
     .select('id, title, slug, created_at')
     .order('created_at', { ascending: false })
-    .limit(3);
+    .limit(3)
 
-  const news = newsErr || !newsRes ? [] : newsRes;
+  const news = newsErr || !newsRes ? [] : newsRes
 
   return (
     <main className="min-h-screen bg-[#282828] text-[var(--foreground)] font-sans">
@@ -93,10 +93,10 @@ export default async function CoachPage() {
                   </ul>
                 )}
               </div>
-            </div>npm
+            </div>
           </div>
         </section>
       </div>
     </main>
-  );
+  )
 }
