@@ -18,6 +18,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [debug, setDebug] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // 타이핑 인디케이터용
+  const [typingText, setTypingText] = useState('')
+
   // 게스트 2회 제한
   const [guestCount, setGuestCount] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -55,6 +58,20 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     })
     return () => data.subscription.unsubscribe()
   }, [supabase])
+
+  // 로딩 중 "함께 고민 중" 타이핑
+  useEffect(() => {
+    if (!loading) { setTypingText(''); return }
+    const text = '함께 고민 중'
+    setTypingText('')
+    let i = 0
+    const id = setInterval(() => {
+      i++
+      setTypingText(text.slice(0, i))
+      if (i >= text.length) clearInterval(id)
+    }, 120)
+    return () => clearInterval(id)
+  }, [loading])
 
   const bumpGuest = () => {
     const next = guestCount + 1
@@ -145,9 +162,26 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           </button>
         </div>
 
+        {/* 중앙 정렬 타이핑 인디케이터 */}
+        <div className="mt-3 h-6 flex justify-center items-center">
+          {loading && (
+            <span className="font-mono text-sm text-gray-200">
+              {typingText}
+              <span className="animate-pulse">▋</span>
+            </span>
+          )}
+        </div>
+
+        {/* 게스트 무료 횟수 표시 복구 */}
+        {!user && (
+          <p className="mt-1 text-xs text-gray-400 text-center">
+            오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
+          </p>
+        )}
+
         {error && (
           <div className="mt-3 text-sm">
-            <div className="rounded-md bg-[#422] text-[#fbb] p-2">{error}</div>
+            <div className="rounded-md bg-[#422] text-[#fbb] p-2 text-center">{error}</div>
             {debug && (
               <details className="mt-2 text-xs text-gray-400">
                 <summary>자세히</summary>
@@ -172,7 +206,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
       )}
 
-      {/* 게스트 초과 모달만 유지 */}
+      {/* 게스트 초과 모달 */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
