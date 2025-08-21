@@ -19,6 +19,14 @@ export default function NavBar() {
     else setActive('home') // '/', '/coach' 포함
   }, [])
 
+  const loginKakao = async () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: `${origin}/auth/callback?next=/coach` },
+    })
+  }
+
   const logout = async () => {
     await supabase.auth.signOut()
     window.location.reload()
@@ -48,17 +56,27 @@ export default function NavBar() {
           {item('/team', 'talk', 'TALK')}
         </div>
 
-        {/* 우측: 로그인 시 로그아웃 버튼 */}
-        <div>
+        {/* 우측: 로그인/사용자/로그아웃 */}
+        <div className="flex items-center gap-3 text-sm">
           {user ? (
-            <button
-              onClick={logout}
-              className="rounded-md border border-gray-600 px-3 py-1.5 text-sm hover:bg-gray-800"
-            >
-              로그아웃
-            </button>
+            <>
+              <span className="text-gray-300 truncate max-w-[160px]">
+                {user.user_metadata?.full_name || user.email}
+              </span>
+              <button
+                onClick={logout}
+                className="rounded-md border border-gray-600 px-3 py-1.5 hover:bg-gray-800"
+              >
+                로그아웃
+              </button>
+            </>
           ) : (
-            <span className="inline-block w-[84px]" />
+            <button
+              onClick={loginKakao}
+              className="rounded-md bg-[#FEE500] px-3 py-1.5 text-black hover:bg-[#F2D000]"
+            >
+              카카오로 로그인
+            </button>
           )}
         </div>
       </div>

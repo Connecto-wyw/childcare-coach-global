@@ -71,11 +71,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     })
   }
 
-  const logout = async () => {
-    await supabase.auth.signOut()
-    window.location.reload()
-  }
-
   const ask = async () => {
     const q = message.trim()
     if (!q) return
@@ -130,30 +125,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4">
-      {/* 상단 로그인/로그아웃 바 */}
-      <div className="mb-4 flex items-center justify-end gap-3 text-sm">
-        {user ? (
-          <>
-            <span className="text-gray-300 truncate max-w-[160px]">
-              {user.user_metadata?.full_name || user.email}
-            </span>
-            <button
-              onClick={logout}
-              className="rounded-md border border-gray-600 px-3 py-1 text-gray-100 hover:bg-gray-800"
-            >
-              로그아웃
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={loginKakao}
-            className="rounded-md bg-[#FEE500] px-3 py-1 text-black hover:bg-[#F2D000]"
-          >
-            카카오로 로그인
-          </button>
-        )}
-      </div>
-
       {/* 입력 영역 */}
       <div className="mt-2">
         <textarea
@@ -164,11 +135,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
           disabled={loading}
         />
-        <div className="flex items-center justify-between mt-3">
-          {!user && (
-            <p className="text-xs text-gray-400">오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용</p>
-          )}
-          <div className="flex-1" />
+        <div className="flex items-center justify-end mt-3">
           <button
             onClick={ask}
             disabled={loading}
@@ -205,7 +172,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
       )}
 
-      {/* 기존 게스트 초과 모달 유지 */}
+      {/* 게스트 초과 모달만 유지 */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">

@@ -1,11 +1,11 @@
 // src/lib/systemPrompt.ts
 export type PromptOpts = {
-  greetedToday?: boolean;        // 오늘 이미 인사했는지
-  childAge?: string;             // "6세"
-  childGender?: string;          // "남자아이" | "여자아이"
-  prevContext?: string;          // 직전 질의/응답 요약 1~3줄 (없으면 빈 문자열)
-  targetLen?: number;            // 목표 글자 수, 기본 780
-  followupEnabled?: boolean;     // 후속 제안/권유 포함 여부
+  greetedToday?: boolean;
+  childAge?: string;
+  childGender?: string;
+  prevContext?: string;
+  targetLen?: number;
+  followupEnabled?: boolean;
 };
 
 export function getSystemPrompt(opts: PromptOpts = {}) {
@@ -32,7 +32,7 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
     : '직전 대화 요약이 없으면, 이번 질문만 보고 일반적 원칙에 따라 답변하세요.';
 
   const emojiRule =
-    '이모티콘은 문장 끝 장식으로 쓰지 말고 문단 구분 또는 제목/소제목 역할로만 사용하세요. 한 답변당 2~4개, 연속 사용 금지.';
+    '이모티콘은 문장 끝 장식으로 쓰지 말고 문단 구분/소제목 용도로만 사용하세요. 각 단락의 첫 줄 시작에 주제와 어울리는 이모티콘을 정확히 1개 넣으세요. 한 답변 전체에서 2~4개 사용, 동일 이모티콘 반복과 연속 사용 금지.';
 
   const lengthRule =
     `답변 길이는 공백 포함 약 ${targetLen}자로 맞추세요. 너무 짧으면 보충하고, 과도하게 길면 핵심만 남기세요.`;
