@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     )
   }
 
-  // 게스트 1일 2회 제한 (메모리 방식: 배포/스케일 시 초기화됨)
+  // 게스트 1일 2회 제한 (메모리 방식)
   if (!user_id) {
     const k = key(ip)
     const used = guestMap.get(k) ?? 0
@@ -43,20 +43,21 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+  const MODEL = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
 
   // 오늘 인사 여부 쿠키로 판별
   const jar = await cookies()
   const today = new Date().toISOString().slice(0, 10)
   const greetedToday = jar.get('coach_last_greet')?.value === today
 
-  // 단일 시스템 프롬프트 생성
+  // 시스템 프롬프트(END 마커 규칙 포함)
   const systemPrompt = getSystemPrompt({ greetedToday })
 
   // 답변 생성
   let answer = ''
   try {
     const ac = new AbortController()
-    const timer = setTimeout(() => ac.abort(), 15000)
+    const timer = setTimeout(() => ac.abort(), 20000)
 
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -65,9 +66,10 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: MODEL,
         temperature: 0.3,
-        max_tokens: 400,
+        max_tokens: 900,        // 여유
+        stop: ['[END]'],
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: question },
@@ -87,9 +89,40 @@ export async function POST(req: Request) {
       )
     }
 
-    const data: { choices?: { message?: { content?: string } }[] } =
-      await resp.json()
-    answer = data.choices?.[0]?.message?.content?.trim() || '응답을 받지 못했습니다.'
+    type Choice = { message?: { content?: string }, finish_reason?: string }
+    const data: { choices?: Choice[] } = await resp.json()
+    const firstMsg = data.choices?.[0]
+    const part = firstMsg?.message?.content ?? ''
+    const finish = firstMsg?.finish_reason
+    answer = part.replace(/\s*\[END\]\s*$/,'')
+
+    // 길이로 끊겼으면 이어쓰기
+    if (finish && finish !== 'stop') {
+      const contResp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.4,
+          max_tokens: 300,
+          stop: ['[END]'],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: question },
+            { role: 'assistant', content: part },
+            { role: 'user', content: '방금 답변이 끊겼다. 마지막 문장부터 자연스럽게 마무리하고, 끝에 [END]로 종료하라.' }
+          ],
+        }),
+      })
+      if (contResp.ok) {
+        const contData: { choices?: Choice[] } = await contResp.json()
+        const tail = contData.choices?.[0]?.message?.content ?? ''
+        answer += tail.replace(/\s*\[END\]\s*$/,'')
+      }
+    }
   } catch (e: unknown) {
     const isAbort = e instanceof DOMException && e.name === 'AbortError'
     return NextResponse.json(

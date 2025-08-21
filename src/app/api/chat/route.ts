@@ -1,94 +1,94 @@
 // src/app/api/chat/route.ts
-export const dynamic = 'force-dynamic'
-
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import OpenAI from 'openai'
 import { getSystemPrompt } from '@/lib/systemPrompt'
 
-type ChatMessage = {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
+export const runtime = 'nodejs'
 
-export async function POST(req: Request) {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { success: false, reply: 'OPENAI_API_KEY가 설정되지 않았습니다.' },
-      { status: 500 }
-    )
-  }
-
-  const body = (await req.json()) as { messages?: ChatMessage[] }
-  const messages = body?.messages ?? []
-
-  // 오늘 인사 여부 쿠키 확인
-  const jar = await cookies()
-  const today = new Date().toISOString().slice(0, 10)
-  const greetedToday = jar.get('coach_last_greet')?.value === today
-
-  // 공통 시스템 프롬프트
-  const systemPrompt = getSystemPrompt({ greetedToday })
-
+export async function POST(req: NextRequest) {
   try {
-    const ac = new AbortController()
-    const timer = setTimeout(() => ac.abort(), 15_000)
+    const { question } = await req.json()
+    if (!question || typeof question !== 'string') {
+      return NextResponse.json({ error: 'invalid question' }, { status: 400 })
+    }
 
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        temperature: 0.3,
-        max_tokens: 400,
-        messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      }),
-      cache: 'no-store',
-      signal: ac.signal,
+    // Auth
+    const supabase = createRouteHandlerClient({ cookies })
+    const { data: { user }, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
+    // 직전 Q/A 요약 (RPC 없으면 빈 문자열)
+    let prevContext = ''
+    const rpc = await supabase.rpc('get_prev_context', { p_user_id: user.id })
+    if (!rpc.error && rpc.data) prevContext = String(rpc.data)
+
+    // 오늘 첫 대화 여부
+    const today = new Date().toISOString().slice(0, 10)
+    const { count } = await supabase
+      .from('chat_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', `${today}T00:00:00Z`)
+    const greetedToday = (count ?? 0) > 0
+
+    // 시스템 프롬프트
+    const system = getSystemPrompt({ greetedToday, prevContext })
+
+    // OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY!,
+      organization: process.env.OPENAI_ORG_ID,
+      project: process.env.OPENAI_PROJECT_ID,
     })
-    clearTimeout(timer)
+    const MODEL = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
 
-    if (!resp.ok) {
-      const t = await resp.text()
-      console.error('GPT API 오류:', t)
-      return NextResponse.json(
-        { success: false, reply: '응답이 지연됩니다. 잠시 후 다시 시도해 주세요.' },
-        { status: 502 }
-      )
-    }
+    // 1차 호출
+    const first = await openai.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: question },
+      ],
+      temperature: 0.5,
+      max_tokens: 900,
+      stop: ['[END]'],
+    })
 
-    const data: { choices?: { message?: { content?: string } }[] } =
-      await resp.json()
+    const part = first.choices[0]?.message?.content ?? ''   // ← const로 수정
+    const finish = first.choices[0]?.finish_reason
+    let answer = part.replace(/\s*\[END\]\s*$/, '')
 
-    const reply =
-      data.choices?.[0]?.message?.content?.trim() || '응답을 받지 못했습니다.'
-
-    // 응답 + 오늘 인사 쿠키 설정
-    const res = NextResponse.json({ success: true, reply }, { status: 200 })
-    if (!greetedToday) {
-      res.cookies.set('coach_last_greet', today, {
-        path: '/',
-        maxAge: 60 * 60 * 24,
-        sameSite: 'lax',
+    // 이어쓰기(필요 시)
+    if (finish !== 'stop') {
+      const cont = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: question },
+          { role: 'assistant', content: part },
+          { role: 'user', content: '방금 답변이 끊겼다. 마지막 문장부터 자연스럽게 마무리하고, 끝에 [END]로 종료하라.' },
+        ],
+        temperature: 0.4,
+        max_tokens: 300,
+        stop: ['[END]'],
       })
+      const tail = cont.choices[0]?.message?.content ?? ''
+      answer += tail.replace(/\s*\[END\]\s*$/, '')
     }
-    return res
-  } catch (e: unknown) {
-    const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : 'unknown error'
-    const isAbort = e instanceof DOMException && e.name === 'AbortError'
-    console.error('예외:', errMsg)
 
-    return NextResponse.json(
-      {
-        success: false,
-        reply: isAbort
-          ? '응답이 지연됩니다. 다시 시도해 주세요.'
-          : '처리 중 문제가 발생했습니다. 다시 시도해 주세요.',
-      },
-      { status: 500 }
-    )
+    // 로그 저장
+    const turnId = crypto.randomUUID()
+    await supabase.from('chat_logs').insert([
+      { user_id: user.id, role: 'user', content: question, turn_id: turnId },
+      { user_id: user.id, role: 'assistant', content: answer, turn_id: turnId },
+    ])
+
+    return NextResponse.json({ answer })
+  } catch {
+    return NextResponse.json({ error: 'server error' }, { status: 500 })
   }
 }
