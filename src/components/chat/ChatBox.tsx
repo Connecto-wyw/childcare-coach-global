@@ -6,7 +6,7 @@ import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import ReactMarkdown from 'react-markdown'
 
 type ChatBoxProps = { systemPrompt?: string }
-type AskRes = { answer?: string; error?: string; message?: string }
+type AskRes = { answer?: string; error?: string; message?: string; status?: number; body?: string }
 
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const user = useUser()
@@ -15,6 +15,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
   const [error, setError] = useState('')
+  const [debug, setDebug] = useState('')
   const [loading, setLoading] = useState(false)
 
   // 게스트 2회 제한
@@ -62,61 +63,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     localStorage.setItem(LS_DAY, today())
   }
 
-  const ask = async () => {
-    const q = message.trim()
-    if (!q) return
-
-    if (!user && guestCount >= GUEST_LIMIT) {
-      setShowLoginModal(true)
-      return
-    }
-
-    setLoading(true)
-    setError('')
-    setReply('')
-
-    try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system: systemPrompt ?? '',
-          question: q,
-          user_id: user?.id ?? null,
-        }),
-        cache: 'no-store',
-      })
-
-      const raw = await res.text()
-      let data: AskRes = {}
-      try { data = raw ? JSON.parse(raw) : {} } catch { /* not json */ }
-
-      if (!res.ok) {
-        if (res.status === 403) {
-          setShowLoginModal(true)
-        }
-        const msg = data.message || data.error || raw || '요청 실패'
-        setError(`${res.status} ${res.statusText} - ${msg}`)
-        return
-      }
-
-      setReply((data.answer || '').trim())
-      if (!user) bumpGuest()
-      setMessage('')
-    } catch (e) {
-      setError(`client_error: ${String(e)}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const onEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && e.shiftKey === false) {
-      e.preventDefault()
-      void ask()
-    }
-  }
-
   const loginKakao = async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     await supabase.auth.signInWithOAuth({
@@ -125,10 +71,91 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     })
   }
 
+  const logout = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
+
+  const ask = async () => {
+    const q = message.trim()
+    if (!q) return
+    if (!user && guestCount >= GUEST_LIMIT) {
+      setShowLoginModal(true)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setDebug('')
+    setReply('')
+
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: systemPrompt ?? '', question: q, user_id: user?.id ?? null }),
+        cache: 'no-store',
+      })
+
+      const raw = await res.text()
+      let data: AskRes = {}
+      try { data = raw ? JSON.parse(raw) : {} } catch {}
+
+      if (!res.ok) {
+        if (res.status === 403) setShowLoginModal(true)
+        const friendly = '일시적으로 응답이 지연되었어요. 잠시 후 다시 시도해 주세요.'
+        const tech = `${res.status} ${res.statusText} ${data.error || ''} ${(data.body || '').slice(0, 500)}`
+        setError(friendly)
+        setDebug(tech.trim())
+        return
+      }
+
+      setReply((data.answer || '').trim())
+      if (!user) bumpGuest()
+      setMessage('')
+    } catch (e) {
+      setError('네트워크 상태가 불안정합니다. 다시 시도해 주세요.')
+      setDebug(String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void ask()
+    }
+  }
+
   return (
     <div className="w-full max-w-3xl mx-auto px-4">
+      {/* 상단 로그인/로그아웃 바 */}
+      <div className="mb-4 flex items-center justify-end gap-3 text-sm">
+        {user ? (
+          <>
+            <span className="text-gray-300 truncate max-w-[160px]">
+              {user.user_metadata?.full_name || user.email}
+            </span>
+            <button
+              onClick={logout}
+              className="rounded-md border border-gray-600 px-3 py-1 text-gray-100 hover:bg-gray-800"
+            >
+              로그아웃
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={loginKakao}
+            className="rounded-md bg-[#FEE500] px-3 py-1 text-black hover:bg-[#F2D000]"
+          >
+            카카오로 로그인
+          </button>
+        )}
+      </div>
+
       {/* 입력 영역 */}
-      <div className="mt-6">
+      <div className="mt-2">
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -137,7 +164,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
           disabled={loading}
         />
-        <div className="flex justify-center mt-3">
+        <div className="flex items-center justify-between mt-3">
+          {!user && (
+            <p className="text-xs text-gray-400">오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용</p>
+          )}
+          <div className="flex-1" />
           <button
             onClick={ask}
             disabled={loading}
@@ -146,17 +177,21 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             {loading ? '함께 고민 중' : '질문하기'}
           </button>
         </div>
-        {!user && (
-          <p className="mt-2 text-xs text-gray-400">오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용</p>
-        )}
+
         {error && (
-          <div className="mt-3 text-red-400 text-sm whitespace-pre-wrap">
-            {error}
+          <div className="mt-3 text-sm">
+            <div className="rounded-md bg-[#422] text-[#fbb] p-2">{error}</div>
+            {debug && (
+              <details className="mt-2 text-xs text-gray-400">
+                <summary>자세히</summary>
+                <pre className="whitespace-pre-wrap">{debug}</pre>
+              </details>
+            )}
           </div>
         )}
       </div>
 
-      {/* 응답: 문단 사이 한 줄 띄우기 */}
+      {/* 응답 */}
       {reply && (
         <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-[#eae3de] prose prose-invert max-w-none leading-7 space-y-3">
           <ReactMarkdown
@@ -170,7 +205,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
       )}
 
-      {/* 로그인 모달 */}
+      {/* 기존 게스트 초과 모달 유지 */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
