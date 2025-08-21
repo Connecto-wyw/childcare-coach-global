@@ -6,6 +6,7 @@ import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import ReactMarkdown from 'react-markdown'
 
 type ChatBoxProps = { systemPrompt?: string }
+type AskRes = { answer?: string; error?: string; message?: string }
 
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const user = useUser()
@@ -13,6 +14,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const [message, setMessage] = useState('')
   const [reply, setReply] = useState('')
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   // 게스트 2회 제한
@@ -61,34 +63,48 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   }
 
   const ask = async () => {
-    if (!message.trim()) return
+    const q = message.trim()
+    if (!q) return
+
     if (!user && guestCount >= GUEST_LIMIT) {
       setShowLoginModal(true)
       return
     }
+
+    setLoading(true)
+    setError('')
+    setReply('')
+
     try {
-      setLoading(true)
-      setReply('')
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system: systemPrompt ?? '',
-          question: message,
+          question: q,
           user_id: user?.id ?? null,
         }),
+        cache: 'no-store',
       })
+
+      const raw = await res.text()
+      let data: AskRes = {}
+      try { data = raw ? JSON.parse(raw) : {} } catch { /* not json */ }
+
       if (!res.ok) {
         if (res.status === 403) {
           setShowLoginModal(true)
-          return
         }
-        throw new Error('request_failed')
+        const msg = data.message || data.error || raw || '요청 실패'
+        setError(`${res.status} ${res.statusText} - ${msg}`)
+        return
       }
-      const data = await res.json()
-      setReply(data.answer ?? '')
+
+      setReply((data.answer || '').trim())
       if (!user) bumpGuest()
       setMessage('')
+    } catch (e) {
+      setError(`client_error: ${String(e)}`)
     } finally {
       setLoading(false)
     }
@@ -105,9 +121,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: {
-        redirectTo: `${origin}/auth/callback?next=/coach`,
-      },
+      options: { redirectTo: `${origin}/auth/callback?next=/coach` },
     })
   }
 
@@ -134,6 +148,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
         {!user && (
           <p className="mt-2 text-xs text-gray-400">오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용</p>
+        )}
+        {error && (
+          <div className="mt-3 text-red-400 text-sm whitespace-pre-wrap">
+            {error}
+          </div>
         )}
       </div>
 
