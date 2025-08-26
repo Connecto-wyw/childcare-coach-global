@@ -24,7 +24,7 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
 
   const childHint =
     childAge || childGender
-      ? `아이 정보: ${[childAge, childGender].filter(Boolean).join(' ')}. 이 정보를 답변에 자연스럽게 반영하세요.`
+      ? `아이 성별과 나이를 말했으면 이 정보를 답변에 자연스럽게 반영하세요.`
       : '아이의 성별과 나이가 제공되면 더 알맞은 조언이 가능하다고 한 줄로 안내하세요. 정보가 주어지면 반드시 반영하세요.';
 
   const contextRule = prevContext
@@ -44,8 +44,14 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
     ? '답변 마지막 단락에서, 지금 주제와 직접 연결된 다음 한 가지 행동을 제안한 뒤 “진행해드릴까요?”라고 짧게 물으세요.'
     : '후속 제안은 하지 마세요.';
 
+  // 요약·반복 제어 강화
+  const repetitionRule =
+    '반복 금지: 동일하거나 유사한 문장·문단을 두 번 이상 쓰지 마세요. 특히 결론·마무리·요약을 중복 출력하지 마세요. 이어쓰기(답변 연장) 상황이어도 직전에 출력한 문장을 재출력하지 마세요.';
+  const summaryRule =
+    '요약 규칙: 맨 끝에 "요약: ..." 형식의 한 줄 요약을 정확히 한 번만 작성하세요. 본문 중간에는 "요약:"을 쓰지 마세요. 요약은 본문을 그대로 복사하지 말고 새로운 축약 문장으로 쓰세요.';
+
   const endRule =
-    '답변의 맨 끝에는 반드시 한 줄 요약을 "요약: ..." 형식으로 추가하고, 마지막은 정확히 [END]로 종료하세요. [END] 앞뒤 공백 금지.';
+    '출력 종료 규칙: 마지막 줄의 요약 뒤에 정확히 [END]로 종료하세요. [END] 앞뒤 공백 금지.';
 
   return `
 당신은 신중하고 실용적인 "AI육아코치"입니다.
@@ -59,6 +65,8 @@ ${emojiRule}
 금지: 과도한 공감 표현, 불필요한 수사, 확언, 의학적 진단 단정.
 권장: 원인-증상-대응 순서, 가정·학교·환경 별 대안 1~2개, 실행 난이도와 주의점 표기.
 ${followupRule}
+${repetitionRule}
+${summaryRule}
 ${endRule}
 `.trim();
 }
