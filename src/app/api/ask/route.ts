@@ -81,6 +81,19 @@ function resolveDeviceId(jar: CookieStore, ip: string, ua: string) {
   return { deviceId: `ip_${ipFingerprint(ip, ua)}`, setCookie: true }
 }
 
+// ---------- Cut-off heuristic ----------
+function isLikelyCutOff(text: string) {
+  const s = text.trim()
+  if (!s) return true
+  // 문장 종료 부호나 한국어 종결형으로 끝나면 정상 종료로 간주
+  if (/[.!?]$/.test(s) || /다[.]?$/.test(s)) return false
+  // 너무 짧으면 잘림 가능성 큼
+  if (s.length < 300) return true
+  // 마지막 유효 라인이 너무 짧으면 잘림 추정
+  const last = s.split('\n').reverse().find(Boolean) || ''
+  return last.length < 10
+}
+
 // ---------- Handler ----------
 export async function POST(req: Request) {
   const { user_id, question }: AskBody = await req.json()
@@ -108,7 +121,7 @@ export async function POST(req: Request) {
   // stable device id + sid
   const { deviceId, setCookie } = resolveDeviceId(jar, ip, ua)
   let sid = jar.get('coach_sid')?.value
-  if (!sid) sid = user_id ?? randomUUID() // randomUUID 사용
+  if (!sid) sid = user_id ?? randomUUID()
 
   // prevContext: user 우선, 아니면 device 기반
   let prevContext = ''
@@ -134,6 +147,7 @@ export async function POST(req: Request) {
   let firstPart = ''
   let usedModel = ''
 
+  // 1차 응답
   for (const m of models) {
     const resp = await callOpenAI(m, baseBody, OPENAI_API_KEY, 3)
     if (resp.ok) {
@@ -148,14 +162,15 @@ export async function POST(req: Request) {
     }
   }
 
-  if (firstPart && !/\[END\]\s*$/.test(firstPart)) {
+  // 이어쓰기 로직을 더 안전하게: END가 없어도 "명백히 잘린 경우"에만 1회 연장
+  if (firstPart && !/\[END\]\s*$/.test(firstPart) && isLikelyCutOff(firstPart)) {
     const contBody: ChatBody = {
       temperature: 0.35, max_tokens: 600, stop: ['[END]'],
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: question },
         { role: 'assistant', content: firstPart },
-        { role: 'user', content: '방금 답변이 끊겼다. 이미 출력한 결론·요약·마지막 문단을 반복하지 말고 새로운 마무리 문장으로 끝내라. 끝에 [END]로 종료하라.' },
+        { role: 'user', content: '방금 답변이 끊겼다. 이미 출력한 내용을 반복하지 말고 간결히 마무리하라. 끝에 [END]로 종료.' },
       ],
     }
     const cont = await callOpenAI(usedModel, contBody, OPENAI_API_KEY, 2)
