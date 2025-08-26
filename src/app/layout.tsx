@@ -8,6 +8,7 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.indianbob.ai'),   // ✅ 절대 경로 base 지정
   title: 'AI 육아코치',
   description: '부모를 위한 맞춤형 AI 육아 코치',
   openGraph: {
@@ -28,9 +29,9 @@ export const metadata: Metadata = {
     images: ['/og-image.png'],
   },
   icons: {
-    icon: '/favicon.ico',                 // <- public/favicon.ico
+    icon: '/favicon.ico',                 
     shortcut: '/favicon.ico',
-    apple: '/apple-touch-icon.png',      // <- public/apple-touch-icon.png (선택)
+    apple: '/apple-touch-icon.png',
   },
 }
 
