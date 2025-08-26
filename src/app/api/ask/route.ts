@@ -66,7 +66,7 @@ function extractSummary(text?: string | null) {
 
 // [END] 제거 + 요약 중복 제거
 function normalizeAnswer(text: string) {
-  let t = text.replace(/\s*\[END\]\s*$/,'')
+  let t = text.replace(/\s*\[END\]\s*$/, '')
   const lines = t.split('\n')
   const summaryIdxs = lines
     .map((ln, i) => ({ ln, i }))
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
   let sid = jar.get('coach_sid')?.value
   if (!sid) sid = randomUUID()
 
-  // 직전 요약 불러오기 → prevContext로 주입
+  // 직전 요약 불러오기 → prevContext로 주입 (summary 컬럼 사용)
   let prevContext = ''
   try {
     const supabase = createClient(
@@ -126,10 +126,9 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    // .match(col as any) 제거 → .eq 분기
     const base = supabase
       .from('chat_logs')
-      .select('answer')
+      .select('summary')
       .order('created_at', { ascending: false })
       .limit(1)
 
@@ -137,7 +136,7 @@ export async function POST(req: Request) {
       ? await base.eq('user_id', user_id).maybeSingle()
       : await base.eq('sid', sid).maybeSingle()
 
-    prevContext = extractSummary(data?.answer)
+    prevContext = (data?.summary as string) ?? ''
   } catch {
     prevContext = ''
   }
@@ -190,7 +189,7 @@ export async function POST(req: Request) {
         {
           role: 'user',
           content:
-            '방금 답변이 끊겼다. 마지막 문장부터 자연스럽게 마무리하되, 이미 출력한 결론·요약·마지막 문단을 반복하지 말고 새로운 마무리 문장으로 끝내라. 끝에 [END]로 종료하라.'
+            '방금 답변이 끊겼다. 마지막 문장부터 자연스럽게 마무리하되, 이미 출력한 결론·요약·마지막 문단을 반복하지 말고 새로운 마무리 문장으로 끝내라. 끝에 [END]로 종료하라.',
         },
       ],
     }
@@ -202,14 +201,25 @@ export async function POST(req: Request) {
     }
   }
 
+  // 요약 한 줄 추출 → 별도 컬럼 저장
+  const summary = extractSummary(answer)
+
   // 로그 저장(실패 무시)
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    await supabase.from('chat_logs').insert({ user_id: user_id ?? null, sid, question, answer })
-  } catch {}
+    await supabase.from('chat_logs').insert({
+      user_id: user_id ?? null,
+      sid,
+      question,
+      answer,
+      summary, // ← 새 컬럼
+    })
+  } catch {
+    // ignore
+  }
 
   const res = NextResponse.json({ answer, model: usedModel }, { status: 200 })
 
