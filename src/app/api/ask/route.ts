@@ -114,7 +114,7 @@ export async function POST(req: Request) {
   const today = new Date().toISOString().slice(0, 10)
   const greetedToday = jar.get('coach_last_greet')?.value === today
 
-  // 세션 식별자(sid) 준비(게스트 컨텍스트 이어주기)
+  // 세션 식별자(sid) 준비
   let sid = jar.get('coach_sid')?.value
   if (!sid) sid = randomUUID()
 
@@ -125,14 +125,17 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    const col = user_id ? { user_id } : { sid }
-    const { data } = await supabase
+
+    // .match(col as any) 제거 → .eq 분기
+    const base = supabase
       .from('chat_logs')
       .select('answer')
-      .match(col as any)
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
+
+    const { data } = user_id
+      ? await base.eq('user_id', user_id).maybeSingle()
+      : await base.eq('sid', sid).maybeSingle()
 
     prevContext = extractSummary(data?.answer)
   } catch {
