@@ -4,13 +4,20 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { getSystemPrompt } from '@/lib/systemPrompt'
 import { randomUUID } from 'crypto'
 
 const GUEST_LIMIT = 2
 const guestMap = new Map<string, number>()
 const keyOf = (ip: string) => `${new Date().toISOString().slice(0, 10)}:${ip}`
+
+// --- Supabase Admin (Service Role) ---
+function createAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+}
 
 type AskBody = { user_id?: string; question?: string }
 type Role = 'system' | 'user' | 'assistant'
@@ -121,10 +128,7 @@ export async function POST(req: Request) {
   // 직전 요약 불러오기 → prevContext로 주입 (summary 컬럼 사용)
   let prevContext = ''
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const supabase = createAdmin()
 
     const base = supabase
       .from('chat_logs')
@@ -132,12 +136,14 @@ export async function POST(req: Request) {
       .order('created_at', { ascending: false })
       .limit(1)
 
-    const { data } = user_id
+    const { data, error } = user_id
       ? await base.eq('user_id', user_id).maybeSingle()
       : await base.eq('sid', sid).maybeSingle()
 
+    if (error) console.error('chat_logs select error', error)
     prevContext = (data?.summary as string) ?? ''
-  } catch {
+  } catch (e) {
+    console.error('chat_logs select exception', e)
     prevContext = ''
   }
 
@@ -204,21 +210,19 @@ export async function POST(req: Request) {
   // 요약 한 줄 추출 → 별도 컬럼 저장
   const summary = extractSummary(answer)
 
-  // 로그 저장(실패 무시)
+  // 로그 저장(서비스 롤 사용, 에러 로깅)
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    await supabase.from('chat_logs').insert({
+    const supabase = createAdmin()
+    const { error } = await supabase.from('chat_logs').insert({
       user_id: user_id ?? null,
       sid,
       question,
       answer,
-      summary, // ← 새 컬럼
+      summary,
     })
-  } catch {
-    // ignore
+    if (error) console.error('chat_logs insert error', error)
+  } catch (e) {
+    console.error('chat_logs insert exception', e)
   }
 
   const res = NextResponse.json({ answer, model: usedModel }, { status: 200 })
