@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { getSystemPrompt } from '@/lib/systemPrompt'
+import { randomUUID } from 'crypto'
 
 const GUEST_LIMIT = 2
 const guestMap = new Map<string, number>()
@@ -56,6 +57,29 @@ async function callOpenAI(model: string, body: ChatBody, key: string, attempts =
   return last as Response
 }
 
+// "요약: ..." 한 줄만 추출
+function extractSummary(text?: string | null) {
+  if (!text) return ''
+  const m = text.match(/^\s*요약:\s*(.+)$/m)
+  return m ? m[1].trim() : ''
+}
+
+// [END] 제거 + 요약 중복 제거
+function normalizeAnswer(text: string) {
+  let t = text.replace(/\s*\[END\]\s*$/,'')
+  const lines = t.split('\n')
+  const summaryIdxs = lines
+    .map((ln, i) => ({ ln, i }))
+    .filter(x => /^\s*요약:\s*/.test(x.ln))
+    .map(x => x.i)
+
+  if (summaryIdxs.length > 1) {
+    const keep = summaryIdxs[summaryIdxs.length - 1]
+    t = lines.filter((_, i) => i === keep || !summaryIdxs.includes(i)).join('\n')
+  }
+  return t
+}
+
 export async function POST(req: Request) {
   const { user_id, question }: AskBody = await req.json()
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local'
@@ -81,15 +105,41 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'config', message: 'OPENAI_API_KEY 누락' }, { status: 500 })
   }
 
-  // 모델 폴백 체인
-  const primary = process.env.OPENAI_MODEL || 'gpt-5'
-  const models = [primary, 'gpt-4o', 'gpt-4o-mini']
+  // 경량 모델 기본값 + 폴백 체인
+  const primary = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  const models = [primary, 'gpt-4o', 'gpt-5']
 
-  // 인사 여부
+  // 쿠키 및 인사 여부
   const jar = await cookies()
   const today = new Date().toISOString().slice(0, 10)
   const greetedToday = jar.get('coach_last_greet')?.value === today
-  const systemPrompt = getSystemPrompt({ greetedToday })
+
+  // 세션 식별자(sid) 준비(게스트 컨텍스트 이어주기)
+  let sid = jar.get('coach_sid')?.value
+  if (!sid) sid = randomUUID()
+
+  // 직전 요약 불러오기 → prevContext로 주입
+  let prevContext = ''
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const col = user_id ? { user_id } : { sid }
+    const { data } = await supabase
+      .from('chat_logs')
+      .select('answer')
+      .match(col as any)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    prevContext = extractSummary(data?.answer)
+  } catch {
+    prevContext = ''
+  }
+
+  const systemPrompt = getSystemPrompt({ greetedToday, prevContext })
 
   const baseBody: ChatBody = {
     temperature: 0.35,
@@ -112,7 +162,7 @@ export async function POST(req: Request) {
       const data = (await resp.json()) as ChatAPIResponse
       const c = data.choices?.[0]
       firstPart = c?.message?.content ?? ''
-      answer = firstPart.replace(/\s*\[END\]\s*$/, '')
+      answer = normalizeAnswer(firstPart)
       usedModel = m
       break
     } else if (m === models[models.length - 1]) {
@@ -134,14 +184,18 @@ export async function POST(req: Request) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: question },
         { role: 'assistant', content: firstPart },
-        { role: 'user', content: '방금 답변이 끊겼다. 마지막 문장부터 자연스럽게 마무리하고, 끝에 [END]로 종료하라.' },
+        {
+          role: 'user',
+          content:
+            '방금 답변이 끊겼다. 마지막 문장부터 자연스럽게 마무리하되, 이미 출력한 결론·요약·마지막 문단을 반복하지 말고 새로운 마무리 문장으로 끝내라. 끝에 [END]로 종료하라.'
+        },
       ],
     }
     const cont = await callOpenAI(usedModel, contBody, OPENAI_API_KEY, 2)
     if (cont.ok) {
       const contData = (await cont.json()) as ChatAPIResponse
       const tail = contData.choices?.[0]?.message?.content ?? ''
-      answer += tail.replace(/\s*\[END\]\s*$/, '')
+      answer = normalizeAnswer(answer + (tail || ''))
     }
   }
 
@@ -151,10 +205,13 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    await supabase.from('chat_logs').insert({ user_id: user_id ?? null, question, answer })
+    await supabase.from('chat_logs').insert({ user_id: user_id ?? null, sid, question, answer })
   } catch {}
 
   const res = NextResponse.json({ answer, model: usedModel }, { status: 200 })
+
+  // 쿠키 설정
+  res.cookies.set('coach_sid', sid, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
   if (!greetedToday) {
     res.cookies.set('coach_last_greet', today, { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' })
   }
