@@ -12,35 +12,22 @@ const GUEST_LIMIT = 2
 const guestMap = new Map<string, number>()
 const keyOf = (ip: string) => `${new Date().toISOString().slice(0, 10)}:${ip}`
 
+// ---------- Supabase Admin (Service Role) ----------
+function admin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+}
+
+// ---------- Types ----------
 type AskBody = { user_id?: string; question?: string }
 type Role = 'system' | 'user' | 'assistant'
 type ChatMessage = { role: Role; content: string }
 type ChatBody = { temperature?: number; max_tokens?: number; stop?: string[]; messages: ChatMessage[] }
-type Choice = { message?: { content?: string }, finish_reason?: string }
+type Choice = { message?: { content?: string }; finish_reason?: string }
 type ChatAPIResponse = { choices?: Choice[] }
 
-// --- Supabase Admin ---
-function admin(): SupabaseClient {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  )
-}
-
-// hash(ip + ua)
-function ipFingerprint(ip: string, ua: string) {
-  return createHash('sha256').update(`${ip}|${ua}`).digest('hex').slice(0, 32)
-}
-
-// stable device id
-function resolveDeviceId(jar: ReturnType<typeof cookies> extends Promise<infer R> ? R : any, ip: string, ua: string) {
-  const fromCookie = jar.get('coach_did')?.value // 디바이스 키
-  if (fromCookie) return { deviceId: fromCookie, setCookie: false }
-  const ipKey = `ip_${ipFingerprint(ip, ua)}`
-  return { deviceId: ipKey, setCookie: true } // 처음엔 ip 기반. 이후 쿠키 심어 고정.
-}
-
+// ---------- OpenAI helpers ----------
 function mkHeaders(key: string) {
   const h: Record<string, string> = { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }
   if (process.env.OPENAI_ORG_ID) h['OpenAI-Organization'] = process.env.OPENAI_ORG_ID!
@@ -65,6 +52,7 @@ async function callOpenAI(model: string, body: ChatBody, key: string, attempts =
   return last as Response
 }
 
+// ---------- Text helpers ----------
 function extractSummary(text?: string | null) {
   if (!text) return ''
   const m = text.match(/^\s*요약:\s*(.+)$/m)
@@ -74,47 +62,55 @@ function extractSummary(text?: string | null) {
 function normalizeAnswer(text: string) {
   let t = text.replace(/\s*\[END\]\s*$/, '')
   const lines = t.split('\n')
-  const summaryIdxs = lines.map((ln, i) => ({ ln, i })).filter(x => /^\s*요약:\s*/.test(x.ln)).map(x => x.i)
-  if (summaryIdxs.length > 1) {
-    const keep = summaryIdxs[summaryIdxs.length - 1]
-    t = lines.filter((_, i) => i === keep || !summaryIdxs.includes(i)).join('\n')
+  const idxs = lines.map((ln, i) => ({ ln, i })).filter(x => /^\s*요약:\s*/.test(x.ln)).map(x => x.i)
+  if (idxs.length > 1) {
+    const keep = idxs[idxs.length - 1]
+    t = lines.filter((_, i) => i === keep || !idxs.includes(i)).join('\n')
   }
   return t
 }
 
+// ---------- Device ID helpers ----------
+function ipFingerprint(ip: string, ua: string) {
+  return createHash('sha256').update(`${ip}|${ua}`).digest('hex').slice(0, 32)
+}
+type CookieStore = Awaited<ReturnType<typeof cookies>>
+function resolveDeviceId(jar: CookieStore, ip: string, ua: string) {
+  const did = jar.get('coach_did')?.value
+  if (did) return { deviceId: did, setCookie: false }
+  return { deviceId: `ip_${ipFingerprint(ip, ua)}`, setCookie: true }
+}
+
+// ---------- Handler ----------
 export async function POST(req: Request) {
   const { user_id, question }: AskBody = await req.json()
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local'
   const ua = req.headers.get('user-agent') || 'ua'
   if (!question?.trim()) return NextResponse.json({ error: 'bad_request', message: '질문이 비어 있습니다.' }, { status: 400 })
 
-  // 게스트 1일 2회 제한
+  // guest rate limit
   if (!user_id) {
-    const k = keyOf(ip)
-    const used = guestMap.get(k) ?? 0
-    if (used >= GUEST_LIMIT) {
-      return NextResponse.json({ error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' }, { status: 403 })
-    }
+    const k = keyOf(ip); const used = guestMap.get(k) ?? 0
+    if (used >= GUEST_LIMIT) return NextResponse.json({ error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' }, { status: 403 })
     guestMap.set(k, used + 1)
   }
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY
   if (!OPENAI_API_KEY) return NextResponse.json({ error: 'config', message: 'OPENAI_API_KEY 누락' }, { status: 500 })
 
-  // 모델
   const primary = process.env.OPENAI_MODEL || 'gpt-4o-mini'
   const models = [primary, 'gpt-4o', 'gpt-5']
 
-  // 쿠키
   const jar = await cookies()
   const today = new Date().toISOString().slice(0, 10)
   const greetedToday = jar.get('coach_last_greet')?.value === today
 
-  // 안정 sid: 로그인시 user_id, 아니면 deviceId(쿠키) → 없으면 ipFingerprint
+  // stable device id + sid
   const { deviceId, setCookie } = resolveDeviceId(jar, ip, ua)
-  const sid = user_id ?? deviceId // 로그인 사용자는 user_id가 곧 sid 역할
+  let sid = jar.get('coach_sid')?.value
+  if (!sid) sid = user_id ?? randomUUID() // randomUUID 사용
 
-  // 직전 요약 → prevContext (user_id 우선, 아니면 device_id)
+  // prevContext: user 우선, 아니면 device 기반
   let prevContext = ''
   try {
     const sb = admin()
@@ -159,7 +155,7 @@ export async function POST(req: Request) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: question },
         { role: 'assistant', content: firstPart },
-        { role: 'user', content: '방금 답변이 끊겼다. 이미 낸 결론·요약을 반복하지 말고 새로운 마무리 문장으로 끝내라. 끝에 [END]로 종료하라.' },
+        { role: 'user', content: '방금 답변이 끊겼다. 이미 출력한 결론·요약·마지막 문단을 반복하지 말고 새로운 마무리 문장으로 끝내라. 끝에 [END]로 종료하라.' },
       ],
     }
     const cont = await callOpenAI(usedModel, contBody, OPENAI_API_KEY, 2)
@@ -172,13 +168,13 @@ export async function POST(req: Request) {
 
   const summary = extractSummary(answer)
 
-  // 저장: user_id, device_id 모두 기록. sid는 응답용 식별자.
+  // save log with service role
   try {
     const sb = admin()
     const { error } = await sb.from('chat_logs').insert({
       user_id: user_id ?? null,
       device_id: deviceId,
-      sid, // 참고용. 필요 없으면 제거 가능.
+      sid: sid.toString(),
       question,
       answer,
       summary,
@@ -188,14 +184,11 @@ export async function POST(req: Request) {
     console.error('chat_logs insert exception', e)
   }
 
-  const res = NextResponse.json({ answer, model: usedModel, sid }, { status: 200 })
+  const res = NextResponse.json({ answer, model: usedModel, sid, device_id: deviceId }, { status: 200 })
 
-  // 처음 온 손님이면 디바이스 쿠키 박제
-  if (setCookie) {
-    res.cookies.set('coach_did', deviceId, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
-  }
-  if (!greetedToday) {
-    res.cookies.set('coach_last_greet', today, { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' })
-  }
+  if (setCookie) res.cookies.set('coach_did', deviceId, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
+  res.cookies.set('coach_sid', sid, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
+  if (!greetedToday) res.cookies.set('coach_last_greet', today, { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' })
+
   return res
 }
