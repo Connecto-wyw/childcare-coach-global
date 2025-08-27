@@ -145,7 +145,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
           disabled={loading}
         />
-        <div className="flex items-center justify-end mt-3">
+        <div className="flex items-center justify-center mt-3">
           <button
             onClick={ask}
             disabled={loading}
