@@ -18,6 +18,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [debug, setDebug] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // ⬇️ 로딩 점 애니메이션용 상태
+  const [dots, setDots] = useState(0)
+
   // 게스트 2회 제한
   const [guestCount, setGuestCount] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -55,6 +58,13 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     })
     return () => data.subscription.unsubscribe()
   }, [supabase])
+
+  // ⬇️ 로딩 중 버튼 "함께 고민 중..." 점 애니메이션
+  useEffect(() => {
+    if (!loading) { setDots(0); return }
+    const id = setInterval(() => setDots((d) => (d + 1) % 4), 400)
+    return () => clearInterval(id)
+  }, [loading])
 
   const bumpGuest = () => {
     const next = guestCount + 1
@@ -141,7 +151,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             disabled={loading}
             className="h-10 rounded-md bg-[#3EB6F1] text-white px-8 text-base hover:bg-[#299ed9] disabled:opacity-60"
           >
-            {loading ? '함께 고민 중' : '질문하기'}
+            {loading ? `함께 고민 중${'.'.repeat(dots)}` : '질문하기'}
           </button>
         </div>
 

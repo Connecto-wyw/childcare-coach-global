@@ -34,7 +34,7 @@ export default async function CoachPage() {
   const news = newsErr || !newsRes ? [] : newsRes
 
   return (
-    <main className="min-h-screen bg-[#282828] text-[var(--foreground)] font-sans">
+    <main className="min-h-screen bg-[#282828] text-white font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
         <div className="flex justify-center mb-6">
           <Logo />
@@ -42,19 +42,20 @@ export default async function CoachPage() {
 
         {/* 요즘 인기 키워드 */}
         <section className="mb-8 text-center">
-          <h2 className="text-lg font-semibold mb-3 text-white">요즘 인기 키워드</h2>
+          <h2 className="text-lg font-semibold mb-3">요즘 인기 키워드</h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
         {/* 대화 영역 */}
-        <ChatBox />
+            <ChatBox />
+          
 
         {/* 오늘의 팁 + 육아&교육 뉴스 */}
         <section className="mt-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 오늘의 육아 팁 */}
             <div>
-              <h3 className="text-xl font-semibold mb-3 text-white">오늘의 육아 팁</h3>
+              <h3 className="text-xl font-semibold mb-3">오늘의 육아 팁</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
                 <TipSection />
               </div>
@@ -62,7 +63,7 @@ export default async function CoachPage() {
 
             {/* 육아&교육 뉴스 */}
             <div>
-              <h3 className="text-xl font-semibold mb-3 text-white">육아&교육 뉴스</h3>
+              <h3 className="text-xl font-semibold mb-3">육아&교육 뉴스</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
                 {news.length === 0 ? (
                   <p className="text-gray-300 text-sm">뉴스가 없습니다.</p>
