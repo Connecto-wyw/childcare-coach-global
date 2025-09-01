@@ -1,4 +1,4 @@
-// src/app/coach/page.tsx  (Server Component)
+// src/app/coach/page.tsx (Server Component)
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
@@ -12,7 +12,7 @@ import type { Database } from '@/lib/database.types'
 export default async function CoachPage() {
   const supabase = createServerComponentClient<Database>({ cookies })
 
-  // 인기 키워드 4개
+  // Top keywords (up to 4)
   const { data: kwRes, error: kwErr } = await supabase
     .from('popular_keywords')
     .select('keyword, "order"')
@@ -21,10 +21,10 @@ export default async function CoachPage() {
 
   const keywords =
     kwErr || !kwRes || kwRes.length === 0
-      ? ['수면', '식습관', '학습', '정서']
+      ? ['Sleep', 'Eating habits', 'Learning', 'Emotions']
       : kwRes.map((k) => String(k.keyword))
 
-  // 뉴스 최대 3개
+  // Latest news (up to 3)
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
     .select('id, title, slug, created_at')
@@ -36,24 +36,24 @@ export default async function CoachPage() {
   return (
     <main className="min-h-screen bg-[#282828] text-white font-sans">
       <div className="max-w-5xl mx-auto px-4 py-12">
+        {/* Logo */}
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
 
-        {/* 요즘 인기 키워드 */}
+        {/* Hot Keywords */}
         <section className="mb-8 text-center">
           <h2 className="text-lg font-semibold mb-3">Hot Keywords</h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
-        {/* 대화 영역 */}
-            <ChatBox />
-          
+        {/* Chat */}
+        <ChatBox />
 
-        {/* 오늘의 팁 + 육아&교육 뉴스 */}
+        {/* Today’s Tips + Parenting & Education News */}
         <section className="mt-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 오늘의 육아 팁 */}
+            {/* Today’s Parenting Tips */}
             <div>
               <h3 className="text-xl font-semibold mb-3">Today’s Parenting Tips</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
@@ -61,9 +61,9 @@ export default async function CoachPage() {
               </div>
             </div>
 
-            {/* 육아&교육 뉴스 */}
+            {/* Parenting & Education News */}
             <div>
-              <h3 className="text-xl font-semibold mb-3">Global News</h3>
+              <h3 className="text-xl font-semibold mb-3">Parenting & Education News</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
                 {news.length === 0 ? (
                   <p className="text-gray-300 text-sm">No news available.</p>
@@ -76,14 +76,12 @@ export default async function CoachPage() {
                           className="block text-gray-100 hover:text-[#3EB6F1] transition"
                           title={
                             n.created_at
-                              ? new Date(n.created_at).toLocaleDateString('ko-KR')
+                              ? new Date(n.created_at).toLocaleDateString('en-US')
                               : undefined
                           }
                         >
                           <span className="inline-block mr-2 text-xs text-gray-300 align-middle">
-                            {n.created_at
-                              ? new Date(n.created_at).toLocaleDateString('ko-KR')
-                              : ''}
+                            {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : ''}
                           </span>
                           <span className="align-middle underline-offset-2 group-hover:underline">
                             {n.title}
