@@ -158,7 +158,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         {/* 게스트 무료 횟수 표시 */}
         {!user && (
           <p className="mt-1 text-xs text-gray-400 text-center">
-            오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
+            You’ve used {guestCount}/{GUEST_LIMIT} questions today.
           </p>
         )}
 
@@ -194,7 +194,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
             <h3 className="text-base font-semibold text-[#eae3de]">
-              카카오톡 로그인하고 <br /> AI육아코치 무제한으로 사용하세요.
+              Sign in with Google <br /> to unlock unlimited access to the AI Parenting Coach.
             </h3>
             <div className="mt-5 grid gap-2">
               <button
