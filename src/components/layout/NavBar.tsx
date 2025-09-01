@@ -16,13 +16,13 @@ export default function NavBar() {
     const p = window.location.pathname
     if (p.startsWith('/team')) setActive('talk')
     else if (p.startsWith('/news')) setActive('news')
-    else setActive('home') // '/', '/coach' 포함
+    else setActive('home') // includes '/', '/coach'
   }, [])
 
-  const loginKakao = async () => {
+  const loginGoogle = async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
+      provider: 'google',
       options: { redirectTo: `${origin}/auth/callback?next=/coach` },
     })
   }
@@ -49,33 +49,35 @@ export default function NavBar() {
   return (
     <nav className="w-full bg-[#191919] text-[#eae3de] border-b border-gray-700">
       <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
-        {/* 좌측: 메뉴 */}
+        {/* Left: menu */}
         <div className="flex gap-6 text-base font-medium">
           {item('/', 'home', 'HOME')}
           {item('/news', 'news', 'NEWS')}
           {item('/team', 'talk', 'TALK')}
         </div>
 
-        {/* 우측: 로그인/사용자/로그아웃 */}
+        {/* Right: auth */}
         <div className="flex items-center gap-3 text-sm">
           {user ? (
             <>
               <span className="text-gray-300 truncate max-w-[160px]">
-                {user.user_metadata?.full_name || user.email}
+                {user.user_metadata?.full_name ||
+                  user.user_metadata?.name ||
+                  user.email}
               </span>
               <button
                 onClick={logout}
                 className="rounded-md border border-gray-600 px-3 py-1.5 hover:bg-gray-800"
               >
-                로그아웃
+                Sign out
               </button>
             </>
           ) : (
             <button
-              onClick={loginKakao}
-              className="rounded-md bg-[#FEE500] px-3 py-1.5 text-black hover:bg-[#F2D000]"
+              onClick={loginGoogle}
+              className="rounded-md bg-white px-3 py-1.5 text-black hover:opacity-90"
             >
-              카카오로 로그인
+              Sign in with Google
             </button>
           )}
         </div>
