@@ -2,28 +2,32 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { useUser } from '@supabase/auth-helpers-react'
-import { supabase } from '@/lib/supabaseClient'
+import { useMemo } from 'react'
+import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { usePathname } from 'next/navigation'
 
 type Menu = 'home' | 'news' | 'talk'
 
+const SITE =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (typeof window !== 'undefined' ? window.location.origin : '')
+
 export default function NavBar() {
   const user = useUser()
-  const [active, setActive] = useState<Menu>('home')
+  const supabase = useSupabaseClient()
+  const pathname = usePathname()
 
-  useEffect(() => {
-    const p = window.location.pathname
-    if (p.startsWith('/team')) setActive('talk')
-    else if (p.startsWith('/news')) setActive('news')
-    else setActive('home') // includes '/', '/coach'
-  }, [])
+  const active: Menu = useMemo(() => {
+    if (pathname?.startsWith('/team')) return 'talk'
+    if (pathname?.startsWith('/news')) return 'news'
+    return 'home'
+  }, [pathname])
 
   const loginGoogle = async () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const redirectTo = `${SITE}/auth/callback?next=/coach`
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${origin}/auth/callback?next=/coach` },
+      options: { redirectTo },
     })
   }
 
@@ -35,7 +39,6 @@ export default function NavBar() {
   const item = (href: string, key: Menu, label: string) => (
     <Link
       href={href}
-      onClick={() => setActive(key)}
       className={`transition ${
         active === key
           ? 'text-[#9F1D23] font-semibold'
