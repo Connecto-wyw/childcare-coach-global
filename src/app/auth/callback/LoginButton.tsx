@@ -5,7 +5,8 @@ import { useCallback, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const SITE =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.indianbob.ai' // fixed
+  process.env.NEXT_PUBLIC_SITE_URL || // Vercel/배포에서 반드시 설정
+  (typeof window !== 'undefined' ? window.location.origin : '') // 로컬 fallback
 
 export default function LoginButton({ next = '/coach' }: { next?: string }) {
   const supabase = createClientComponentClient()
