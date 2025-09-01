@@ -9,13 +9,13 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.indianbob.ai'),   // ✅ 절대 경로 base 지정
-  title: 'AI 육아코치',
-  description: '부모를 위한 맞춤형 AI 육아 코치',
+  title: 'AI Parenting Coach',
+  description: 'A personalized AI Parenting Coach for parents',
   openGraph: {
-    title: 'AI 육아코치',
-    description: '부모를 위한 맞춤형 AI 육아 코치',
-    url: 'https://www.indianbob.ai',
-    siteName: 'AI 육아코치',
+    title: 'AI Parenting Coach',
+    description: 'A personalized AI Parenting Coach for parents',
+    url: 'https://childcare-coach-global.vercel.app/coach',
+    siteName: 'AI Parenting Coach',
     images: [
       { url: '/og-image.png', width: 1200, height: 630, alt: 'AI 육아코치 썸네일' },
     ],
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI 육아코치',
-    description: '부모를 위한 맞춤형 AI 육아 코치',
+    title: 'AI Parenting Coach',
+    description: 'A personalized AI Parenting Coach for parents',
     images: ['/og-image.png'],
   },
   icons: {
