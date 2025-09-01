@@ -21,7 +21,7 @@ export default async function CoachPage() {
 
   const keywords =
     kwErr || !kwRes || kwRes.length === 0
-      ? ['Sleep', 'Eating habits', 'Learning', 'Emotions']
+      ? [['Could my child have ADHD?', 'Fun things to do at home this weekend', 'How to handle a child’s fever', 'How to discipline a child who won’t listen']
       : kwRes.map((k) => String(k.keyword))
 
   // Latest news (up to 3)

@@ -51,7 +51,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   }, [keywords]);
 
   const items = useMemo(() => {
-    const fallback = ['Sleep', 'Eating habits', 'Learning', 'Emotions', 'Daily routine'];
+    const fallback = ['Could my child have ADHD?', 'Fun things to do at home this weekend', 'How to handle a child’s fever', 'How to discipline a child who won’t listen'];
     const source = (keywords && keywords.length > 0) ? keywords : (dbKeywords.length > 0 ? dbKeywords : fallback);
     const deduped = Array.from(new Set(source.filter(Boolean)));
     return deduped.slice(0, Math.max(1, max));
