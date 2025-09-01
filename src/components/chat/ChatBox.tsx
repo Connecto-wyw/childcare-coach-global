@@ -141,7 +141,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={onEnter}
-          placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
+          placeholder="Please feel free to ask the AI Parenting Coach anything about your current parenting challenges!"
           className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
           disabled={loading}
         />
@@ -151,7 +151,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             disabled={loading}
             className="h-10 rounded-md bg-[#3EB6F1] text-white px-8 text-base hover:bg-[#299ed9] disabled:opacity-60"
           >
-            {loading ? `함께 고민 중${'.'.repeat(dots)}` : '질문하기'}
+            {loading ? `Thinking this through with you.${'.'.repeat(dots)}` : 'Ask now'}
           </button>
         </div>
 

@@ -4,16 +4,14 @@ import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
 
-// 카카오 identity 데이터 최소 타입
-type KakaoIdentityData = {
-  id?: string | number
-  sub?: string | number
-  email?: string
-  properties?: { nickname?: string | null; profile_image?: string | null } | null
-  kakao_account?: {
-    email?: string | null
-    profile?: { nickname?: string | null; profile_image_url?: string | null } | null
-  } | null
+// Minimal Google identity shape
+type GoogleIdentityData = {
+  sub?: string
+  id?: string
+  email?: string | null
+  name?: string | null
+  given_name?: string | null
+  family_name?: string | null
   picture?: string | null
 }
 
@@ -25,39 +23,37 @@ export async function GET(request: Request) {
   const supabase = createRouteHandlerClient<Database>({ cookies })
 
   if (code) {
+    // Create session from OAuth code
     await supabase.auth.exchangeCodeForSession(code)
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (user) {
-      const kakao = (user.identities ?? []).find((i) => i.provider === 'kakao')
-      if (kakao) {
-        const raw = (kakao.identity_data ?? {}) as Partial<KakaoIdentityData>
+      // Find Google identity
+      const google = (user.identities ?? []).find((i) => i.provider === 'google')
+      if (google) {
+        const raw = (google.identity_data ?? {}) as Partial<GoogleIdentityData>
 
-        const provider_user_id = String(raw.id ?? raw.sub ?? '')
-        const email =
-          raw.email ?? raw.kakao_account?.email ?? null
-        const nickname =
-          raw.properties?.nickname ??
-          raw.kakao_account?.profile?.nickname ??
-          null
-        const profile_image_url =
-          raw.properties?.profile_image ??
-          raw.kakao_account?.profile?.profile_image_url ??
-          raw.picture ??
-          null
+        const provider_user_id = String(raw.sub ?? raw.id ?? '')
+        const email = raw.email ?? user.email ?? null
+        const nickname = raw.name ?? raw.given_name ?? null
+        const profile_image_url = raw.picture ?? null
 
+        // Upsert into your oauth_accounts table
         await supabase.from('oauth_accounts').upsert(
           {
             user_id: user.id,
-            provider: 'kakao',
+            provider: 'google',
             provider_user_id,
             email,
             nickname,
             profile_image_url,
-            raw, // jsonb 컬럼
+            raw, // jsonb column
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'user_id,provider' },
+          { onConflict: 'user_id,provider' }
         )
       }
     }

@@ -42,7 +42,7 @@ export default async function CoachPage() {
 
         {/* 요즘 인기 키워드 */}
         <section className="mb-8 text-center">
-          <h2 className="text-lg font-semibold mb-3">요즘 인기 키워드</h2>
+          <h2 className="text-lg font-semibold mb-3">Hot Keywords</h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
@@ -55,7 +55,7 @@ export default async function CoachPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 오늘의 육아 팁 */}
             <div>
-              <h3 className="text-xl font-semibold mb-3">오늘의 육아 팁</h3>
+              <h3 className="text-xl font-semibold mb-3">Today’s Parenting Tips</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
                 <TipSection />
               </div>
@@ -63,10 +63,10 @@ export default async function CoachPage() {
 
             {/* 육아&교육 뉴스 */}
             <div>
-              <h3 className="text-xl font-semibold mb-3">육아&교육 뉴스</h3>
+              <h3 className="text-xl font-semibold mb-3">Global News</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
                 {news.length === 0 ? (
-                  <p className="text-gray-300 text-sm">뉴스가 없습니다.</p>
+                  <p className="text-gray-300 text-sm">No news available.</p>
                 ) : (
                   <ul className="space-y-3">
                     {news.map((n) => (
