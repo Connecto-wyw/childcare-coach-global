@@ -46,6 +46,7 @@ export default function KeywordAdminPage() {
     fetchKeywords()
   }, [fetchKeywords])
 
+  // ✅ addKeyword: 서버 라우트로 전환
   async function addKeyword() {
     if (!isAllowed) return
     const value = newKeyword.trim()
@@ -56,17 +57,31 @@ export default function KeywordAdminPage() {
     const nextOrder =
       keywords.length > 0 ? Math.max(...keywords.map(k => k.order)) + 1 : 0
 
-    const { error } = await supabase
-      .from('popular_keywords')
-      .insert([{ keyword: value, order: nextOrder }])
-
-    setLoading(false)
-
-    if (error) {
-      console.error('Insert failed:', error.message)
-      setErrorMsg('추가 실패: RLS 또는 권한 확인')
+    try {
+      const res = await fetch('/api/keywords', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: user!.email,
+          keyword: value,
+          order: nextOrder,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.error('API error:', json?.error || res.statusText)
+        setErrorMsg('추가 실패: 서버 API 오류')
+        setLoading(false)
+        return
+      }
+    } catch (e: any) {
+      console.error('Fetch failed:', e?.message)
+      setErrorMsg('추가 실패: 네트워크 오류')
+      setLoading(false)
       return
     }
+
+    setLoading(false)
     setNewKeyword('')
     fetchKeywords()
   }
@@ -91,35 +106,29 @@ export default function KeywordAdminPage() {
     fetchKeywords()
   }
 
-  // Not signed in
   if (!isSignedIn) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
-          <p className="mt-2 text-sm text-gray-300">
-            로그인 필요. @connecto-wyw.com 계정으로 로그인하세요.
-          </p>
         </div>
       </main>
     )
   }
 
-  // Signed in but not allowed
   if (!isAllowed) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <h1 className="text-2xl font-bold">접근 차단</h1>
           <p className="mt-2 text-sm text-gray-300">
-            이 페이지는 @connecto-wyw.com 도메인 사용자만 사용할 수 있습니다.
+            @connecto-wyw.com 사용자만 가능.
           </p>
         </div>
       </main>
     )
   }
 
-  // Allowed
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de]">
       <div className="max-w-3xl mx-auto px-4 py-12">
@@ -145,9 +154,7 @@ export default function KeywordAdminPage() {
           </button>
         </div>
 
-        {errorMsg && (
-          <div className="mb-4 text-sm text-red-300">{errorMsg}</div>
-        )}
+        {errorMsg && <div className="mb-4 text-sm text-red-300">{errorMsg}</div>}
 
         <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a]">
           {keywords.length === 0 ? (
