@@ -48,7 +48,7 @@ export default async function CoachPage() {
 
         {/* HOT KEYWORDS */}
         <section className="mb-8 text-center">
-          <h2 className="text-[27px] font-semibold mb-3 text-yellow-200">Hot Keywords</h2>
+          <h2 className="text-[24px] font-semibold mb-3 text-white">HOT KEYWORDS</h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
@@ -66,9 +66,9 @@ export default async function CoachPage() {
               </div>
             </div>
 
-            {/* Parenting & Education News */}
+            {/* K-Parenting News */}
             <div>
-              <h3 className="text-xl font-semibold mb-3">Parenting & Education News</h3>
+              <h3 className="text-xl font-semibold mb-3">K-Parenting News</h3>
               <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
                 {news.length === 0 ? (
                   <p className="text-gray-300 text-sm">No news available.</p>
