@@ -3,6 +3,9 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import type { Database } from '@/lib/database.types'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function Page({ params }: { params: { slug: string } }) {
   const supabase = createServerComponentClient<Database>({ cookies })
 
@@ -15,7 +18,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
   if (!data || error) {
     return (
       <div className="min-h-screen bg-[#282828] text-red-400 px-4 py-12">
-        뉴스를 찾을 수 없습니다.
+        뉴스를 찾을 수 없습니다{error?.message ? `: ${error.message}` : '.'}
       </div>
     )
   }
@@ -27,7 +30,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
         <p className="text-sm text-gray-400 mb-6">
           {new Date(data.created_at).toLocaleString()}
         </p>
-
         <article className="whitespace-pre-wrap text-base text-gray-200 leading-7">
           {data.content}
         </article>

@@ -1,12 +1,14 @@
+// src/app/news/page.tsx
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import type { Database } from '@/lib/database.types'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function NewsPage() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = createServerComponentClient<Database>({ cookies })
   const { data: newsList, error } = await supabase
     .from('news_posts')
     .select('id, title, slug, created_at')
