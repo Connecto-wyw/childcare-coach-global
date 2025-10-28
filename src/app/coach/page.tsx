@@ -21,7 +21,12 @@ export default async function CoachPage() {
 
   const keywords =
     kwErr || !kwRes || kwRes.length === 0
-      ? ['Could my child have ADHD?', 'Fun things to do at home this weekend', 'How to handle a child’s fever', 'How to discipline a child who won’t listen']
+      ? [
+          'Could my child have ADHD?',
+          'Fun things to do at home this weekend',
+          'How to handle a child’s fever',
+          'How to discipline a child who won’t listen',
+        ]
       : kwRes.map((k) => String(k.keyword))
 
   // Latest news (up to 3)
@@ -41,16 +46,16 @@ export default async function CoachPage() {
           <Logo />
         </div>
 
-        {/* Hot Keywords */}
+        {/* HOT KEYWORDS */}
         <section className="mb-8 text-center">
-          <h2 className="text-lg font-semibold mb-3">Hot Keywords</h2>
+          <h2 className="text-[27px] font-semibold mb-3 text-yellow-200">Hot Keywords</h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
         {/* Chat */}
         <ChatBox />
 
-        {/* Today’s Tips + Parenting & Education News */}
+        {/* Today’s Tips + K-Parenting News */}
         <section className="mt-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Today’s Parenting Tips */}

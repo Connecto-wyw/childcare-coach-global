@@ -144,7 +144,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={onEnter}
-          placeholder="Please feel free to ask the AI Parenting Coach anything about your current parenting challenges!"
+          placeholder="Have a question about parenting? Feel free to ask the AI Parenting Coach!"
           className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
           disabled={loading}
         />
