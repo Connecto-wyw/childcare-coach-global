@@ -20,7 +20,7 @@ function admin(): SupabaseClient {
 }
 
 // ---------- Types ----------
-type AskBody = { user_id?: string; question?: string }
+type AskBody = { user_id?: string; question?: string; system?: string }
 type Role = 'system' | 'user' | 'assistant'
 type ChatMessage = { role: Role; content: string }
 type ChatBody = { temperature?: number; max_tokens?: number; stop?: string[]; messages: ChatMessage[] }
@@ -85,26 +85,27 @@ function resolveDeviceId(jar: CookieStore, ip: string, ua: string) {
 function isLikelyCutOff(text: string) {
   const s = text.trim()
   if (!s) return true
-  // 문장 종료 부호나 한국어 종결형으로 끝나면 정상 종료로 간주
   if (/[.!?]$/.test(s) || /다[.]?$/.test(s)) return false
-  // 너무 짧으면 잘림 가능성 큼
   if (s.length < 300) return true
-  // 마지막 유효 라인이 너무 짧으면 잘림 추정
   const last = s.split('\n').reverse().find(Boolean) || ''
   return last.length < 10
 }
 
 // ---------- Handler ----------
 export async function POST(req: Request) {
-  const { user_id, question }: AskBody = await req.json()
+  const { user_id, question, system }: AskBody = await req.json()
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local'
   const ua = req.headers.get('user-agent') || 'ua'
-  if (!question?.trim()) return NextResponse.json({ error: 'bad_request', message: '질문이 비어 있습니다.' }, { status: 400 })
+  if (!question?.trim()) {
+    return NextResponse.json({ error: 'bad_request', message: '질문이 비어 있습니다.' }, { status: 400 })
+  }
 
   // guest rate limit
   if (!user_id) {
     const k = keyOf(ip); const used = guestMap.get(k) ?? 0
-    if (used >= GUEST_LIMIT) return NextResponse.json({ error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' }, { status: 403 })
+    if (used >= GUEST_LIMIT) {
+      return NextResponse.json({ error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' }, { status: 403 })
+    }
     guestMap.set(k, used + 1)
   }
 
@@ -137,10 +138,27 @@ export async function POST(req: Request) {
     console.error('chat_logs select exception', e)
   }
 
-  const systemPrompt = getSystemPrompt({ greetedToday, prevContext })
+  // ---------- System prompt composition ----------
+  const baseSystem = (system?.trim() && system) || getSystemPrompt({ greetedToday, prevContext })
+
+  const kParentingRule = `
+You answer in **English only**.
+When a query is about **K-parenting / Korean parenting / parenting in Korea**, you must:
+- Emphasize the strengths and positive practices first.
+- If you mention concerns, include **only one** brief caution, minimized and framed constructively.
+- Keep the total answer under **~2000 bytes**. Prefer concise paragraphs or short bullet points.
+- Do not repeat the closing sentence. End cleanly.`.trim()
+
+  const finalSystem = `${baseSystem}\n\n${kParentingRule}`
+
   const baseBody: ChatBody = {
-    temperature: 0.35, max_tokens: 900, stop: ['[END]'],
-    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: question }],
+    temperature: 0.35,
+    max_tokens: 1100,        // ≈2000 bytes 목표 대비 여유
+    stop: ['[END]'],
+    messages: [
+      { role: 'system', content: finalSystem },
+      { role: 'user', content: question },
+    ],
   }
 
   let answer = ''
@@ -162,15 +180,17 @@ export async function POST(req: Request) {
     }
   }
 
-  // 이어쓰기 로직을 더 안전하게: END가 없어도 "명백히 잘린 경우"에만 1회 연장
+  // 이어쓰기: 명백히 잘린 경우 1회 연장
   if (firstPart && !/\[END\]\s*$/.test(firstPart) && isLikelyCutOff(firstPart)) {
     const contBody: ChatBody = {
-      temperature: 0.35, max_tokens: 600, stop: ['[END]'],
+      temperature: 0.35,
+      max_tokens: 700,
+      stop: ['[END]'],
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: finalSystem },
         { role: 'user', content: question },
         { role: 'assistant', content: firstPart },
-        { role: 'user', content: '방금 답변이 끊겼다. 이미 출력한 내용을 반복하지 말고 간결히 마무리하라. 끝에 [END]로 종료.' },
+        { role: 'user', content: 'Do not repeat prior text. Conclude succinctly. End with [END].' },
       ],
     }
     const cont = await callOpenAI(usedModel, contBody, OPENAI_API_KEY, 2)
@@ -183,7 +203,7 @@ export async function POST(req: Request) {
 
   const summary = extractSummary(answer)
 
-  // save log with service role
+  // save log
   try {
     const sb = admin()
     const { error } = await sb.from('chat_logs').insert({
