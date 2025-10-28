@@ -48,7 +48,7 @@ export default function TeamPage() {
       setShowModal(false)
       fetchPosts()
     } else {
-      alert('글 작성에 실패했습니다.')
+      alert('Failed to create post.')
       console.error(error)
     }
   }
@@ -94,7 +94,7 @@ export default function TeamPage() {
         onClick={() => setShowModal(true)}
         className="fixed bottom-6 right-6 px-5 py-3 bg-[#9F1D23] text-white rounded-full shadow-lg hover:opacity-80"
       >
-        글 작성
+        Create Post
       </button>
 
       {/* 모달 */}

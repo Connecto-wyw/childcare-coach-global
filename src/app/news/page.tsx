@@ -27,7 +27,7 @@ export default async function NewsPage() {
       <div className="max-w-3xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold mb-8">NEWS</h1>
         {!newsList?.length ? (
-          <p className="text-gray-400">게시글이 없습니다.</p>
+          <p className="text-gray-400">There are no posts available.</p>
         ) : (
           <ul className="space-y-4">
             {newsList.map((post) => (
