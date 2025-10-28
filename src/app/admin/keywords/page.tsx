@@ -46,6 +46,7 @@ export default function KeywordAdminPage() {
     fetchKeywords()
   }, [fetchKeywords])
 
+  // -------- actions --------
   async function addKeyword() {
     if (!isAllowed) return
     const value = newKeyword.trim()
@@ -66,21 +67,17 @@ export default function KeywordAdminPage() {
           order: nextOrder,
         }),
       })
-
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
-      const apiErr =
-        typeof json['error'] === 'string' ? (json['error'] as string) : undefined
-
       if (!res.ok) {
-        console.error('API error:', apiErr ?? res.statusText)
-        setErrorMsg('추가 실패: 서버 API 오류')
+        const code = (json['error'] as string) || res.statusText
+        const detail = typeof json['detail'] === 'string' ? ` (${json['detail']})` : ''
+        setErrorMsg(`서버 API 오류: ${code}${detail}`)
         setLoading(false)
         return
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      console.error('Fetch failed:', msg)
-      setErrorMsg('추가 실패: 네트워크 오류')
+      setErrorMsg(`네트워크 오류: ${msg}`)
       setLoading(false)
       return
     }
@@ -109,6 +106,7 @@ export default function KeywordAdminPage() {
     }
     fetchKeywords()
   }
+  // -------------------------
 
   if (!isSignedIn) {
     return (
