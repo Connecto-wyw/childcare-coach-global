@@ -48,7 +48,7 @@ export default async function CoachPage() {
 
         {/* HOT KEYWORDS */}
         <section className="mb-8 text-center">
-          <h2 className="text-[24px] font-semibold mb-3 text-white">HOT KEYWORDS</h2>
+          <h2 className="text-[24px] font-semibold mb-3 text-white">"Ask me anything about parenting—I’m here to help."</h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
