@@ -1,7 +1,7 @@
 // src/components/chat/ChatBox.tsx
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import ReactMarkdown from 'react-markdown'
 
@@ -46,16 +46,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const endRef = useRef<HTMLDivElement | null>(null)
   const hasChat = messages.length > 0
-
-  const suggestions = useMemo(
-    () => [
-      'Could my child have ADHD?',
-      'Fun things to do at home this weekend',
-      'How to handle a child’s fever',
-      'How to discipline a child who won’t listen',
-    ],
-    [],
-  )
 
   useEffect(() => {
     const d = localStorage.getItem(LS_DAY)
@@ -141,7 +131,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         throw new Error(`${res.status} ${data.error || ''}`)
       }
 
-      push('assistant', (data.answer || '').trim())
+      const answer = (data.answer || '').trim()
+      if (answer) push('assistant', answer)
       if (!user) bumpGuest()
     } catch (e) {
       const msg = 'The response is delayed. Please try again.'
@@ -154,31 +145,18 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   }
 
   return (
-    <div className="relative flex h-[100svh] w-full flex-col bg-[#111] text-[#eae3de]">
+    <div className="relative w-full">
       {/* messages */}
-      <div className="flex-1 overflow-y-auto px-4 pb-28 pt-10">
+      <div className="mx-auto max-w-3xl px-4 pb-28 pt-6">
+        {/* A안: ChatBox에는 히어로/추천키워드 섹션을 넣지 않음 (coach/page.tsx에서 이미 렌더링) */}
         {!hasChat && (
-          <div className="mx-auto max-w-xl text-center">
-            <h1 className="text-2xl font-semibold">
-              Ask me anything about parenting—I'm here to help.
-            </h1>
-
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {suggestions.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => ask(q)}
-                  className="rounded-full bg-[#222] px-4 py-2 text-sm hover:bg-[#2a2a2a]"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
+          <div className="text-center text-sm text-gray-400 py-10">
+            Tap a keyword above or type a question below.
           </div>
         )}
 
         {hasChat && (
-          <div className="mx-auto max-w-3xl space-y-3">
+          <div className="space-y-3">
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -186,10 +164,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
               >
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed
-                    ${m.role === 'user' ? 'bg-[#2a2a2a]' : 'bg-[#1e3a4a]'}`}
+                    ${m.role === 'user' ? 'bg-[#2a2a2a] text-[#eae3de]' : 'bg-[#1e3a4a] text-[#eae3de]'}`}
                 >
                   {m.role === 'assistant' ? (
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                    </div>
                   ) : (
                     <span className="whitespace-pre-wrap">{m.content}</span>
                   )}
@@ -199,18 +179,19 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
             {loading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl bg-[#1e3a4a] px-4 py-3 text-sm">
+                <div className="rounded-2xl bg-[#1e3a4a] px-4 py-3 text-sm text-[#eae3de]">
                   Thinking{'.'.repeat(dots)}
                 </div>
               </div>
             )}
+
             <div ref={endRef} />
           </div>
         )}
       </div>
 
-      {/* input */}
-      <div className="absolute bottom-0 left-0 right-0 border-t border-[#222] bg-[#111] px-4 pb-4 pt-3">
+      {/* input (sticky bottom inside this component) */}
+      <div className="fixed bottom-0 left-0 right-0 border-t border-[#222] bg-[#111] px-4 pb-4 pt-3">
         <div className="mx-auto flex max-w-3xl gap-3">
           <textarea
             value={message}
@@ -218,15 +199,15 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
-                ask()
+                void ask()
               }
             }}
             placeholder="Type your message…"
-            className="flex-1 resize-none rounded-xl bg-[#1a1a1a] px-4 py-3 text-sm outline-none"
+            className="flex-1 resize-none rounded-xl bg-[#1a1a1a] px-4 py-3 text-sm text-[#eae3de] outline-none"
             disabled={loading}
           />
           <button
-            onClick={() => ask()}
+            onClick={() => void ask()}
             disabled={loading || !message.trim()}
             className="rounded-xl bg-[#3EB6F1] px-5 text-sm font-medium text-white disabled:opacity-50"
           >
@@ -239,12 +220,19 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             {guestCount}/{GUEST_LIMIT} free questions today
           </p>
         )}
+
+        {/* 에러는 UI를 더럽히니 최소 표시만 (원하면 상세는 debug로) */}
+        {error && (
+          <p className="mt-1 text-center text-xs text-red-400">
+            {error}
+          </p>
+        )}
       </div>
 
       {/* login modal */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-sm rounded-xl bg-[#1a1a1a] p-6 text-center">
+          <div className="w-full max-w-sm rounded-xl bg-[#1a1a1a] p-6 text-center text-[#eae3de]">
             <h3 className="text-sm font-semibold">
               Sign in with Google to unlock unlimited access.
             </h3>
@@ -264,7 +252,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             </div>
 
             {debug && (
-              <pre className="mt-3 text-left text-xs text-gray-500">{debug}</pre>
+              <pre className="mt-3 max-h-40 overflow-auto text-left text-xs text-gray-500 whitespace-pre-wrap">
+                {debug}
+              </pre>
             )}
           </div>
         </div>
