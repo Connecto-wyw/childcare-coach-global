@@ -292,6 +292,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             {debug && (
               <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
                 {debug}
+                
               </pre>
             )}
           </div>

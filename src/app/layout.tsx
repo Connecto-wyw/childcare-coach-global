@@ -9,7 +9,7 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://indianbob.ai'),
+  metadataBase: new URL('https://childcare-coach-global.vercel.app'),
   title: 'AI Parenting Coach',
   description: 'A personalized AI Parenting Coach for parents',
   openGraph: {
@@ -40,7 +40,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#333333] text-[#eae3de] min-h-screen`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#333333] text-[#eae3de] min-h-screen`}
+      >
         <Providers>
           <NavBar />
           {children}
