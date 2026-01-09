@@ -16,13 +16,13 @@ type ChatMessage = {
   createdAt: number
 }
 
-const SITE =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (typeof window !== 'undefined' ? window.location.origin : '')
-
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`
+}
+
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
 }
 
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
@@ -80,8 +80,23 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length, loading])
 
+  // ✅ PKCE mismatch 방지용: redirectTo origin을 "고정된 SITE" 우선으로 계산
+  // - NEXT_PUBLIC_SITE_URL이 있으면 무조건 그걸 씀 (prod 고정)
+  // - 없으면 마지막 fallback으로 window.location.origin
+  const getAuthRedirectTo = () => {
+    const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+    const base =
+      envSite.length > 0
+        ? stripTrailingSlash(envSite)
+        : typeof window !== 'undefined'
+          ? window.location.origin
+          : ''
+
+    return `${base}/auth/callback?next=/coach`
+  }
+
   const loginGoogle = async () => {
-    const redirectTo = `${SITE}/auth/callback?next=/coach`
+    const redirectTo = getAuthRedirectTo()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
@@ -121,7 +136,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       })
 
       const raw = await res.text()
-      const data: AskRes = raw ? JSON.parse(raw) : {}
+      let data: AskRes = {}
+      try {
+        data = raw ? JSON.parse(raw) : {}
+      } catch {
+        data = {}
+      }
 
       if (!res.ok) {
         throw new Error(`${res.status} ${data.error || ''} ${(data.body || '').slice(0, 300)}`)
@@ -161,7 +181,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
     window.addEventListener('coach:setMessage', handler as EventListener)
     return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [user, loading]) // user/로딩 최신값 반영
+  }, [user, loading])
 
   return (
     <div className="w-full">
@@ -185,9 +205,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   <div
                     className={[
                       'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-black',
-                      m.role === 'user'
-                        ? 'bg-[#d0d0d0]'
-                        : 'bg-white border border-[#cfcfcf]',
+                      m.role === 'user' ? 'bg-[#d0d0d0]' : 'bg-white border border-[#cfcfcf]',
                     ].join(' ')}
                   >
                     {m.role === 'assistant' ? (
