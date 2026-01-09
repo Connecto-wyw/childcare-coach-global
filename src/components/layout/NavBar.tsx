@@ -8,9 +8,9 @@ import { usePathname } from 'next/navigation'
 
 type Menu = 'home' | 'news' | 'talk'
 
-const SITE =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (typeof window !== 'undefined' ? window.location.origin : '')
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
+}
 
 export default function NavBar() {
   const user = useUser()
@@ -18,13 +18,25 @@ export default function NavBar() {
   const pathname = usePathname()
 
   const active: Menu = useMemo(() => {
-    if (pathname?.startsWith('/team')) return 'talk'
+    if (pathname?.startsWith('/coach')) return 'talk'
     if (pathname?.startsWith('/news')) return 'news'
     return 'home'
   }, [pathname])
 
+  const getAuthRedirectTo = () => {
+    const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+    const base =
+      envSite.length > 0
+        ? stripTrailingSlash(envSite)
+        : typeof window !== 'undefined'
+          ? window.location.origin
+          : ''
+
+    return `${base}/auth/callback?next=/coach`
+  }
+
   const loginGoogle = async () => {
-    const redirectTo = `${SITE}/auth/callback?next=/coach`
+    const redirectTo = getAuthRedirectTo()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
@@ -33,7 +45,6 @@ export default function NavBar() {
 
   const logout = async () => {
     await supabase.auth.signOut()
-    window.location.reload()
   }
 
   const item = (href: string, key: Menu, label: string) => (
@@ -52,14 +63,14 @@ export default function NavBar() {
   return (
     <nav className="w-full bg-[#191919] text-[#eae3de] border-b border-gray-700">
       <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
-        {/* Left: menu */}
+        {/* Left */}
         <div className="flex gap-6 text-base font-medium">
           {item('/', 'home', 'HOME')}
           {item('/news', 'news', 'NEWS')}
-          {item('/team', 'talk', 'TALK')}
+          {item('/coach', 'talk', 'TALK')}
         </div>
 
-        {/* Right: auth */}
+        {/* Right */}
         <div className="flex items-center gap-3 text-sm">
           {user ? (
             <>

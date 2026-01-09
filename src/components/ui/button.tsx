@@ -14,11 +14,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : 'button'
     return (
       <Comp
+        ref={ref}
         className={cn(
-          'inline-flex items-center justify-center rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition-colors',
+          'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
+          'disabled:pointer-events-none disabled:opacity-50',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
           className
         )}
-        ref={ref}
         {...props}
       />
     )
