@@ -29,10 +29,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const user = useUser()
   const supabase = useSupabaseClient()
 
-  const [message, setMessage] = useState('')
+  const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [dots, setDots] = useState(0)
+
   const [error, setError] = useState('')
   const [debug, setDebug] = useState('')
 
@@ -45,7 +46,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const today = () => new Date().toISOString().slice(0, 10)
 
   const endRef = useRef<HTMLDivElement | null>(null)
-  const hasChat = messages.length > 0
 
   useEffect(() => {
     const d = localStorage.getItem(LS_DAY)
@@ -94,20 +94,22 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     })
   }
 
-  const push = (role: ChatRole, content: string) =>
-    setMessages((p) => [...p, { id: uuid(), role, content, createdAt: Date.now() }])
+  const push = (role: ChatRole, content: string) => {
+    setMessages((prev) => [...prev, { id: uuid(), role, content, createdAt: Date.now() }])
+  }
 
   const ask = async (override?: string) => {
-    const q = (override ?? message).trim()
+    const q = (override ?? input).trim()
     if (!q) return
+
     if (!user && guestCount >= GUEST_LIMIT) {
       setShowLoginModal(true)
       return
     }
 
     push('user', q)
+    setInput('')
     setLoading(true)
-    setMessage('')
     setError('')
     setDebug('')
 
@@ -128,11 +130,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       if (!res.ok) {
         if (res.status === 403) setShowLoginModal(true)
-        throw new Error(`${res.status} ${data.error || ''}`)
+        throw new Error(`${res.status} ${data.error || ''} ${(data.body || '').slice(0, 300)}`)
       }
 
       const answer = (data.answer || '').trim()
       if (answer) push('assistant', answer)
+
       if (!user) bumpGuest()
     } catch (e) {
       const msg = 'The response is delayed. Please try again.'
@@ -145,88 +148,99 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   }
 
   return (
-    <div className="relative w-full">
-      {/* messages */}
-      <div className="mx-auto max-w-3xl px-4 pb-28 pt-6">
-        {/* A안: ChatBox에는 히어로/추천키워드 섹션을 넣지 않음 (coach/page.tsx에서 이미 렌더링) */}
-        {!hasChat && (
-          <div className="text-center text-sm text-gray-400 py-10">
-            Tap a keyword above or type a question below.
-          </div>
-        )}
-
-        {hasChat && (
-          <div className="space-y-3">
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+    <div className="w-full">
+      {/* Chat Card (A안: 히어로/키워드는 페이지에서, ChatBox는 채팅만) */}
+      <div className="mx-auto max-w-3xl rounded-2xl border border-[#3a3a3a] bg-[#111] overflow-hidden">
+        {/* Messages 영역: 고정 높이 + 내부 스크롤 */}
+        <div className="h-[520px] overflow-y-auto px-4 py-4">
+          {messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+              Tap a keyword above or type a question below.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {messages.map((m) => (
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed
-                    ${m.role === 'user' ? 'bg-[#2a2a2a] text-[#eae3de]' : 'bg-[#1e3a4a] text-[#eae3de]'}`}
+                  key={m.id}
+                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  {m.role === 'assistant' ? (
-                    <div className="prose prose-invert prose-sm max-w-none">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <span className="whitespace-pre-wrap">{m.content}</span>
-                  )}
+                  <div
+                    className={[
+                      'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-[#eae3de]',
+                      m.role === 'user' ? 'bg-[#2a2a2a]' : 'bg-[#1e3a4a]',
+                    ].join(' ')}
+                  >
+                    {m.role === 'assistant' ? (
+                      <div className="prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => (
+                              <p className="m-0 whitespace-pre-wrap">{children}</p>
+                            ),
+                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                          }}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <span className="whitespace-pre-wrap">{m.content}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {loading && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-[#1e3a4a] px-4 py-3 text-sm text-[#eae3de]">
-                  Thinking{'.'.repeat(dots)}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-[#1e3a4a] px-4 py-3 text-sm text-[#eae3de]">
+                    Thinking{'.'.repeat(dots)}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div ref={endRef} />
-          </div>
-        )}
-      </div>
-
-      {/* input (sticky bottom inside this component) */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-[#222] bg-[#111] px-4 pb-4 pt-3">
-        <div className="mx-auto flex max-w-3xl gap-3">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                void ask()
-              }
-            }}
-            placeholder="Type your message…"
-            className="flex-1 resize-none rounded-xl bg-[#1a1a1a] px-4 py-3 text-sm text-[#eae3de] outline-none"
-            disabled={loading}
-          />
-          <button
-            onClick={() => void ask()}
-            disabled={loading || !message.trim()}
-            className="rounded-xl bg-[#3EB6F1] px-5 text-sm font-medium text-white disabled:opacity-50"
-          >
-            Send
-          </button>
+              <div ref={endRef} />
+            </div>
+          )}
         </div>
 
-        {!user && (
-          <p className="mt-2 text-center text-xs text-gray-500">
-            {guestCount}/{GUEST_LIMIT} free questions today
-          </p>
-        )}
+        {/* Input 영역: 카드 하단 고정(sticky) */}
+        <div className="sticky bottom-0 border-t border-[#222] bg-[#111] px-4 py-3">
+          <div className="flex items-end gap-3">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void ask()
+                }
+              }}
+              placeholder="Type your message…"
+              rows={2}
+              className="flex-1 resize-none rounded-xl bg-[#1a1a1a] px-4 py-3 text-sm text-[#eae3de] outline-none"
+              disabled={loading}
+            />
+            <button
+              onClick={() => void ask()}
+              disabled={loading || !input.trim()}
+              className="h-[44px] rounded-xl bg-[#3EB6F1] px-5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              Send
+            </button>
+          </div>
 
-        {/* 에러는 UI를 더럽히니 최소 표시만 (원하면 상세는 debug로) */}
-        {error && (
-          <p className="mt-1 text-center text-xs text-red-400">
-            {error}
-          </p>
-        )}
+          {!user && (
+            <p className="mt-2 text-center text-xs text-gray-500">
+              {guestCount}/{GUEST_LIMIT} free questions today
+            </p>
+          )}
+
+          {error && (
+            <p className="mt-1 text-center text-xs text-red-400">
+              {error}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* login modal */}
@@ -252,7 +266,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             </div>
 
             {debug && (
-              <pre className="mt-3 max-h-40 overflow-auto text-left text-xs text-gray-500 whitespace-pre-wrap">
+              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-500">
                 {debug}
               </pre>
             )}
