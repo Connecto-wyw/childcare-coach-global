@@ -1,7 +1,7 @@
 // src/components/chat/ChatBox.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import ReactMarkdown from 'react-markdown'
 
@@ -47,6 +47,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
+  // ✅ 높이 자동 확장(초기 = 작게, 대화가 쌓이면 늘어남)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const [scrollHeightPx, setScrollHeightPx] = useState<number>(260) // 초기 높이(기존 520의 "반" 정도)
+  const MIN_H = 260
+  const MAX_H = 720 // 너무 길어지면 여기서부터는 내부 스크롤로
+
   useEffect(() => {
     const d = localStorage.getItem(LS_DAY)
     const c = parseInt(localStorage.getItem(LS_KEY) || '0', 10)
@@ -66,7 +72,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       const q = (text ?? '').trim()
       if (!q) return
 
-      // 로딩 중이면 일단 입력만 채우고 끝(중복 요청 방지)
       if (loading) {
         setInput(q)
         return
@@ -95,6 +100,19 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     const id = setInterval(() => setDots((d) => (d + 1) % 4), 400)
     return () => clearInterval(id)
   }, [loading])
+
+  // ✅ 메시지/로딩 변화에 따라 높이 자동 계산
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    // 스크롤 영역의 실제 콘텐츠 높이
+    const contentHeight = el.scrollHeight
+    // padding/여백 포함해서 적당히
+    const target = Math.min(MAX_H, Math.max(MIN_H, contentHeight))
+    if (target !== scrollHeightPx) setScrollHeightPx(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, loading])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -170,12 +188,15 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* Chat Card (Light Gray + Black Text) */}
-      <div className="mx-auto max-w-3xl rounded-2xl border border-[#d0d0d0] bg-[#eeeeee] overflow-hidden">
-        {/* Messages 영역: 고정 높이 + 내부 스크롤 */}
-        <div className="h-[520px] overflow-y-auto px-4 py-4">
+      {/* Chat Card (Dark Gray) */}
+      <div className="mx-auto max-w-3xl rounded-2xl border border-[#3a3a3a] bg-[#3b3b3b] overflow-hidden">
+        {/* Messages 영역: 자동 확장 + MAX 넘어가면 내부 스크롤 */}
+        <div
+          ref={scrollRef}
+          style={{ height: `${scrollHeightPx}px` }}
+          className="overflow-y-auto px-4 py-4"
+        >
           {messages.length === 0 ? (
-            // ✅ 빈 상태 문구 제거 (요청사항)
             <div className="h-full" />
           ) : (
             <div className="space-y-3">
@@ -187,8 +208,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   <div
                     className={[
                       'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-black',
-                      // user bubble: slightly darker gray
-                      m.role === 'user' ? 'bg-[#d9d9d9]' : 'bg-white border border-[#d0d0d0]',
+                      m.role === 'user'
+                        ? 'bg-[#d0d0d0]'
+                        : 'bg-white border border-[#cfcfcf]',
                     ].join(' ')}
                   >
                     {m.role === 'assistant' ? (
@@ -213,7 +235,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl bg-white border border-[#d0d0d0] px-4 py-3 text-sm text-black">
+                  <div className="rounded-2xl bg-white border border-[#cfcfcf] px-4 py-3 text-sm text-black">
                     Thinking{'.'.repeat(dots)}
                   </div>
                 </div>
@@ -225,7 +247,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
 
         {/* Input 영역: 카드 하단 고정(sticky) */}
-        <div className="sticky bottom-0 border-t border-[#d0d0d0] bg-[#f4f4f4] px-4 py-3">
+        <div className="sticky bottom-0 border-t border-[#2f2f2f] bg-[#363636] px-4 py-3">
           <div className="flex items-end gap-3">
             <textarea
               value={input}
@@ -236,10 +258,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   void ask()
                 }
               }}
-              // ✅ placeholder 변경 (요청사항)
               placeholder="Type your question, or tap one of the suggestions above."
               rows={2}
-              className="flex-1 resize-none rounded-xl bg-white px-4 py-3 text-sm text-black outline-none border border-[#d0d0d0]"
+              className="flex-1 resize-none rounded-xl bg-white px-4 py-3 text-sm text-black outline-none border border-[#cfcfcf]"
               disabled={loading}
             />
             <button
@@ -252,12 +273,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           </div>
 
           {!user && (
-            <p className="mt-2 text-center text-xs text-gray-600">
+            <p className="mt-2 text-center text-xs text-gray-200">
               {guestCount}/{GUEST_LIMIT} free questions today
             </p>
           )}
 
-          {error && <p className="mt-1 text-center text-xs text-red-600">{error}</p>}
+          {error && <p className="mt-1 text-center text-xs text-red-200">{error}</p>}
         </div>
       </div>
 
