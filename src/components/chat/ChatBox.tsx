@@ -37,54 +37,17 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [error, setError] = useState('')
   const [debug, setDebug] = useState('')
 
-  // guest limit
-  const [guestCount, setGuestCount] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const LS_KEY = 'guest_q_count'
-  const LS_DAY = 'guest_q_day'
-  const GUEST_LIMIT = 2
-  const today = () => new Date().toISOString().slice(0, 10)
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
   // ✅ 높이 자동 확장(초기 = 작게, 대화가 쌓이면 늘어남)
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const [scrollHeightPx, setScrollHeightPx] = useState<number>(260) // 초기 높이(기존 520의 "반" 정도)
+  const [scrollHeightPx, setScrollHeightPx] = useState<number>(260)
   const MIN_H = 260
-  const MAX_H = 720 // 너무 길어지면 여기서부터는 내부 스크롤로
+  const MAX_H = 720
 
-  useEffect(() => {
-    const d = localStorage.getItem(LS_DAY)
-    const c = parseInt(localStorage.getItem(LS_KEY) || '0', 10)
-    if (d !== today()) {
-      localStorage.setItem(LS_DAY, today())
-      localStorage.setItem(LS_KEY, '0')
-      setGuestCount(0)
-    } else {
-      setGuestCount(Number.isFinite(c) ? c : 0)
-    }
-  }, [])
-
-  // ✅ keyword 버튼 → ChatBox 연동 이벤트 (input 채우고 바로 ask 실행)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const text = (e as CustomEvent<string>).detail
-      const q = (text ?? '').trim()
-      if (!q) return
-
-      if (loading) {
-        setInput(q)
-        return
-      }
-
-      setInput(q)
-      void ask(q)
-    }
-
-    window.addEventListener('coach:setMessage', handler as EventListener)
-    return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
-
+  // close modal on login
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session) setShowLoginModal(false)
@@ -92,6 +55,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return () => data.subscription.unsubscribe()
   }, [supabase])
 
+  // loading dots
   useEffect(() => {
     if (!loading) {
       setDots(0)
@@ -101,29 +65,20 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return () => clearInterval(id)
   }, [loading])
 
-  // ✅ 메시지/로딩 변화에 따라 높이 자동 계산
+  // auto grow height
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
-
-    // 스크롤 영역의 실제 콘텐츠 높이
     const contentHeight = el.scrollHeight
-    // padding/여백 포함해서 적당히
     const target = Math.min(MAX_H, Math.max(MIN_H, contentHeight))
     if (target !== scrollHeightPx) setScrollHeightPx(target)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, loading])
 
+  // scroll to bottom
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length, loading])
-
-  const bumpGuest = () => {
-    const next = guestCount + 1
-    setGuestCount(next)
-    localStorage.setItem(LS_KEY, String(next))
-    localStorage.setItem(LS_DAY, today())
-  }
 
   const loginGoogle = async () => {
     const redirectTo = `${SITE}/auth/callback?next=/coach`
@@ -141,7 +96,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     const q = (override ?? input).trim()
     if (!q) return
 
-    if (!user && guestCount >= GUEST_LIMIT) {
+    // ✅ 첫 질문부터 로그인 강제
+    if (!user) {
       setShowLoginModal(true)
       return
     }
@@ -159,7 +115,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         body: JSON.stringify({
           system: systemPrompt ?? '',
           question: q,
-          user_id: user?.id ?? null,
+          user_id: user.id,
         }),
         cache: 'no-store',
       })
@@ -168,14 +124,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       const data: AskRes = raw ? JSON.parse(raw) : {}
 
       if (!res.ok) {
-        if (res.status === 403) setShowLoginModal(true)
         throw new Error(`${res.status} ${data.error || ''} ${(data.body || '').slice(0, 300)}`)
       }
 
       const answer = (data.answer || '').trim()
       if (answer) push('assistant', answer)
-
-      if (!user) bumpGuest()
     } catch (e) {
       const msg = 'The response is delayed. Please try again.'
       setError(msg)
@@ -185,6 +138,30 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       setLoading(false)
     }
   }
+
+  // ✅ keyword 버튼 → ChatBox 연동 이벤트
+  // - 로그인 안 했으면: 입력만 채우고 로그인 모달 띄움
+  // - 로그인 했으면: 바로 ask 실행
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail
+      const q = (text ?? '').trim()
+      if (!q) return
+
+      setInput(q)
+
+      if (!user) {
+        setShowLoginModal(true)
+        return
+      }
+
+      if (loading) return
+      void ask(q)
+    }
+
+    window.addEventListener('coach:setMessage', handler as EventListener)
+    return () => window.removeEventListener('coach:setMessage', handler as EventListener)
+  }, [user, loading]) // user/로딩 최신값 반영
 
   return (
     <div className="w-full">
@@ -246,9 +223,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           )}
         </div>
 
-        {/* Input 영역: 카드 하단 고정(sticky) */}
-        <div className="sticky bottom-0 border-t border-[#2f2f2f] bg-[#363636] px-4 py-3">
-          <div className="flex items-end gap-3">
+        {/* Input 영역 */}
+        <div className="border-t border-[#2f2f2f] bg-[#363636] px-4 py-3">
+          <div className="flex items-center gap-3">
+            {/* ✅ textarea 높이 = 버튼 높이 */}
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -259,8 +237,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 }
               }}
               placeholder="Type your question, or tap one of the suggestions above."
-              rows={2}
-              className="flex-1 resize-none rounded-xl bg-white px-4 py-3 text-sm text-black outline-none border border-[#cfcfcf]"
+              rows={1}
+              className="flex-1 h-[44px] resize-none rounded-xl bg-white px-4 py-2 text-sm text-black outline-none border border-[#cfcfcf] leading-[24px]"
               disabled={loading}
             />
             <button
@@ -272,13 +250,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             </button>
           </div>
 
-          {!user && (
-            <p className="mt-2 text-center text-xs text-gray-200">
-              {guestCount}/{GUEST_LIMIT} free questions today
-            </p>
-          )}
-
-          {error && <p className="mt-1 text-center text-xs text-red-200">{error}</p>}
+          {error && <p className="mt-2 text-center text-xs text-red-200">{error}</p>}
         </div>
       </div>
 
@@ -286,7 +258,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center text-black">
-            <h3 className="text-sm font-semibold">Sign in with Google to unlock unlimited access.</h3>
+            <h3 className="text-sm font-semibold">Sign in with Google to continue.</h3>
             <div className="mt-4 grid gap-2">
               <button onClick={loginGoogle} className="rounded-lg bg-black py-2 text-sm text-white">
                 Sign in with Google
