@@ -1,56 +1,44 @@
 // src/app/auth/callback/route.ts
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 
-export const runtime = 'nodejs'
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const next = url.searchParams.get('next') ?? '/coach'
-  const origin = url.origin
 
-  const redirectUrl = new URL(next, origin)
-  const response = NextResponse.redirect(redirectUrl)
+  // ✅ response 먼저 만들고 여기에 쿠키를 SET 해서 내려보냄
+  const response = NextResponse.redirect(new URL(next, url.origin))
 
-  // code 없으면 그냥 이동
-  if (!code) return response
+  // ✅ Next 16 타입: cookies()가 Promise로 잡힐 수 있어서 await 필요
+  const cookieStore = await cookies()
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          response.cookies.set({ name, value: '', ...options, maxAge: 0 })
+        },
+      },
+    }
+  )
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.redirect(
-      new URL(
-        `/auth/auth-code-error?message=${encodeURIComponent(
-          'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
-        )}`,
-        origin
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      return NextResponse.redirect(
+        new URL(`/auth/auth-code-error?message=${encodeURIComponent(error.message)}`, url.origin)
       )
-    )
-  }
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      // request 쿠키 읽기
-      getAll() {
-        return request.cookies.getAll()
-      },
-      // response 쿠키 세팅 (세션 쿠키 저장)
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options)
-        })
-      },
-    },
-  })
-
-  const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-  if (error) {
-    return NextResponse.redirect(
-      new URL(`/auth/auth-code-error?message=${encodeURIComponent(error.message)}`, origin)
-    )
+    }
   }
 
   return response
