@@ -59,6 +59,27 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     }
   }, [])
 
+  // ✅ keyword 버튼 → ChatBox 연동 이벤트 (input 채우고 바로 ask 실행)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail
+      const q = (text ?? '').trim()
+      if (!q) return
+
+      // 로딩 중이면 일단 입력만 채우고 끝(중복 요청 방지)
+      if (loading) {
+        setInput(q)
+        return
+      }
+
+      setInput(q)
+      void ask(q)
+    }
+
+    window.addEventListener('coach:setMessage', handler as EventListener)
+    return () => window.removeEventListener('coach:setMessage', handler as EventListener)
+  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session) setShowLoginModal(false)
@@ -149,14 +170,13 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* Chat Card (A안: 히어로/키워드는 페이지에서, ChatBox는 채팅만) */}
-      <div className="mx-auto max-w-3xl rounded-2xl border border-[#3a3a3a] bg-[#111] overflow-hidden">
+      {/* Chat Card (Light Gray + Black Text) */}
+      <div className="mx-auto max-w-3xl rounded-2xl border border-[#d0d0d0] bg-[#eeeeee] overflow-hidden">
         {/* Messages 영역: 고정 높이 + 내부 스크롤 */}
         <div className="h-[520px] overflow-y-auto px-4 py-4">
           {messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
-              Tap a keyword above or type a question below.
-            </div>
+            // ✅ 빈 상태 문구 제거 (요청사항)
+            <div className="h-full" />
           ) : (
             <div className="space-y-3">
               {messages.map((m) => (
@@ -166,12 +186,13 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 >
                   <div
                     className={[
-                      'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-[#eae3de]',
-                      m.role === 'user' ? 'bg-[#2a2a2a]' : 'bg-[#1e3a4a]',
+                      'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-black',
+                      // user bubble: slightly darker gray
+                      m.role === 'user' ? 'bg-[#d9d9d9]' : 'bg-white border border-[#d0d0d0]',
                     ].join(' ')}
                   >
                     {m.role === 'assistant' ? (
-                      <div className="prose prose-invert prose-sm max-w-none">
+                      <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => (
@@ -192,7 +213,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl bg-[#1e3a4a] px-4 py-3 text-sm text-[#eae3de]">
+                  <div className="rounded-2xl bg-white border border-[#d0d0d0] px-4 py-3 text-sm text-black">
                     Thinking{'.'.repeat(dots)}
                   </div>
                 </div>
@@ -204,7 +225,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
 
         {/* Input 영역: 카드 하단 고정(sticky) */}
-        <div className="sticky bottom-0 border-t border-[#222] bg-[#111] px-4 py-3">
+        <div className="sticky bottom-0 border-t border-[#d0d0d0] bg-[#f4f4f4] px-4 py-3">
           <div className="flex items-end gap-3">
             <textarea
               value={input}
@@ -215,9 +236,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   void ask()
                 }
               }}
-              placeholder="Type your message…"
+              // ✅ placeholder 변경 (요청사항)
+              placeholder="Type your question, or tap one of the suggestions above."
               rows={2}
-              className="flex-1 resize-none rounded-xl bg-[#1a1a1a] px-4 py-3 text-sm text-[#eae3de] outline-none"
+              className="flex-1 resize-none rounded-xl bg-white px-4 py-3 text-sm text-black outline-none border border-[#d0d0d0]"
               disabled={loading}
             />
             <button
@@ -230,43 +252,34 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           </div>
 
           {!user && (
-            <p className="mt-2 text-center text-xs text-gray-500">
+            <p className="mt-2 text-center text-xs text-gray-600">
               {guestCount}/{GUEST_LIMIT} free questions today
             </p>
           )}
 
-          {error && (
-            <p className="mt-1 text-center text-xs text-red-400">
-              {error}
-            </p>
-          )}
+          {error && <p className="mt-1 text-center text-xs text-red-600">{error}</p>}
         </div>
       </div>
 
       {/* login modal */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-sm rounded-xl bg-[#1a1a1a] p-6 text-center text-[#eae3de]">
-            <h3 className="text-sm font-semibold">
-              Sign in with Google to unlock unlimited access.
-            </h3>
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center text-black">
+            <h3 className="text-sm font-semibold">Sign in with Google to unlock unlimited access.</h3>
             <div className="mt-4 grid gap-2">
-              <button
-                onClick={loginGoogle}
-                className="rounded-lg bg-white py-2 text-sm text-black"
-              >
+              <button onClick={loginGoogle} className="rounded-lg bg-black py-2 text-sm text-white">
                 Sign in with Google
               </button>
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="rounded-lg border border-gray-600 py-2 text-sm"
+                className="rounded-lg border border-gray-300 py-2 text-sm"
               >
                 Close
               </button>
             </div>
 
             {debug && (
-              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-500">
+              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
                 {debug}
               </pre>
             )}
