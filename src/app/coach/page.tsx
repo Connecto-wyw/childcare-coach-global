@@ -9,6 +9,19 @@ import TipSection from '@/components/tips/TipSection'
 import KeywordButtons from './KeywordButtons'
 import type { Database } from '@/lib/database.types'
 
+// ✅ 이 페이지에서만 쓰는 최소 타입(never 방지)
+type PopularKeywordRow = {
+  keyword: string
+  order: number | null
+}
+
+type NewsPostRow = {
+  id: string
+  title: string
+  slug: string
+  created_at: string | null
+}
+
 export default async function CoachPage() {
   const supabase = createServerComponentClient<Database>({ cookies })
 
@@ -18,6 +31,8 @@ export default async function CoachPage() {
     .select('keyword, "order"')
     .order('order', { ascending: true })
     .limit(4)
+    // ✅ 핵심: 결과 타입 강제 지정
+    .returns<PopularKeywordRow[]>()
 
   const keywords =
     kwErr || !kwRes || kwRes.length === 0
@@ -35,8 +50,10 @@ export default async function CoachPage() {
     .select('id, title, slug, created_at')
     .order('created_at', { ascending: false })
     .limit(3)
+    // ✅ 핵심: 결과 타입 강제 지정
+    .returns<NewsPostRow[]>()
 
-  const news = newsErr || !newsRes ? [] : newsRes
+  const news: NewsPostRow[] = newsErr || !newsRes ? [] : newsRes
 
   return (
     <main className="min-h-screen bg-[#282828] text-white font-sans">
@@ -48,7 +65,9 @@ export default async function CoachPage() {
 
         {/* HOT KEYWORDS */}
         <section className="mb-8 text-center">
-          <h2 className="text-[24px] font-semibold mb-3 text-white">"Ask me anything about parenting—I’m here to help."</h2>
+          <h2 className="text-[24px] font-semibold mb-3 text-white">
+            "Ask me anything about parenting—I’m here to help."
+          </h2>
           <KeywordButtons keywords={keywords} />
         </section>
 
