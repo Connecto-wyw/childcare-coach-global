@@ -4,8 +4,8 @@ import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import KeywordButtons from './KeywordButtons'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -18,20 +18,66 @@ type NewsPostRow = {
   created_at: string | null
 }
 
+async function getRequestOrigin() {
+  const h = await headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host')
+  const proto = h.get('x-forwarded-proto') ?? 'https'
+  if (!host) return null
+  return `${proto}://${host}`
+}
+
 async function getPopularKeywords() {
   try {
-    // ✅ 핵심: 같은 도메인에서 /api/keywords 호출 (가장 안전)
-    const res = await fetch('/api/keywords', { cache: 'no-store' })
+    const origin = await getRequestOrigin()
+    if (!origin) return null
+
+    const res = await fetch(`${origin}/api/keywords`, { cache: 'no-store' })
     const json = (await res.json().catch(() => ({}))) as any
-    if (!res.ok || !Array.isArray(json.keywords) || json.keywords.length === 0) return null
-    return json.keywords.map((k: any) => String(k))
+    if (!res.ok) return null
+
+    // 1) { keywords: string[] }
+    if (Array.isArray(json.keywords) && json.keywords.length > 0) {
+      return json.keywords.map((k: any) => String(k)).filter(Boolean).slice(0, 4)
+    }
+
+    // 2) { data: [{ keyword, ... }] }  ← 지금 네 route.ts 형태
+    if (Array.isArray(json.data) && json.data.length > 0) {
+      return json.data
+        .map((row: any) => String(row.keyword))
+        .filter(Boolean)
+        .slice(0, 4)
+    }
+
+    return null
   } catch {
     return null
   }
 }
 
+async function createSupabaseServer() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anon) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(url, anon, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set({ name, value, ...options })
+      },
+      remove(name: string, options: any) {
+        cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+      },
+    },
+  })
+}
+
 export default async function CoachPage() {
-  const supabase = createServerComponentClient<Database>({ cookies })
+  const supabase = await createSupabaseServer()
 
   const kw = await getPopularKeywords()
   const keywords =
@@ -49,9 +95,8 @@ export default async function CoachPage() {
     .select('id, title, slug, created_at')
     .order('created_at', { ascending: false })
     .limit(3)
-    .returns<NewsPostRow[]>()
 
-  const news: NewsPostRow[] = newsErr || !newsRes ? [] : newsRes
+  const news: NewsPostRow[] = newsErr || !newsRes ? [] : (newsRes as NewsPostRow[])
 
   return (
     <main className="min-h-screen bg-[#282828] text-white font-sans">
