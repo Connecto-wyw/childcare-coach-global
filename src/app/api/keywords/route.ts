@@ -19,7 +19,6 @@ function getServiceClient(): { error: 'missing_env' | null; client: SupabaseClie
   }
 }
 
-// 공통: 관리자 세션/도메인 체크
 async function requireAdmin() {
   const sb = createRouteHandlerClient<Database>({ cookies })
   const {
@@ -44,15 +43,11 @@ type KeywordRow = {
   id: string
   keyword: string
   order: number | null
-  user_id?: string | null
 }
 
-// ✅ 홈/공개 조회용: 서비스 롤로 읽어서 RLS 영향 제거
 export async function GET() {
   const { error, client } = getServiceClient()
-  if (error || !client) {
-    return NextResponse.json({ error: 'missing_env' }, { status: 500 })
-  }
+  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
 
   const { data, error: dbError } = await client
     .from('popular_keywords')
@@ -71,11 +66,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  // 1) 세션 사용자 확인 (관리자만)
+  // 1) 관리자만
   const admin = await requireAdmin()
   if (!admin.ok) return NextResponse.json({ error: admin.error }, { status: admin.status })
-
-  const user = admin.user
 
   // 2) 입력 파싱
   const body = (await req.json().catch(() => ({}))) as Body
@@ -86,13 +79,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 })
   }
 
-  // 3) 서비스 클라이언트로 DB 삽입
+  // 3) 서비스 롤 insert (✅ user_id 컬럼 제거)
   const { error, client } = getServiceClient()
   if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
 
-  const { error: dbError } = await client
-    .from('popular_keywords')
-    .insert([{ keyword, order, user_id: user.id }])
+  const { error: dbError } = await client.from('popular_keywords').insert([{ keyword, order }])
 
   if (dbError) {
     return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 400 })
@@ -101,18 +92,16 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true }, { status: 200 })
 }
 
-// ✅ (권장) 관리자 삭제도 API로 통일 (RLS/권한 이슈 방지)
 export async function DELETE(req: NextRequest) {
+  // 관리자만
   const admin = await requireAdmin()
   if (!admin.ok) return NextResponse.json({ error: admin.error }, { status: admin.status })
 
   const { error, client } = getServiceClient()
   if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
 
-  // id는 querystring으로 받자: /api/keywords?id=...
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
-
   if (!id) {
     return NextResponse.json({ error: 'bad_request', detail: 'missing id' }, { status: 400 })
   }
