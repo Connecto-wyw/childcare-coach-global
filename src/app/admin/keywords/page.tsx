@@ -1,8 +1,8 @@
 // src/app/admin/keywords/page.tsx
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 type Keyword = {
   id: string
@@ -13,28 +13,52 @@ type Keyword = {
 const ADMIN_DOMAIN = '@connecto-wyw.com'
 
 export default function KeywordAdminPage() {
-  const user = useUser()
-  const supabase = useSupabaseClient()
+  // ✅ App Router에서 가장 안정적인 클라이언트 생성 방식
+  const supabase = useMemo(() => createClientComponentClient(), [])
 
-  // ---- auth state ----
-  const isSignedIn = !!user?.email
-  const userEmail = (user?.email || '').toLowerCase()
+  // ---- auth state (직접 관리) ----
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const isSignedIn = !!userEmail
+  const isAllowed = useMemo(
+    () => (userEmail || '').toLowerCase().endsWith(ADMIN_DOMAIN),
+    [userEmail]
+  )
 
-  const isAllowed = useMemo(() => {
-    return userEmail.endsWith(ADMIN_DOMAIN)
-  }, [userEmail])
-
-  // ---- admin login (magic link) ----
+  // ---- magic link ----
   const [emailInput, setEmailInput] = useState('')
   const [sendingLink, setSendingLink] = useState(false)
   const [sentMsg, setSentMsg] = useState<string | null>(null)
 
-  // ---- data state ----
+  // ---- data ----
   const [keywords, setKeywords] = useState<Keyword[]>([])
   const [newKeyword, setNewKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // ✅ 초기 유저 로딩 + 로그인 상태 변화 구독
+  useEffect(() => {
+    let mounted = true
+
+    async function init() {
+      const { data } = await supabase.auth.getUser()
+      if (!mounted) return
+      setUserEmail(data.user?.email ?? null)
+    }
+
+    init()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   const fetchKeywords = useCallback(async () => {
     const { data, error } = await supabase
@@ -52,7 +76,7 @@ export default function KeywordAdminPage() {
     setKeywords((data as Keyword[]) ?? [])
   }, [supabase])
 
-  // ✅ 중요: 허용된 관리자일 때만 fetch
+  // ✅ 관리자 허용일 때만 로드
   useEffect(() => {
     if (!isSignedIn) return
     if (!isAllowed) return
@@ -74,25 +98,36 @@ export default function KeywordAdminPage() {
     }
 
     setSendingLink(true)
-
     try {
-      // magic link(OTP) 발송
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          // ✅ 현재 페이지로 돌아오게
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
-        },
-      })
-
-      if (error) {
-        console.error('OTP send failed:', error.message)
-        setErrorMsg(`링크 발송 실패: ${error.message}`)
-        setSendingLink(false)
+      // ✅ supabase-js v2: signInWithOtp
+      // ✅ 혹시 v1이면 signIn({ email })로 폴백
+      const authAny = supabase.auth as any
+      if (typeof authAny?.signInWithOtp === 'function') {
+        const { error } = await authAny.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo:
+              typeof window !== 'undefined' ? window.location.href : undefined,
+          },
+        })
+        if (error) {
+          setErrorMsg(`링크 발송 실패: ${error.message}`)
+          return
+        }
+      } else if (typeof authAny?.signIn === 'function') {
+        const { error } = await authAny.signIn({
+          email,
+        })
+        if (error) {
+          setErrorMsg(`링크 발송 실패: ${error.message}`)
+          return
+        }
+      } else {
+        setErrorMsg('Auth 클라이언트가 초기화되지 않았어. providers 설정을 확인해줘.')
         return
       }
 
-      setSentMsg('메일로 로그인 링크를 보냈어요. 받은편지함/스팸함 확인해줘.')
+      setSentMsg('메일로 로그인 링크를 보냈어. 받은편지함/스팸함 확인해줘.')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setErrorMsg(`네트워크 오류: ${msg}`)
@@ -122,27 +157,27 @@ export default function KeywordAdminPage() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          email: user!.email,
+          email: userEmail,
           keyword: value,
           order: nextOrder,
         }),
       })
+
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
       if (!res.ok) {
         const code = (json['error'] as string) || res.statusText
         const detail = typeof json['detail'] === 'string' ? ` (${json['detail']})` : ''
         setErrorMsg(`서버 API 오류: ${code}${detail}`)
-        setLoading(false)
         return
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setErrorMsg(`네트워크 오류: ${msg}`)
-      setLoading(false)
       return
+    } finally {
+      setLoading(false)
     }
 
-    setLoading(false)
     setNewKeyword('')
     fetchKeywords()
   }
@@ -165,14 +200,13 @@ export default function KeywordAdminPage() {
   }
   // -------------------------
 
-  // ---------------- UI: not signed in -> show magic link login ----------------
   if (!isSignedIn) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
           <p className="mt-2 text-sm text-gray-300">
-            관리자 전용 페이지. {ADMIN_DOMAIN} 이메일로 매직링크 로그인하세요.
+            관리자 전용 페이지. {ADMIN_DOMAIN} 이메일로 매직링크 로그인해.
           </p>
 
           <div className="mt-6 max-w-lg">
@@ -199,19 +233,12 @@ export default function KeywordAdminPage() {
 
             {sentMsg && <div className="mt-3 text-sm text-green-200">{sentMsg}</div>}
             {errorMsg && <div className="mt-3 text-sm text-red-300">{errorMsg}</div>}
-
-            <div className="mt-4 text-xs text-gray-400 leading-relaxed">
-              메일의 로그인 링크를 클릭하면 이 페이지로 돌아오고, 자동으로 세션이 생성돼.
-              <br />
-              (이 다음 단계에서 Supabase에서 Email Provider/Magic Link를 켜야 실제 발송이 됨)
-            </div>
           </div>
         </div>
       </main>
     )
   }
 
-  // ---------------- UI: signed in but not allowed ----------------
   if (!isAllowed) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
@@ -227,10 +254,10 @@ export default function KeywordAdminPage() {
           </div>
 
           <p className="mt-2 text-sm text-gray-300">
-            이 페이지는 {ADMIN_DOMAIN} 도메인 사용자만 사용할 수 있습니다.
+            이 페이지는 {ADMIN_DOMAIN} 도메인 사용자만 사용할 수 있어.
           </p>
           <p className="mt-2 text-sm text-gray-400">
-            현재 로그인: <span className="text-gray-200">{user?.email}</span>
+            현재 로그인: <span className="text-gray-200">{userEmail}</span>
           </p>
 
           {errorMsg && <div className="mt-4 text-sm text-red-300">{errorMsg}</div>}
@@ -239,7 +266,6 @@ export default function KeywordAdminPage() {
     )
   }
 
-  // ---------------- UI: allowed admin ----------------
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de]">
       <div className="max-w-3xl mx-auto px-4 py-12">
@@ -247,7 +273,7 @@ export default function KeywordAdminPage() {
           <div>
             <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
             <p className="mt-1 text-xs text-gray-400">
-              Signed in as <span className="text-gray-200">{user?.email}</span>
+              Signed in as <span className="text-gray-200">{userEmail}</span>
             </p>
           </div>
 
