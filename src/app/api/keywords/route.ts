@@ -9,108 +9,99 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function jsonError(
+  status: number,
+  error: string,
+  detail?: string
+) {
+  return NextResponse.json({ error, detail }, { status })
+}
+
 function getServiceClient(): { error: 'missing_env' | null; client: SupabaseClient | null } {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return { error: 'missing_env', client: null }
-  return {
-    error: null,
-    client: createClient(url, key, { auth: { persistSession: false } }),
-  }
+  return { error: null, client: createClient(url, key, { auth: { persistSession: false } }) }
 }
 
 async function requireAdmin() {
   const sb = createRouteHandlerClient<Database>({ cookies })
-  const {
-    data: { user },
-  } = await sb.auth.getUser()
-
-  if (!user?.email) {
-    return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, user: null }
-  }
+  const { data, error } = await sb.auth.getUser()
+  if (error) return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: error.message }
+  const user = data.user
+  if (!user?.email) return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: 'no user/email' }
 
   const email = user.email.toLowerCase()
   if (!email.endsWith('@connecto-wyw.com')) {
-    return { ok: false as const, status: 403 as const, error: 'invalid_domain' as const, user: null }
+    return { ok: false as const, status: 403 as const, error: 'invalid_domain' as const, detail: email }
   }
-
-  return { ok: true as const, status: 200 as const, error: null, user }
+  return { ok: true as const, user }
 }
 
 type Body = { keyword?: string; order?: number }
 
-type KeywordRow = {
-  id: string
-  keyword: string
-  order: number | null
-}
-
 export async function GET() {
-  const { error, client } = getServiceClient()
-  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
+  try {
+    const { error, client } = getServiceClient()
+    if (error || !client) return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
 
-  const { data, error: dbError } = await client
-    .from('popular_keywords')
-    .select('id, keyword, "order"')
-    .order('order', { ascending: true })
-    .limit(4)
+    const { data, error: dbError } = await client
+      .from('popular_keywords')
+      .select('id, keyword, "order"')
+      .order('order', { ascending: true })
+      .limit(4)
 
-  if (dbError) {
-    return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 500 })
+    if (dbError) return jsonError(500, 'db_error', dbError.message)
+
+    const keywords = (data ?? []).map((r: any) => String(r.keyword))
+    return NextResponse.json({ keywords, data }, { status: 200 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return jsonError(500, 'unhandled_exception', msg)
   }
-
-  const rows = (data ?? []) as unknown as KeywordRow[]
-  const keywords = rows.map((r) => String(r.keyword))
-
-  return NextResponse.json({ keywords, data: rows }, { status: 200 })
 }
 
 export async function POST(req: NextRequest) {
-  // 1) 관리자만
-  const admin = await requireAdmin()
-  if (!admin.ok) return NextResponse.json({ error: admin.error }, { status: admin.status })
+  try {
+    const admin = await requireAdmin()
+    if (!admin.ok) return jsonError(admin.status, admin.error, admin.detail)
 
-  // 2) 입력 파싱
-  const body = (await req.json().catch(() => ({}))) as Body
-  const keyword = (body.keyword ?? '').trim()
-  const order = Number(body.order)
+    const body = (await req.json().catch(() => ({}))) as Body
+    const keyword = (body.keyword ?? '').trim()
+    const order = Number(body.order)
+    if (!keyword || Number.isNaN(order)) return jsonError(400, 'bad_request', 'keyword/order required')
 
-  if (!keyword || Number.isNaN(order)) {
-    return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+    const { error, client } = getServiceClient()
+    if (error || !client) return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+
+    const { error: dbError } = await client.from('popular_keywords').insert([{ keyword, order }])
+    if (dbError) return jsonError(400, 'db_error', dbError.message)
+
+    return NextResponse.json({ ok: true }, { status: 200 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return jsonError(500, 'unhandled_exception', msg)
   }
-
-  // 3) 서비스 롤 insert (✅ user_id 컬럼 제거)
-  const { error, client } = getServiceClient()
-  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
-
-  const { error: dbError } = await client.from('popular_keywords').insert([{ keyword, order }])
-
-  if (dbError) {
-    return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 400 })
-  }
-
-  return NextResponse.json({ ok: true }, { status: 200 })
 }
 
 export async function DELETE(req: NextRequest) {
-  // 관리자만
-  const admin = await requireAdmin()
-  if (!admin.ok) return NextResponse.json({ error: admin.error }, { status: admin.status })
+  try {
+    const admin = await requireAdmin()
+    if (!admin.ok) return jsonError(admin.status, admin.error, admin.detail)
 
-  const { error, client } = getServiceClient()
-  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
+    const url = new URL(req.url)
+    const id = url.searchParams.get('id')
+    if (!id) return jsonError(400, 'bad_request', 'missing id')
 
-  const url = new URL(req.url)
-  const id = url.searchParams.get('id')
-  if (!id) {
-    return NextResponse.json({ error: 'bad_request', detail: 'missing id' }, { status: 400 })
+    const { error, client } = getServiceClient()
+    if (error || !client) return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+
+    const { error: dbError } = await client.from('popular_keywords').delete().eq('id', id)
+    if (dbError) return jsonError(400, 'db_error', dbError.message)
+
+    return NextResponse.json({ ok: true }, { status: 200 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return jsonError(500, 'unhandled_exception', msg)
   }
-
-  const { error: dbError } = await client.from('popular_keywords').delete().eq('id', id)
-
-  if (dbError) {
-    return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 400 })
-  }
-
-  return NextResponse.json({ ok: true }, { status: 200 })
 }
