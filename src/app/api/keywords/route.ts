@@ -1,7 +1,7 @@
 // src/app/api/keywords/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
@@ -20,22 +20,44 @@ function getServiceClient(): { error: 'missing_env' | null; client: SupabaseClie
   return { error: null, client: createClient(url, key, { auth: { persistSession: false } }) }
 }
 
-/**
- * ✅ 핵심: cookies()를 await 하지 말고,
- * createRouteHandlerClient에는 cookies 함수로 그대로 넘기기
- */
-async function requireAdmin() {
-  const sb = createRouteHandlerClient<Database>({
-    cookies: () => cookies(),
+async function getAuthClient() {
+  const cookieStore = await cookies() // ✅ 여기서 await
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anon) return null
+
+  return createServerClient<Database>(url, anon, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set({ name, value, ...options })
+      },
+      remove(name: string, options: any) {
+        cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+      },
+    },
   })
+}
+
+async function requireAdmin() {
+  const sb = await getAuthClient()
+  if (!sb) {
+    return {
+      ok: false as const,
+      status: 500 as const,
+      error: 'missing_env' as const,
+      detail: 'missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    }
+  }
 
   const { data, error } = await sb.auth.getUser()
   if (error) return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: error.message }
 
   const user = data.user
-  if (!user?.email) {
-    return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: 'no user/email' }
-  }
+  if (!user?.email) return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: 'no user/email' }
 
   const email = user.email.toLowerCase()
   if (!email.endsWith('@connecto-wyw.com')) {
@@ -50,9 +72,7 @@ type Body = { keyword?: string; order?: number }
 export async function GET() {
   try {
     const { error, client } = getServiceClient()
-    if (error || !client) {
-      return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
-    }
+    if (error || !client) return jsonError(500, 'missing_env', 'missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
 
     const { data, error: dbError } = await client
       .from('popular_keywords')
@@ -63,7 +83,7 @@ export async function GET() {
     if (dbError) return jsonError(500, 'db_error', dbError.message)
 
     const keywords = (data ?? []).map((r: any) => String(r.keyword))
-    return NextResponse.json({ keywords, data }, { status: 200 })
+    return NextResponse.json({ keywords }, { status: 200 })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return jsonError(500, 'unhandled_exception', msg)
@@ -81,9 +101,7 @@ export async function POST(req: NextRequest) {
     if (!keyword || Number.isNaN(order)) return jsonError(400, 'bad_request', 'keyword/order required')
 
     const { error, client } = getServiceClient()
-    if (error || !client) {
-      return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
-    }
+    if (error || !client) return jsonError(500, 'missing_env', 'missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
 
     const { error: dbError } = await client.from('popular_keywords').insert([{ keyword, order }])
     if (dbError) return jsonError(400, 'db_error', dbError.message)
@@ -105,9 +123,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) return jsonError(400, 'bad_request', 'missing id')
 
     const { error, client } = getServiceClient()
-    if (error || !client) {
-      return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
-    }
+    if (error || !client) return jsonError(500, 'missing_env', 'missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
 
     const { error: dbError } = await client.from('popular_keywords').delete().eq('id', id)
     if (dbError) return jsonError(400, 'db_error', dbError.message)
