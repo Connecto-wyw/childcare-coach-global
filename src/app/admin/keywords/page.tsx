@@ -19,6 +19,10 @@ type ApiErr = {
   raw?: string
 }
 
+type KeywordsApiOk = {
+  data: Array<{ id: string; keyword: string; order: number | null | undefined }>
+}
+
 async function readError(res: Response): Promise<ApiErr> {
   const status = res.status
   const raw = await res.text().catch(() => '')
@@ -35,11 +39,19 @@ async function readError(res: Response): Promise<ApiErr> {
     'unknown_error'
 
   const detail = json && typeof json.detail === 'string' ? json.detail : undefined
-
-  // raw는 너무 길면 UI 깨지니까 앞부분만
   const rawShort = raw ? raw.slice(0, 300) : ''
 
   return { status, code, detail, raw: rawShort }
+}
+
+function normalizeKeywords(rows: KeywordsApiOk['data']): Keyword[] {
+  const mapped = rows.map((r, idx) => ({
+    id: String(r.id),
+    keyword: String(r.keyword),
+    order: Number.isFinite(Number(r.order)) ? Number(r.order) : idx,
+  }))
+  mapped.sort((a, b) => a.order - b.order)
+  return mapped
 }
 
 export default function KeywordAdminPage() {
@@ -93,22 +105,32 @@ export default function KeywordAdminPage() {
     }
   }, [supabase])
 
+  // ✅ 목록은 Supabase 직접조회 대신, 항상 API로 조회 (환경/세션 꼬임 방지 + 홈과 동일 소스)
   const fetchKeywords = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('popular_keywords')
-      .select('id, keyword, "order"')
-      .order('order', { ascending: true })
-
-    if (error) {
-      console.error('Load failed:', error.message)
-      setKeywords([])
-      setErrorMsg(`로드 실패: ${error.message}`)
-      return
-    }
-
     setErrorMsg(null)
-    setKeywords((data as Keyword[]) ?? [])
-  }, [supabase])
+
+    try {
+      const res = await fetch('/api/keywords', { method: 'GET', cache: 'no-store' })
+      if (!res.ok) {
+        const err = await readError(res)
+        setKeywords([])
+        setErrorMsg(
+          `서버 API 오류(GET): ${err.status} ${err.code}${err.detail ? ` (${err.detail})` : ''}${
+            err.raw ? ` | raw: ${err.raw}` : ''
+          }`
+        )
+        return
+      }
+
+      const json = (await res.json().catch(() => null)) as KeywordsApiOk | null
+      const rows = json && Array.isArray((json as any).data) ? (json as any).data : []
+      setKeywords(normalizeKeywords(rows))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setKeywords([])
+      setErrorMsg(`네트워크 오류(GET): ${msg}`)
+    }
+  }, [])
 
   useEffect(() => {
     if (!authChecked) return
@@ -269,7 +291,7 @@ export default function KeywordAdminPage() {
             </div>
 
             {sentMsg && <div className="mt-3 text-sm text-green-200">{sentMsg}</div>}
-            {errorMsg && <div className="mt-3 text-sm text-red-300">{errorMsg}</div>}
+            {errorMsg && <div className="mt-3 text-sm text-red-300 whitespace-pre-wrap">{errorMsg}</div>}
           </div>
         </div>
       </main>
@@ -298,7 +320,7 @@ export default function KeywordAdminPage() {
             현재 로그인: <span className="text-gray-200">{userEmail}</span>
           </p>
 
-          {errorMsg && <div className="mt-4 text-sm text-red-300">{errorMsg}</div>}
+          {errorMsg && <div className="mt-4 text-sm text-red-300 whitespace-pre-wrap">{errorMsg}</div>}
         </div>
       </main>
     )
@@ -365,6 +387,10 @@ export default function KeywordAdminPage() {
               ))}
             </ul>
           )}
+        </div>
+
+        <div className="mt-4 text-xs text-gray-400">
+          목록 로딩은 <code className="text-gray-200">GET /api/keywords</code>로 고정됨 (RLS/세션 꼬임 방지)
         </div>
       </div>
     </main>
