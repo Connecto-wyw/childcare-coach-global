@@ -12,6 +12,36 @@ type Keyword = {
 
 const ADMIN_DOMAIN = '@connecto-wyw.com'
 
+type ApiErr = {
+  status: number
+  code: string
+  detail?: string
+  raw?: string
+}
+
+async function readError(res: Response): Promise<ApiErr> {
+  const status = res.status
+  const raw = await res.text().catch(() => '')
+  let json: any = null
+  try {
+    json = raw ? JSON.parse(raw) : null
+  } catch {
+    json = null
+  }
+
+  const code =
+    (json && typeof json.error === 'string' && json.error) ||
+    res.statusText ||
+    'unknown_error'
+
+  const detail = json && typeof json.detail === 'string' ? json.detail : undefined
+
+  // raw는 너무 길면 UI 깨지니까 앞부분만
+  const rawShort = raw ? raw.slice(0, 300) : ''
+
+  return { status, code, detail, raw: rawShort }
+}
+
 export default function KeywordAdminPage() {
   const supabase = useMemo(() => createClientComponentClient(), [])
 
@@ -72,7 +102,7 @@ export default function KeywordAdminPage() {
     if (error) {
       console.error('Load failed:', error.message)
       setKeywords([])
-      setErrorMsg('로드 실패: 권한 또는 네트워크 확인')
+      setErrorMsg(`로드 실패: ${error.message}`)
       return
     }
 
@@ -111,7 +141,6 @@ export default function KeywordAdminPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          // ✅ 로그인 완료 후 다시 admin 페이지로 돌아오게
           emailRedirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
         },
       })
@@ -148,11 +177,13 @@ export default function KeywordAdminPage() {
         body: JSON.stringify({ keyword: value, order: nextOrder }),
       })
 
-      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
       if (!res.ok) {
-        const code = (json['error'] as string) || res.statusText
-        const detail = typeof json['detail'] === 'string' ? ` (${json['detail']})` : ''
-        setErrorMsg(`서버 API 오류: ${code}${detail}`)
+        const err = await readError(res)
+        setErrorMsg(
+          `서버 API 오류(ADD): ${err.status} ${err.code}${err.detail ? ` (${err.detail})` : ''}${
+            err.raw ? ` | raw: ${err.raw}` : ''
+          }`
+        )
         return
       }
 
@@ -160,7 +191,7 @@ export default function KeywordAdminPage() {
       await fetchKeywords()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      setErrorMsg(`네트워크 오류: ${msg}`)
+      setErrorMsg(`네트워크 오류(ADD): ${msg}`)
     } finally {
       setLoading(false)
     }
@@ -173,18 +204,21 @@ export default function KeywordAdminPage() {
 
     try {
       const res = await fetch(`/api/keywords?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
-      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+
       if (!res.ok) {
-        const code = (json['error'] as string) || res.statusText
-        const detail = typeof json['detail'] === 'string' ? ` (${json['detail']})` : ''
-        setErrorMsg(`삭제 API 오류: ${code}${detail}`)
+        const err = await readError(res)
+        setErrorMsg(
+          `서버 API 오류(DEL): ${err.status} ${err.code}${err.detail ? ` (${err.detail})` : ''}${
+            err.raw ? ` | raw: ${err.raw}` : ''
+          }`
+        )
         return
       }
 
       await fetchKeywords()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      setErrorMsg(`네트워크 오류: ${msg}`)
+      setErrorMsg(`네트워크 오류(DEL): ${msg}`)
     } finally {
       setBusyId(null)
     }
@@ -309,7 +343,7 @@ export default function KeywordAdminPage() {
           </button>
         </div>
 
-        {errorMsg && <div className="mb-4 text-sm text-red-300">{errorMsg}</div>}
+        {errorMsg && <div className="mb-4 text-sm text-red-300 whitespace-pre-wrap">{errorMsg}</div>}
 
         <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a]">
           {keywords.length === 0 ? (
