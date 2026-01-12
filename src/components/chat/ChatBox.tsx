@@ -1,9 +1,9 @@
 // src/components/chat/ChatBox.tsx
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { useAuthUser, useSupabase } from '@/app/providers'
 
 type ChatBoxProps = { systemPrompt?: string }
 type AskRes = { answer?: string; error?: string; body?: string }
@@ -25,9 +25,16 @@ function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
 }
 
+function getSiteOrigin() {
+  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+  if (envSite) return stripTrailingSlash(envSite)
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
+}
+
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
-  const user = useUser()
-  const supabase = useSupabaseClient()
+  const { user } = useAuthUser()
+  const supabase = useSupabase()
 
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -47,13 +54,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const MIN_H = 260
   const MAX_H = 720
 
-  // close modal on login
+  // ✅ 로그인 되면 모달 자동 닫기 (Providers가 세션을 갱신하므로 user만 보면 됨)
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) setShowLoginModal(false)
-    })
-    return () => data.subscription.unsubscribe()
-  }, [supabase])
+    if (user) setShowLoginModal(false)
+  }, [user])
 
   // loading dots
   useEffect(() => {
@@ -81,87 +85,79 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   }, [messages.length, loading])
 
   // ✅ PKCE mismatch 방지용: redirectTo origin을 "고정된 SITE" 우선으로 계산
-  // - NEXT_PUBLIC_SITE_URL이 있으면 무조건 그걸 씀 (prod 고정)
-  // - 없으면 마지막 fallback으로 window.location.origin
-  const getAuthRedirectTo = () => {
-    const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
-    const base =
-      envSite.length > 0
-        ? stripTrailingSlash(envSite)
-        : typeof window !== 'undefined'
-          ? window.location.origin
-          : ''
-
+  const getAuthRedirectTo = useCallback(() => {
+    const base = getSiteOrigin()
     return `${base}/auth/callback?next=/coach`
-  }
+  }, [])
 
-  const loginGoogle = async () => {
+  const loginGoogle = useCallback(async () => {
     const redirectTo = getAuthRedirectTo()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
     })
-  }
+  }, [supabase, getAuthRedirectTo])
 
-  const push = (role: ChatRole, content: string) => {
+  const push = useCallback((role: ChatRole, content: string) => {
     setMessages((prev) => [...prev, { id: uuid(), role, content, createdAt: Date.now() }])
-  }
+  }, [])
 
-  const ask = async (override?: string) => {
-    const q = (override ?? input).trim()
-    if (!q) return
+  const ask = useCallback(
+    async (override?: string) => {
+      const q = (override ?? input).trim()
+      if (!q) return
 
-    // ✅ 첫 질문부터 로그인 강제
-    if (!user) {
-      setShowLoginModal(true)
-      return
-    }
+      // ✅ 첫 질문부터 로그인 강제
+      if (!user) {
+        setShowLoginModal(true)
+        return
+      }
 
-    push('user', q)
-    setInput('')
-    setLoading(true)
-    setError('')
-    setDebug('')
+      push('user', q)
+      setInput('')
+      setLoading(true)
+      setError('')
+      setDebug('')
 
-    try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system: systemPrompt ?? '',
-          question: q,
-          user_id: user.id,
-        }),
-        cache: 'no-store',
-      })
-
-      const raw = await res.text()
-      let data: AskRes = {}
       try {
-        data = raw ? JSON.parse(raw) : {}
-      } catch {
-        data = {}
-      }
+        const res = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: systemPrompt ?? '',
+            question: q,
+            user_id: user.id,
+          }),
+          cache: 'no-store',
+        })
 
-      if (!res.ok) {
-        throw new Error(`${res.status} ${data.error || ''} ${(data.body || '').slice(0, 300)}`)
-      }
+        const raw = await res.text()
+        let data: AskRes = {}
+        try {
+          data = raw ? JSON.parse(raw) : {}
+        } catch {
+          data = {}
+        }
 
-      const answer = (data.answer || '').trim()
-      if (answer) push('assistant', answer)
-    } catch (e) {
-      const msg = 'The response is delayed. Please try again.'
-      setError(msg)
-      setDebug(String(e))
-      push('assistant', msg)
-    } finally {
-      setLoading(false)
-    }
-  }
+        if (!res.ok) {
+          throw new Error(`${res.status} ${data.error || ''} ${(data.body || '').slice(0, 300)}`)
+        }
+
+        const answer = (data.answer || '').trim()
+        if (answer) push('assistant', answer)
+      } catch (e) {
+        const msg = 'The response is delayed. Please try again.'
+        setError(msg)
+        setDebug(String(e))
+        push('assistant', msg)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [input, user, push, systemPrompt]
+  )
 
   // ✅ keyword 버튼 → ChatBox 연동 이벤트
-  // - 로그인 안 했으면: 입력만 채우고 로그인 모달 띄움
-  // - 로그인 했으면: 바로 ask 실행
   useEffect(() => {
     const handler = (e: Event) => {
       const text = (e as CustomEvent<string>).detail
@@ -181,13 +177,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
     window.addEventListener('coach:setMessage', handler as EventListener)
     return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [user, loading])
+  }, [user, loading, ask])
 
   return (
     <div className="w-full">
-      {/* Chat Card (Dark Gray) */}
       <div className="mx-auto max-w-3xl rounded-2xl border border-[#3a3a3a] bg-[#3b3b3b] overflow-hidden">
-        {/* Messages 영역: 자동 확장 + MAX 넘어가면 내부 스크롤 */}
         <div
           ref={scrollRef}
           style={{ height: `${scrollHeightPx}px` }}
@@ -212,9 +206,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                       <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
                         <ReactMarkdown
                           components={{
-                            p: ({ children }) => (
-                              <p className="m-0 whitespace-pre-wrap">{children}</p>
-                            ),
+                            p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
                             li: ({ children }) => <li className="mb-1">{children}</li>,
                           }}
                         >
@@ -241,10 +233,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           )}
         </div>
 
-        {/* Input 영역 */}
         <div className="border-t border-[#2f2f2f] bg-[#363636] px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* ✅ textarea 높이 = 버튼 높이 */}
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -272,11 +262,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
       </div>
 
-      {/* login modal */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center text-black">
             <h3 className="text-sm font-semibold">Sign in with Google to continue.</h3>
+
             <div className="mt-4 grid gap-2">
               <button onClick={loginGoogle} className="rounded-lg bg-black py-2 text-sm text-white">
                 Sign in with Google
@@ -289,12 +279,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
               </button>
             </div>
 
-            {debug && (
-              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
-                {debug}
-                
-              </pre>
-            )}
+            {/* 디버그: 로그인 상태/오류 확인용 (원하면 이 블록 자체를 삭제해도 됨) */}
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
+              user: {user?.id ?? 'null'}
+              {'\n'}
+              {debug ? `error: ${debug}` : ''}
+            </pre>
           </div>
         </div>
       )}

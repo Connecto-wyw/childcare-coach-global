@@ -3,8 +3,8 @@
 
 import Link from 'next/link'
 import { useMemo } from 'react'
-import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { usePathname } from 'next/navigation'
+import { useAuthUser, useSupabase } from '@/app/providers'
 
 type Menu = 'home' | 'news' | 'talk'
 
@@ -12,31 +12,28 @@ function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
 }
 
+function getSiteOrigin() {
+  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+  if (envSite) return stripTrailingSlash(envSite)
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
+}
+
 export default function NavBar() {
-  const user = useUser()
-  const supabase = useSupabaseClient()
+  const { user } = useAuthUser()
+  const supabase = useSupabase()
   const pathname = usePathname()
 
   const active: Menu = useMemo(() => {
-    if (pathname?.startsWith('/coach')) return 'talk'
+    if (pathname?.startsWith('/team')) return 'talk'
     if (pathname?.startsWith('/news')) return 'news'
     return 'home'
   }, [pathname])
 
-  const getAuthRedirectTo = () => {
-    const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
-    const base =
-      envSite.length > 0
-        ? stripTrailingSlash(envSite)
-        : typeof window !== 'undefined'
-          ? window.location.origin
-          : ''
-
-    return `${base}/auth/callback?next=/coach`
-  }
-
   const loginGoogle = async () => {
-    const redirectTo = getAuthRedirectTo()
+    const base = getSiteOrigin()
+    const redirectTo = `${base}/auth/callback?next=/coach`
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
@@ -45,15 +42,14 @@ export default function NavBar() {
 
   const logout = async () => {
     await supabase.auth.signOut()
+    window.location.reload()
   }
 
   const item = (href: string, key: Menu, label: string) => (
     <Link
       href={href}
       className={`transition ${
-        active === key
-          ? 'text-[#9F1D23] font-semibold'
-          : 'text-[#eae3de] hover:text-[#9F1D23]'
+        active === key ? 'text-[#9F1D23] font-semibold' : 'text-[#eae3de] hover:text-[#9F1D23]'
       }`}
     >
       {label}
@@ -63,21 +59,17 @@ export default function NavBar() {
   return (
     <nav className="w-full bg-[#191919] text-[#eae3de] border-b border-gray-700">
       <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
-        {/* Left */}
         <div className="flex gap-6 text-base font-medium">
           {item('/', 'home', 'HOME')}
           {item('/news', 'news', 'NEWS')}
-          {item('/coach', 'talk', 'TALK')}
+          {item('/team', 'talk', 'TALK')}
         </div>
 
-        {/* Right */}
         <div className="flex items-center gap-3 text-sm">
           {user ? (
             <>
               <span className="text-gray-300 truncate max-w-[160px]">
-                {user.user_metadata?.full_name ||
-                  user.user_metadata?.name ||
-                  user.email}
+                {user.user_metadata?.full_name || user.user_metadata?.name || user.email}
               </span>
               <button
                 onClick={logout}
