@@ -15,6 +15,8 @@ const ADMIN_DOMAIN = '@connecto-wyw.com'
 export default function KeywordAdminPage() {
   const supabase = useMemo(() => createClientComponentClient(), [])
 
+  // ---- auth state ----
+  const [authChecked, setAuthChecked] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const isSignedIn = !!userEmail
   const isAllowed = useMemo(
@@ -22,25 +24,37 @@ export default function KeywordAdminPage() {
     [userEmail]
   )
 
+  // ---- magic link ----
+  const [emailInput, setEmailInput] = useState('')
+  const [sendingLink, setSendingLink] = useState(false)
+  const [sentMsg, setSentMsg] = useState<string | null>(null)
+
+  // ---- data ----
   const [keywords, setKeywords] = useState<Keyword[]>([])
   const [newKeyword, setNewKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // ✅ 세션 초기 로드 + 변경 구독
   useEffect(() => {
     let mounted = true
+
     async function init() {
-      const { data } = await supabase.auth.getUser()
+      const { data, error } = await supabase.auth.getUser()
       if (!mounted) return
+      if (error) console.warn('getUser error:', error.message)
       setUserEmail(data.user?.email ?? null)
+      setAuthChecked(true)
     }
+
     init()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user?.email ?? null)
+      setAuthChecked(true)
     })
 
     return () => {
@@ -61,19 +75,59 @@ export default function KeywordAdminPage() {
       setErrorMsg('로드 실패: 권한 또는 네트워크 확인')
       return
     }
+
     setErrorMsg(null)
     setKeywords((data as Keyword[]) ?? [])
   }, [supabase])
 
   useEffect(() => {
+    if (!authChecked) return
     if (!isSignedIn) return
     if (!isAllowed) return
     fetchKeywords()
-  }, [isSignedIn, isAllowed, fetchKeywords])
+  }, [authChecked, isSignedIn, isAllowed, fetchKeywords])
 
   async function signOut() {
     setErrorMsg(null)
     await supabase.auth.signOut()
+  }
+
+  async function sendMagicLink() {
+    const email = emailInput.trim().toLowerCase()
+    setErrorMsg(null)
+    setSentMsg(null)
+
+    if (!email) {
+      setErrorMsg('이메일을 입력해줘.')
+      return
+    }
+    if (!email.endsWith(ADMIN_DOMAIN)) {
+      setErrorMsg(`관리자 이메일만 허용돼. (${ADMIN_DOMAIN})`)
+      return
+    }
+
+    setSendingLink(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          // ✅ 로그인 완료 후 다시 admin 페이지로 돌아오게
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.href : undefined,
+        },
+      })
+
+      if (error) {
+        setErrorMsg(`링크 발송 실패: ${error.message}`)
+        return
+      }
+
+      setSentMsg('메일로 로그인 링크를 보냈어. 받은편지함/스팸함 확인해줘.')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setErrorMsg(`네트워크 오류: ${msg}`)
+    } finally {
+      setSendingLink(false)
+    }
   }
 
   async function addKeyword() {
@@ -91,10 +145,7 @@ export default function KeywordAdminPage() {
       const res = await fetch('/api/keywords', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          keyword: value,
-          order: nextOrder,
-        }),
+        body: JSON.stringify({ keyword: value, order: nextOrder }),
       })
 
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
@@ -115,16 +166,13 @@ export default function KeywordAdminPage() {
     }
   }
 
-  // ✅ 삭제를 API(서비스 롤)로 통일
   async function deleteKeyword(id: string) {
     if (!isAllowed) return
     setBusyId(id)
     setErrorMsg(null)
 
     try {
-      const res = await fetch(`/api/keywords?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      })
+      const res = await fetch(`/api/keywords?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
       if (!res.ok) {
         const code = (json['error'] as string) || res.statusText
@@ -142,17 +190,59 @@ export default function KeywordAdminPage() {
     }
   }
 
-  if (!isSignedIn) {
+  // ✅ 세션 체크 중(깜빡임/오판 방지)
+  if (!authChecked) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
-          <p className="mt-2 text-sm text-gray-300">로그인 필요. {ADMIN_DOMAIN} 계정으로 로그인해.</p>
+          <p className="mt-2 text-sm text-gray-300">세션 확인 중…</p>
         </div>
       </main>
     )
   }
 
+  // ✅ 미로그인: 매직링크 폼 보여주기
+  if (!isSignedIn) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de]">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
+          <p className="mt-2 text-sm text-gray-300">
+            로그인 필요. {ADMIN_DOMAIN} 계정으로 매직링크 로그인해.
+          </p>
+
+          <div className="mt-6 max-w-lg">
+            <label className="block text-sm text-gray-300 mb-2">Admin email</label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                className="flex-1 rounded border border-gray-600 bg-[#2b2b2b] p-2 text-[#eae3de] placeholder-gray-400"
+                placeholder={`example${ADMIN_DOMAIN}`}
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !sendingLink) sendMagicLink()
+                }}
+              />
+              <button
+                onClick={sendMagicLink}
+                disabled={sendingLink}
+                className="px-4 py-2 bg-[#3EB6F1] text-black rounded disabled:opacity-50"
+              >
+                {sendingLink ? 'Sending…' : 'Send link'}
+              </button>
+            </div>
+
+            {sentMsg && <div className="mt-3 text-sm text-green-200">{sentMsg}</div>}
+            {errorMsg && <div className="mt-3 text-sm text-red-300">{errorMsg}</div>}
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // ✅ 로그인 했지만 도메인 불일치
   if (!isAllowed) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
@@ -166,17 +256,21 @@ export default function KeywordAdminPage() {
               Sign out
             </button>
           </div>
+
           <p className="mt-2 text-sm text-gray-300">
             이 페이지는 {ADMIN_DOMAIN} 도메인 사용자만 사용할 수 있어.
           </p>
           <p className="mt-2 text-sm text-gray-400">
             현재 로그인: <span className="text-gray-200">{userEmail}</span>
           </p>
+
+          {errorMsg && <div className="mt-4 text-sm text-red-300">{errorMsg}</div>}
         </div>
       </main>
     )
   }
 
+  // ✅ 관리자 UI
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de]">
       <div className="max-w-3xl mx-auto px-4 py-12">
