@@ -9,11 +9,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function jsonError(
-  status: number,
-  error: string,
-  detail?: string
-) {
+function jsonError(status: number, error: string, detail?: string) {
   return NextResponse.json({ error, detail }, { status })
 }
 
@@ -24,17 +20,28 @@ function getServiceClient(): { error: 'missing_env' | null; client: SupabaseClie
   return { error: null, client: createClient(url, key, { auth: { persistSession: false } }) }
 }
 
+/**
+ * ✅ 핵심: cookies()를 await 하지 말고,
+ * createRouteHandlerClient에는 cookies 함수로 그대로 넘기기
+ */
 async function requireAdmin() {
-  const sb = createRouteHandlerClient<Database>({ cookies })
+  const sb = createRouteHandlerClient<Database>({
+    cookies: () => cookies(),
+  })
+
   const { data, error } = await sb.auth.getUser()
   if (error) return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: error.message }
+
   const user = data.user
-  if (!user?.email) return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: 'no user/email' }
+  if (!user?.email) {
+    return { ok: false as const, status: 401 as const, error: 'unauthorized' as const, detail: 'no user/email' }
+  }
 
   const email = user.email.toLowerCase()
   if (!email.endsWith('@connecto-wyw.com')) {
     return { ok: false as const, status: 403 as const, error: 'invalid_domain' as const, detail: email }
   }
+
   return { ok: true as const, user }
 }
 
@@ -43,7 +50,9 @@ type Body = { keyword?: string; order?: number }
 export async function GET() {
   try {
     const { error, client } = getServiceClient()
-    if (error || !client) return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+    if (error || !client) {
+      return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+    }
 
     const { data, error: dbError } = await client
       .from('popular_keywords')
@@ -72,7 +81,9 @@ export async function POST(req: NextRequest) {
     if (!keyword || Number.isNaN(order)) return jsonError(400, 'bad_request', 'keyword/order required')
 
     const { error, client } = getServiceClient()
-    if (error || !client) return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+    if (error || !client) {
+      return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+    }
 
     const { error: dbError } = await client.from('popular_keywords').insert([{ keyword, order }])
     if (dbError) return jsonError(400, 'db_error', dbError.message)
@@ -94,7 +105,9 @@ export async function DELETE(req: NextRequest) {
     if (!id) return jsonError(400, 'bad_request', 'missing id')
 
     const { error, client } = getServiceClient()
-    if (error || !client) return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+    if (error || !client) {
+      return jsonError(500, 'missing_env', 'NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing')
+    }
 
     const { error: dbError } = await client.from('popular_keywords').delete().eq('id', id)
     if (dbError) return jsonError(400, 'db_error', dbError.message)
