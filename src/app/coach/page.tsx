@@ -20,10 +20,9 @@ type NewsPostRow = {
 
 async function getPopularKeywords() {
   try {
-    // ✅ 서버 컴포넌트에서는 상대경로 호출이 가장 안전함
+    // ✅ 핵심: 같은 도메인에서 /api/keywords 호출 (가장 안전)
     const res = await fetch('/api/keywords', { cache: 'no-store' })
     const json = (await res.json().catch(() => ({}))) as any
-
     if (!res.ok || !Array.isArray(json.keywords) || json.keywords.length === 0) return null
     return json.keywords.map((k: any) => String(k))
   } catch {
