@@ -15,13 +15,13 @@ type NewsPostRow = {
 }
 
 export default async function NewsPage() {
-  // ✅ Next.js 15: cookies()는 Promise라서 먼저 await로 cookieStore를 꺼내야 함
+  // Next 16: cookies()가 Promise일 수 있으니 await로 cookieStore 확보
   const cookieStore = await nextCookies()
 
-  // ✅ auth-helpers가 내부에서 cookies().get(...)을 호출하니까
-  //    "쿠키 객체를 리턴하는 함수"를 직접 만들어서 넣어준다
   const supabase = createServerComponentClient<Database>({
-    cookies: () => cookieStore,
+    // ✅ 핵심: Promise<ReadonlyRequestCookies> 형태로 리턴
+    cookies: async () => cookieStore,
+    // 또는 cookies: () => Promise.resolve(cookieStore),
   })
 
   const { data, error } = await supabase
