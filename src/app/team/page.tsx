@@ -1,152 +1,149 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { useAuthUser } from '@/app/providers'
+import type { User } from '@supabase/supabase-js'
 
-type Post = {
+type Team = {
   id: string
-  title: string
-  nickname: string
+  owner_id: string
+  name: string
+  description: string | null
+  region: string | null
   created_at: string
-  content: string
 }
 
-export default function TeamPage() {
-  const [posts, setPosts] = useState<Post[]>([])
-  const [showModal, setShowModal] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [title, setTitle] = useState('')
-  const [nickname, setNickname] = useState('')
-  const [content, setContent] = useState('')
+function getUserLabel(user: User) {
+  const md = (user.user_metadata ?? {}) as Record<string, any>
+  return (
+    md.full_name ||
+    md.name ||
+    (user.email ? String(user.email).split('@')[0] : null) ||
+    (user.id ? String(user.id).slice(0, 8) : 'user')
+  )
+}
 
-  const fetchPosts = async () => {
+export default function TeamListPage() {
+  const { user, loading: authLoading } = useAuthUser()
+
+  const [teams, setTeams] = useState<Team[]>([])
+  const [loading, setLoading] = useState(true)
+  const [joining, setJoining] = useState<string | null>(null)
+
+  const userLabel = useMemo(() => (user ? getUserLabel(user) : ''), [user])
+
+  const fetchTeams = async () => {
+    setLoading(true)
     const { data, error } = await supabase
-      .from('team_posts')
-      .select('id, title, nickname, created_at, content')
+      .from('teams')
+      .select('id, owner_id, name, description, region, created_at')
       .order('created_at', { ascending: false })
-    if (!error && data) setPosts(data)
-  }
 
-  useEffect(() => {
-    fetchPosts()
-  }, [])
-
-  const addPost = async () => {
-    if (!title || !nickname || !content) {
-      alert('모든 필드를 입력해 주세요.')
+    if (error) {
+      console.error('fetchTeams error', error)
+      setTeams([])
+      setLoading(false)
       return
     }
 
-    const { error } = await supabase.from('team_posts').insert([
-      { title, nickname, content }
-    ])
-
-    if (!error) {
-      setTitle('')
-      setNickname('')
-      setContent('')
-      setShowModal(false)
-      fetchPosts()
-    } else {
-      alert('Failed to create post.')
-      console.error(error)
-    }
+    setTeams((data ?? []) as Team[])
+    setLoading(false)
   }
 
-  const toggleExpand = (id: string) => {
-    setExpandedId(prev => (prev === id ? null : id))
+  useEffect(() => {
+    if (!user) return
+    fetchTeams()
+  }, [user])
+
+  const joinTeam = async (teamId: string) => {
+    if (!user) return
+    setJoining(teamId)
+
+    const { error } = await supabase.from('team_members').insert([
+      {
+        team_id: teamId,
+        user_id: user.id,
+        role: 'member',
+      },
+    ])
+
+    setJoining(null)
+
+    if (error) {
+      alert(error.message)
+      console.error(error)
+      return
+    }
+
+    alert('TEAM 가입 완료')
+  }
+
+  // auth 로딩 중이면 가드 화면을 먼저 띄우지 말고 로딩 표시
+  if (authLoading) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
+        <p className="text-gray-400">로그인 상태 확인 중…</p>
+      </main>
+    )
+  }
+
+  if (!user) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#222] border border-gray-700 rounded-lg p-6">
+          <h1 className="text-2xl font-bold">TEAM</h1>
+          <p className="text-gray-300 mt-2">TEAM 기능은 로그인 후 사용 가능해.</p>
+        </div>
+      </main>
+    )
   }
 
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-8">TALK</h1>
+        <div className="flex items-end justify-between gap-3">
+          <h1 className="text-3xl font-bold">TEAM</h1>
+          <div className="text-sm text-gray-400">로그인: {userLabel}</div>
+        </div>
 
-        {posts.length === 0 ? (
-          <p className="text-gray-400">게시글이 없습니다.</p>
+        {loading ? (
+          <p className="text-gray-400 mt-6">불러오는 중…</p>
+        ) : teams.length === 0 ? (
+          <p className="text-gray-400 mt-6">등록된 TEAM이 없습니다.</p>
         ) : (
-          <ul className="space-y-4">
-            {posts.map((post) => (
-              <li key={post.id} className="border-b border-gray-600 pb-2">
-                <div
-                  className="text-lg text-[#3EB6F1] hover:underline cursor-pointer"
-                  onClick={() => toggleExpand(post.id)}
-                >
-                  {post.title}
-                </div>
-                <p className="text-sm text-gray-400">
-                  작성자: {post.nickname} · {new Date(post.created_at).toLocaleString()}
-                </p>
+          <ul className="space-y-4 mt-6">
+            {teams.map((t) => (
+              <li key={t.id} className="rounded-lg bg-[#222] p-4 border border-gray-700">
+                <Link href={`/team/${t.id}`} className="text-lg text-[#3EB6F1] hover:underline">
+                  {t.name}
+                </Link>
 
-                {expandedId === post.id && (
-                  <div className="mt-2 text-gray-300 whitespace-pre-wrap">
-                    {post.content}
+                <div className="text-sm text-gray-400 mt-1">
+                  {t.region ? `지역: ${t.region}` : '지역 미설정'}
+                </div>
+
+                {t.description ? (
+                  <div className="text-sm text-gray-300 mt-2 whitespace-pre-wrap">
+                    {t.description}
                   </div>
-                )}
+                ) : null}
+
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => joinTeam(t.id)}
+                    disabled={joining === t.id}
+                    className="px-4 py-2 bg-[#9F1D23] text-white rounded hover:opacity-90 disabled:opacity-50"
+                  >
+                    {joining === t.id ? '가입 중…' : 'TEAM 가입'}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </div>
-
-      {/* 글 작성 버튼 */}
-      <button
-        onClick={() => setShowModal(true)}
-        className="fixed bottom-6 right-6 px-5 py-3 bg-[#9F1D23] text-white rounded-full shadow-lg hover:opacity-80"
-      >
-        Create Post
-      </button>
-
-      {/* 모달 */}
-      {showModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-opacity-60"
-            style={{ backgroundColor: '#282828' }}
-            onClick={() => setShowModal(false)}
-          ></div>
-
-          <div className="fixed inset-0 flex items-center justify-center p-4">
-            <div className="bg-[#222] rounded-lg p-6 w-full max-w-md">
-              <h2 className="text-2xl font-semibold mb-4 text-white">글 작성</h2>
-              <input
-                type="text"
-                placeholder="제목"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="w-full p-2 mb-3 rounded bg-[#444] text-white placeholder-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="닉네임"
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-                className="w-full p-2 mb-3 rounded bg-[#444] text-white placeholder-gray-400"
-              />
-              <textarea
-                placeholder="내용"
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                className="w-full p-2 mb-4 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-32"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-600 rounded text-white hover:opacity-80"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={addPost}
-                  className="px-4 py-2 bg-[#9F1D23] rounded text-white hover:opacity-90"
-                >
-                  등록
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </main>
   )
 }
