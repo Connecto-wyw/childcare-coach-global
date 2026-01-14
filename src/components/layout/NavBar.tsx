@@ -6,7 +6,7 @@ import { useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 
-type Menu = 'home' | 'news' | 'talk'
+type Menu = 'home' | 'news' | 'team'
 
 function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
@@ -25,7 +25,7 @@ export default function NavBar() {
   const pathname = usePathname()
 
   const active: Menu = useMemo(() => {
-    if (pathname?.startsWith('/team')) return 'talk'
+    if (pathname?.startsWith('/team')) return 'team'
     if (pathname?.startsWith('/news')) return 'news'
     return 'home'
   }, [pathname])
@@ -62,7 +62,7 @@ export default function NavBar() {
         <div className="flex gap-6 text-base font-medium">
           {item('/', 'home', 'HOME')}
           {item('/news', 'news', 'NEWS')}
-          {item('/team', 'talk', 'TALK')}
+          {item('/team', 'team', 'TEAM')}
         </div>
 
         <div className="flex items-center gap-3 text-sm">
