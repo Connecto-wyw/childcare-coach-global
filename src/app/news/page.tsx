@@ -1,7 +1,6 @@
 // src/app/news/page.tsx (Server Component)
 import Link from 'next/link'
-import { cookies as nextCookies } from 'next/headers'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -15,13 +14,25 @@ type NewsPostRow = {
 }
 
 export default async function NewsPage() {
-  // Next 16: cookies()가 Promise일 수 있으니 await로 cookieStore 확보
-  const cookieStore = await nextCookies()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  const supabase = createServerComponentClient<Database>({
-    // ✅ 핵심: Promise<ReadonlyRequestCookies> 형태로 리턴
-    cookies: async () => cookieStore,
-    // 또는 cookies: () => Promise.resolve(cookieStore),
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return (
+      <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <h1 className="text-3xl font-bold mb-6">News</h1>
+          <p className="text-red-300">
+            Missing env: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  // ✅ 쿠키/세션 안 씀. (NEWS 공개 리스트라면 이게 정답)
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false },
   })
 
   const { data, error } = await supabase
@@ -65,7 +76,6 @@ export default async function NewsPage() {
                     {post.title ?? '(no title)'}
                   </div>
                 )}
-
                 <div className="text-xs text-gray-400 mt-1">
                   {post.created_at
                     ? new Date(post.created_at).toLocaleDateString('en-US')
