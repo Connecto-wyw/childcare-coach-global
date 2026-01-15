@@ -1,19 +1,11 @@
+// src/app/admin/team/page.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import { useAuthUser } from '@/app/providers'
+import { useAuthUser, useSupabase } from '@/app/providers'
+import type { Database } from '@/lib/database.types'
 
-type TeamRow = {
-  id: string
-  name: string
-  purpose: string | null
-  participant_count: number
-  tag1: string | null
-  tag2: string | null
-  image_url: string | null
-  created_at: string
-}
+type TeamWithCounts = Database['public']['Functions']['get_teams_with_counts']['Returns'][number]
 
 const BUCKET = 'team-images'
 
@@ -23,14 +15,15 @@ function safeFileExt(name: string) {
 }
 
 export default function AdminTeamsPage() {
+  const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
-  const [teams, setTeams] = useState<TeamRow[]>([])
+  const [teams, setTeams] = useState<TeamWithCounts[]>([])
   const [loading, setLoading] = useState(true)
 
   const [showModal, setShowModal] = useState(false)
-  const [editing, setEditing] = useState<TeamRow | null>(null)
+  const [editing, setEditing] = useState<TeamWithCounts | null>(null)
 
   const [name, setName] = useState('')
   const [purpose, setPurpose] = useState('')
@@ -55,41 +48,50 @@ export default function AdminTeamsPage() {
 
   const loadAdminFlag = async () => {
     if (!user) return
+
+    // ✅ 0 rows도 정상 처리 (406 방지)
     const { data, error } = await supabase
       .from('profiles')
       .select('is_admin')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (error) {
-      console.error(error)
-      setIsAdmin(false)
+      console.error('[profiles.is_admin] error:', error)
+      // 조회 실패면 "권한없음"으로 단정하지 말고 null로 두는 게 안전
+      setIsAdmin(null)
       return
     }
-    setIsAdmin(!!data?.is_admin)
+
+    // data가 null이면 아직 profiles row가 없는 상태
+    setIsAdmin(Boolean(data?.is_admin))
   }
 
   const fetchTeams = async () => {
     setLoading(true)
+
     const { data, error } = await supabase.rpc('get_teams_with_counts')
 
     if (error) {
-      console.error(error)
+      console.error('[get_teams_with_counts] error:', error)
       setTeams([])
       setLoading(false)
       return
     }
-    setTeams((data ?? []) as TeamRow[])
+
+    setTeams((data ?? []) as TeamWithCounts[])
     setLoading(false)
   }
 
   useEffect(() => {
     if (!user) return
     loadAdminFlag()
-  }, [user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   useEffect(() => {
     fetchTeams()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openCreate = () => {
@@ -98,11 +100,11 @@ export default function AdminTeamsPage() {
     setShowModal(true)
   }
 
-  const openEdit = (t: TeamRow) => {
+  const openEdit = (t: TeamWithCounts) => {
     setEditing(t)
-    setName(t.name)
+    setName(t.name ?? '')
     setPurpose(t.purpose ?? '')
-    setParticipantCount(t.participant_count ?? 0)
+    setParticipantCount(Number(t.participant_count ?? 0))
     setTag1(t.tag1 ?? '')
     setTag2(t.tag2 ?? '')
     setImageUrl(t.image_url ?? '')
@@ -111,22 +113,21 @@ export default function AdminTeamsPage() {
   }
 
   const uploadImageIfNeeded = async (): Promise<string | null> => {
+    if (!user) return null
+
     // 새 파일이 선택된 경우에만 업로드
     if (!imageFile) return imageUrl ? imageUrl : null
 
     setUploading(true)
 
-    // 파일명: team/<userId>/<timestamp>.<ext>
     const ext = safeFileExt(imageFile.name)
-    const path = `team/${user?.id}/${Date.now()}.${ext}`
+    const path = `team/${user.id}/${Date.now()}.${ext}`
 
-    const { error: upErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, imageFile, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: imageFile.type || undefined,
-      })
+    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, imageFile, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: imageFile.type || undefined,
+    })
 
     if (upErr) {
       setUploading(false)
@@ -143,6 +144,8 @@ export default function AdminTeamsPage() {
   }
 
   const save = async () => {
+    if (!user) return
+
     if (!name.trim()) {
       alert('팀 이름은 필수야.')
       return
@@ -156,17 +159,18 @@ export default function AdminTeamsPage() {
       return
     }
 
-    const payload = {
+    // teams 테이블은 participant_count 컬럼이 없고,
+    // view에서 count를 계산하고 있으니 여기 값은 teams에 저장하지 않음.
+    const payloadForTeamsTable = {
       name: name.trim(),
       purpose: purpose.trim() ? purpose.trim() : null,
-      participant_count: Number.isFinite(participantCount) ? participantCount : 0,
       tag1: tag1.trim() ? tag1.trim() : null,
       tag2: tag2.trim() ? tag2.trim() : null,
       image_url: finalImageUrl,
     }
 
-    if (editing) {
-      const { error } = await supabase.from('teams').update(payload).eq('id', editing.id)
+    if (editing?.id) {
+      const { error } = await supabase.from('teams').update(payloadForTeamsTable).eq('id', editing.id)
       if (error) {
         setSaving(false)
         alert(error.message)
@@ -174,9 +178,8 @@ export default function AdminTeamsPage() {
         return
       }
     } else {
-      // teams.owner_id not null이면 user.id 넣기
       const { error } = await supabase.from('teams').insert([
-        { owner_id: user?.id, ...payload },
+        { owner_id: user.id, ...payloadForTeamsTable },
       ])
       if (error) {
         setSaving(false)
@@ -185,6 +188,11 @@ export default function AdminTeamsPage() {
         return
       }
     }
+
+    // participant_count를 “어드민 입력형”으로 유지하려면
+    // 여기서 teams가 아닌 별도 컬럼/테이블이 필요함.
+    // 지금 DB는 view로 계산 구조라서 입력값을 저장할 곳이 없음.
+    // (이건 아래 B에서 정확히 정리해줄게)
 
     setSaving(false)
     setShowModal(false)
@@ -228,6 +236,20 @@ export default function AdminTeamsPage() {
     )
   }
 
+  // isAdmin이 null이면 아직 판단 전(또는 profiles row 없음/조회 실패)
+  if (isAdmin === null) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#222] border border-gray-700 rounded-lg p-6">
+          <h1 className="text-2xl font-bold">확인 중</h1>
+          <p className="text-gray-300 mt-2">
+            어드민 권한을 확인하지 못했어. (profiles row가 없거나 RLS로 막혔을 수 있음)
+          </p>
+        </div>
+      </main>
+    )
+  }
+
   if (isAdmin === false) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
@@ -244,10 +266,7 @@ export default function AdminTeamsPage() {
       <div className="max-w-5xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Admin / Teams</h1>
-          <button
-            onClick={openCreate}
-            className="px-4 py-2 bg-[#9F1D23] text-white rounded hover:opacity-90"
-          >
+          <button onClick={openCreate} className="px-4 py-2 bg-[#9F1D23] text-white rounded hover:opacity-90">
             팀 추가
           </button>
         </div>
@@ -265,32 +284,29 @@ export default function AdminTeamsPage() {
               >
                 <div className="flex gap-4 min-w-0">
                   <div className="w-20 h-16 bg-[#111] rounded overflow-hidden shrink-0">
-                    <img
-                      src={t.image_url || ''}
-                      alt={t.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
+                    {t.image_url ? (
+                      <img
+                        src={t.image_url}
+                        alt={t.name ?? 'team'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    ) : null}
                   </div>
 
                   <div className="min-w-0">
                     <div className="font-semibold truncate">{t.name}</div>
-                    <div className="text-sm text-gray-300 mt-1 line-clamp-2">
-                      {t.purpose ?? ''}
-                    </div>
+                    <div className="text-sm text-gray-300 mt-1 line-clamp-2">{t.purpose ?? ''}</div>
                     <div className="text-xs text-gray-400 mt-2">
-                      참여자 {t.participant_count}명 · 태그: {t.tag1 ?? '-'} / {t.tag2 ?? '-'}
+                      참여자 {t.participant_count ?? 0}명 · 태그: {t.tag1 ?? '-'} / {t.tag2 ?? '-'}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => openEdit(t)}
-                    className="px-3 py-1.5 rounded bg-gray-700 hover:opacity-90"
-                  >
+                  <button onClick={() => openEdit(t)} className="px-3 py-1.5 rounded bg-gray-700 hover:opacity-90">
                     수정
                   </button>
                   <button
@@ -316,9 +332,7 @@ export default function AdminTeamsPage() {
           />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <div className="bg-[#222] rounded-lg p-6 w-full max-w-lg border border-gray-700">
-              <h2 className="text-2xl font-semibold mb-4 text-white">
-                {editing ? '팀 수정' : '팀 추가'}
-              </h2>
+              <h2 className="text-2xl font-semibold mb-4 text-white">{editing ? '팀 수정' : '팀 추가'}</h2>
 
               <input
                 type="text"
@@ -336,12 +350,14 @@ export default function AdminTeamsPage() {
               />
 
               <div className="grid grid-cols-2 gap-3 mb-3">
+                {/* ⚠️ 지금 DB는 participant_count를 입력 저장할 컬럼이 없음 */}
                 <input
                   type="number"
-                  placeholder="참여자 수"
+                  placeholder="참여자 수(자동 계산)"
                   value={participantCount}
                   onChange={(e) => setParticipantCount(Number(e.target.value))}
                   className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+                  disabled
                 />
                 <div className="w-full p-2 rounded bg-[#444] text-white">
                   <input
@@ -370,16 +386,13 @@ export default function AdminTeamsPage() {
                 />
               </div>
 
-              {/* 이미지 미리보기 */}
               <div className="mb-4">
                 <div className="text-sm text-gray-300 mb-2">이미지 미리보기</div>
                 <div className="w-full aspect-[4/3] bg-[#111] rounded overflow-hidden border border-gray-700">
                   {previewUrl ? (
                     <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">
-                      이미지 없음
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">이미지 없음</div>
                   )}
                 </div>
               </div>
@@ -402,6 +415,8 @@ export default function AdminTeamsPage() {
 
               <p className="text-xs text-gray-500 mt-3">
                 * 이미지는 Supabase Storage(team-images)에 업로드되고, teams.image_url에 public URL이 저장됨.
+                <br />
+                * 참여자 수는 team_members 기반 자동 계산(view/RPC)이라 어드민 입력은 현재 비활성.
               </p>
             </div>
           </div>

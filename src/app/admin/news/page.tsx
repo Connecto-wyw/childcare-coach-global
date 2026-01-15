@@ -2,15 +2,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { useAuthUser, useSupabase } from '@/app/providers'
+import type { Tables } from '@/lib/database.types'
 
-type NewsPost = {
-  id: string
-  title: string
-  slug: string
-  content?: string | null
-  created_at: string
-}
+type NewsPost = Tables<'news_posts'>
 
 function yyyymmddhhmmss(d = new Date()) {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -36,14 +31,15 @@ function slugify(input: string) {
 }
 
 export default function AdminNewsPage() {
+  const supabase = useSupabase()
+  const { user, loading } = useAuthUser()
+
   const [newsList, setNewsList] = useState<NewsPost[]>([])
 
-  // compose/edit state
   const [editingId, setEditingId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
 
-  // slug: auto by default, allow manual in Advanced
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -51,7 +47,6 @@ export default function AdminNewsPage() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
-  // auto-update slug from title unless user manually edited it
   const autoSlug = useMemo(() => slugify(title), [title])
   useEffect(() => {
     if (!slugTouched) setSlug(autoSlug)
@@ -60,17 +55,19 @@ export default function AdminNewsPage() {
   const fetchNews = async () => {
     const { data, error } = await supabase
       .from('news_posts')
-      .select('id, title, slug, content, created_at')
+      .select('id, title, slug, content, created_at, user_id')
       .order('created_at', { ascending: false })
+
     if (error) {
       setErr(error.message)
       return
     }
-    setNewsList(data || [])
+    setNewsList((data ?? []) as NewsPost[])
   }
 
   useEffect(() => {
     fetchNews()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const clearForm = () => {
@@ -93,21 +90,30 @@ export default function AdminNewsPage() {
 
     setSaving(true)
     setErr('')
+
     try {
       if (editingId) {
         const { error } = await supabase
           .from('news_posts')
           .update({ title: t, slug: s, content: c })
           .eq('id', editingId)
+
         if (error) return setErr('Update failed: ' + error.message)
       } else {
-        const { error } = await supabase.from('news_posts').insert({
-          title: t,
-          slug: s,
-          content: c,
-        })
+        // ✅ insert는 object도 되지만, 타입/버전 섞일 때 덜 흔들리게 배열로 넣는 게 안정적
+        const { error } = await supabase.from('news_posts').insert([
+          {
+            title: t,
+            slug: s,
+            content: c,
+            // (선택) 작성자 남기고 싶으면
+            user_id: user?.id ?? null,
+          },
+        ])
+
         if (error) return setErr('Create failed: ' + error.message)
       }
+
       clearForm()
       await fetchNews()
     } finally {
@@ -120,7 +126,7 @@ export default function AdminNewsPage() {
     setTitle(post.title ?? '')
     setContent(post.content ?? '')
     setSlug(post.slug ?? '')
-    setSlugTouched(true) // existing post => treat slug as manual
+    setSlugTouched(true)
     setShowAdvanced(false)
     setErr('')
   }
@@ -128,6 +134,7 @@ export default function AdminNewsPage() {
   const handleDelete = async (id: string) => {
     const ok = confirm('Delete this post?')
     if (!ok) return
+
     const { error } = await supabase.from('news_posts').delete().eq('id', id)
     if (error) {
       alert('Delete failed: ' + error.message)
@@ -146,7 +153,6 @@ export default function AdminNewsPage() {
           {editingId ? 'Edit News' : 'Create News'}
         </h2>
 
-        {/* Title */}
         <input
           placeholder="Title"
           value={title}
@@ -154,7 +160,6 @@ export default function AdminNewsPage() {
           className="w-full mb-2 p-2 bg-gray-800 text-white rounded"
         />
 
-        {/* Content */}
         <textarea
           placeholder="Content (Markdown or plain text)"
           value={content}
@@ -162,7 +167,6 @@ export default function AdminNewsPage() {
           className="w-full mb-3 p-2 h-40 bg-gray-800 text-white rounded"
         />
 
-        {/* Advanced: manual slug */}
         <details
           className="mb-3"
           open={showAdvanced}
@@ -197,6 +201,7 @@ export default function AdminNewsPage() {
           >
             {saving ? (editingId ? 'Saving…' : 'Creating…') : editingId ? 'Save' : 'Create'}
           </button>
+
           {editingId && (
             <button
               onClick={clearForm}
@@ -224,26 +229,20 @@ export default function AdminNewsPage() {
                     {new Date(post.created_at).toLocaleString('en-US')}
                   </p>
                 </div>
+
                 <div className="flex gap-3 text-sm shrink-0">
-                  <button
-                    onClick={() => handleEdit(post)}
-                    className="text-blue-400 hover:underline"
-                  >
+                  <button onClick={() => handleEdit(post)} className="text-blue-400 hover:underline">
                     Edit
                   </button>
-                  <button
-                    onClick={() => handleDelete(post.id)}
-                    className="text-red-400 hover:underline"
-                  >
+                  <button onClick={() => handleDelete(post.id)} className="text-red-400 hover:underline">
                     Delete
                   </button>
                 </div>
               </div>
             </li>
           ))}
-          {newsList.length === 0 && (
-            <li className="text-sm text-gray-400">No posts yet.</li>
-          )}
+
+          {newsList.length === 0 && <li className="text-sm text-gray-400">No posts yet.</li>}
         </ul>
       </div>
     </div>

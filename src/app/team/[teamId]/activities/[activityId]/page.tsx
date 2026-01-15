@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
-import { useAuthUser } from '@/app/providers'
+import { useAuthUser, useSupabase } from '@/app/providers'
 import type { User } from '@supabase/supabase-js'
 
 type Activity = {
@@ -25,6 +24,17 @@ type Participant = {
   created_at: string
 }
 
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
+}
+
+function getSiteOrigin() {
+  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+  if (envSite) return stripTrailingSlash(envSite)
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
+}
+
 function getUserLabel(user: User) {
   const md = (user.user_metadata ?? {}) as Record<string, any>
   return (
@@ -36,6 +46,7 @@ function getUserLabel(user: User) {
 }
 
 export default function ActivityDetailPage() {
+  const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
   const params = useParams()
 
@@ -47,6 +58,13 @@ export default function ActivityDetailPage() {
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
 
+  const [showLoginModal, setShowLoginModal] = useState(false)
+
+  const alreadyJoined = useMemo(() => {
+    if (!user) return false
+    return participants.some((p) => p.user_id === user.id)
+  }, [participants, user])
+
   const fetchAll = async () => {
     setLoading(true)
 
@@ -54,7 +72,7 @@ export default function ActivityDetailPage() {
       .from('team_activities')
       .select('id, team_id, title, description, starts_at, ends_at, created_at')
       .eq('id', activityId)
-      .single()
+      .maybeSingle()
 
     const pRes = await supabase
       .from('activity_participants')
@@ -63,14 +81,14 @@ export default function ActivityDetailPage() {
       .order('created_at', { ascending: false })
 
     if (actRes.error) {
-      console.error(actRes.error)
+      console.error('[team_activities] error:', actRes.error)
       setActivity(null)
     } else {
-      setActivity(actRes.data as Activity)
+      setActivity((actRes.data ?? null) as Activity | null)
     }
 
     if (pRes.error) {
-      console.error(pRes.error)
+      console.error('[activity_participants] error:', pRes.error)
       setParticipants([])
     } else {
       setParticipants((pRes.data ?? []) as Participant[])
@@ -80,15 +98,33 @@ export default function ActivityDetailPage() {
   }
 
   useEffect(() => {
-    if (!user) return
     if (!activityId) return
     fetchAll()
-  }, [user, activityId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityId])
+
+  const loginGoogle = async () => {
+    const base = getSiteOrigin()
+    // 로그인 후 현재 페이지로 돌아오게
+    const redirectTo = `${base}/auth/callback?next=/team/${teamId}/activities/${activityId}`
+
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+  }
 
   const join = async () => {
-    if (!user) return
-    setJoining(true)
+    // ✅ 로그인 안 했으면 모달로 유도
+    if (!user) {
+      setShowLoginModal(true)
+      return
+    }
 
+    // ✅ 이미 참여했으면 막기
+    if (alreadyJoined) return
+
+    setJoining(true)
     const nickname = String(getUserLabel(user))
 
     const { error } = await supabase.from('activity_participants').insert([
@@ -121,17 +157,6 @@ export default function ActivityDetailPage() {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
         <p className="text-gray-400">로그인 상태 확인 중…</p>
-      </main>
-    )
-  }
-
-  if (!user) {
-    return (
-      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-[#222] border border-gray-700 rounded-lg p-6">
-          <h1 className="text-2xl font-bold">TEAM UP</h1>
-          <p className="text-gray-300 mt-2">활동 참여는 로그인 후 가능해.</p>
-        </div>
       </main>
     )
   }
@@ -172,10 +197,10 @@ export default function ActivityDetailPage() {
 
               <button
                 onClick={join}
-                disabled={joining}
+                disabled={joining || alreadyJoined}
                 className="px-4 py-2 bg-[#9F1D23] text-white rounded hover:opacity-90 disabled:opacity-50"
               >
-                {joining ? '참여 중…' : '참여하기'}
+                {alreadyJoined ? '참여 완료' : joining ? '참여 중…' : '참여하기'}
               </button>
             </div>
 
@@ -203,6 +228,40 @@ export default function ActivityDetailPage() {
           </>
         )}
       </div>
+
+      {/* ✅ 로그인 유도 모달 */}
+      {showLoginModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-opacity-60"
+            style={{ backgroundColor: '#282828' }}
+            onClick={() => setShowLoginModal(false)}
+          />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-[#222] border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-bold">로그인이 필요해</h3>
+              <p className="text-gray-300 mt-2">
+                참여하기는 로그인 후 가능해. 구글로 바로 로그인할래?
+              </p>
+
+              <div className="flex justify-end gap-2 mt-5">
+                <button
+                  onClick={() => setShowLoginModal(false)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:opacity-90"
+                >
+                  닫기
+                </button>
+                <button
+                  onClick={loginGoogle}
+                  className="px-4 py-2 bg-white text-black rounded hover:opacity-90"
+                >
+                  Google로 로그인
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </main>
   )
 }

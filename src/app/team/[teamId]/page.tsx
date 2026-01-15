@@ -3,7 +3,11 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/lib/database.types'
+
+const supabase = createClientComponentClient<Database>()
+
 import { useAuthUser } from '@/app/providers'
 
 type Team = {

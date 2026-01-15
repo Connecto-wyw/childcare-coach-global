@@ -2,7 +2,11 @@
 'use client';
 
 import { useMemo, useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/lib/database.types'
+
+const supabase = createClientComponentClient<Database>()
+
 
 export const COACH_SET_MESSAGE_EVENT = 'coach:setMessage';
 
