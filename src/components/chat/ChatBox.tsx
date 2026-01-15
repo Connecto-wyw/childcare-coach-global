@@ -244,7 +244,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   void ask()
                 }
               }}
-              placeholder="Type your question, or tap one of the suggestions above."
+              placeholder="Anything on your mind?"
               rows={1}
               className="flex-1 h-[44px] resize-none rounded-xl bg-white px-4 py-2 text-sm text-black outline-none border border-[#cfcfcf] leading-[24px]"
               disabled={loading}
