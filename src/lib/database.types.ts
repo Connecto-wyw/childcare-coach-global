@@ -228,6 +228,92 @@ export type Database = {
           },
         ]
       }
+      team_item_participants: {
+        Row: {
+          created_at: string
+          id: string
+          team_item_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          team_item_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          team_item_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_item_participants_team_item_id_fkey"
+            columns: ["team_item_id"]
+            isOneToOne: false
+            referencedRelation: "team_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_items: {
+        Row: {
+          base_price: number
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          detail_markdown: string | null
+          discount_step_every: number
+          discount_step_percent: number
+          gallery_urls: string[] | null
+          id: string
+          is_active: boolean
+          max_discount_percent: number
+          min_price: number
+          slug: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          detail_markdown?: string | null
+          discount_step_every?: number
+          discount_step_percent?: number
+          gallery_urls?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_discount_percent?: number
+          min_price?: number
+          slug: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          detail_markdown?: string | null
+          discount_step_every?: number
+          discount_step_percent?: number
+          gallery_urls?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_discount_percent?: number
+          min_price?: number
+          slug?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string
