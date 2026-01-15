@@ -12,111 +12,122 @@ export const revalidate = 0
 const ADMIN_DOMAIN = '@connecto-wyw.com'
 const TABLE = 'popular_keywords'
 
-function getServiceClient(): { error: 'missing_env' | null; client: SupabaseClient | null } {
+function jsonError(status: number, error: string, detail?: string) {
+  return NextResponse.json({ ok: false, error, detail }, { status })
+}
+
+function getServiceClient(): { client: SupabaseClient | null; error?: string } {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return { error: 'missing_env', client: null }
-  return { error: null, client: createClient(url, key, { auth: { persistSession: false } }) }
+  if (!url) return { client: null, error: 'missing_env_url' }
+  if (!key) return { client: null, error: 'missing_env_service_role' }
+  return { client: createClient(url, key, { auth: { persistSession: false } }) }
+}
+
+async function getAdminSessionSafe(): Promise<{ isAdmin: boolean; userId?: string }> {
+  try {
+    const sb = createRouteHandlerClient<Database>({ cookies })
+    const { data, error } = await sb.auth.getUser()
+    if (error) return { isAdmin: false }
+    const email = (data.user?.email ?? '').toLowerCase()
+    const isAdmin = !!email && email.endsWith(ADMIN_DOMAIN)
+    return { isAdmin, userId: data.user?.id }
+  } catch {
+    // ✅ 여기서 터지면 GET이 HTML 500이 되니까 무조건 false로 fallback
+    return { isAdmin: false }
+  }
 }
 
 type Body = { keyword?: string; order?: number }
 
-async function isAdminSession(): Promise<{ isAdmin: boolean; userId?: string; email?: string }> {
-  const sb = createRouteHandlerClient<Database>({ cookies })
-  const { data } = await sb.auth.getUser()
-  const email = data.user?.email?.toLowerCase() ?? ''
-  const isAdmin = !!email && email.endsWith(ADMIN_DOMAIN)
-  return { isAdmin, userId: data.user?.id, email: data.user?.email ?? undefined }
-}
-
 export async function GET() {
-  const { error, client } = getServiceClient()
-  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
+  try {
+    const { client, error } = getServiceClient()
+    if (!client) return jsonError(500, error ?? 'missing_env')
 
-  // ✅ 관리자면: id 포함 전체 목록 반환 (어드민 페이지가 기대하는 형태)
-  const { isAdmin } = await isAdminSession()
+    const { isAdmin } = await getAdminSessionSafe()
 
-  if (isAdmin) {
-    const { data, error: dbError } = await client
-      .from(TABLE)
-      .select('id, keyword, "order"')
-      .order('order', { ascending: true })
+    // ✅ 관리자면: 어드민이 필요로 하는 data 형태로 전체 반환
+    if (isAdmin) {
+      const { data, error: dbError } = await client
+        .from(TABLE)
+        .select('id, keyword, "order"')
+        .order('order', { ascending: true })
 
-    if (dbError) {
-      return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 500 })
+      if (dbError) return jsonError(500, 'db_error', dbError.message)
+
+      const rows = (data ?? []).map((r: any, idx: number) => ({
+        id: String(r.id),
+        keyword: String(r.keyword),
+        order: Number.isFinite(Number(r.order)) ? Number(r.order) : idx,
+      }))
+
+      return NextResponse.json({
+        ok: true,
+        keywords: rows.map((r) => r.keyword).filter(Boolean),
+        data: rows,
+      })
     }
 
-    const rows = (data ?? []).map((r: any) => ({
-      id: String(r.id),
-      keyword: String(r.keyword),
-      order: typeof r.order === 'number' ? r.order : Number(r.order ?? 0),
-    }))
+    // ✅ 공개(일반): 상단 4개만
+    const { data, error: dbError } = await client
+      .from(TABLE)
+      .select('keyword, "order"')
+      .order('order', { ascending: true })
+      .limit(4)
 
-    // 호환성: keywords도 같이 내려줌
-    const keywords = rows.map((r) => r.keyword).filter(Boolean)
+    if (dbError) return jsonError(500, 'db_error', dbError.message)
 
-    return NextResponse.json({ keywords, data: rows })
+    const keywords = (data ?? []).map((r: any) => String(r.keyword)).filter(Boolean)
+    return NextResponse.json({ ok: true, keywords, data: [] })
+  } catch (e: any) {
+    return jsonError(500, 'unhandled_error', e?.message ?? 'unknown')
   }
-
-  // ✅ 일반 공개: 상단 4개만 (기존 동작 유지)
-  const { data, error: dbError } = await client
-    .from(TABLE)
-    .select('keyword, "order"')
-    .order('order', { ascending: true })
-    .limit(4)
-
-  if (dbError) {
-    return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 500 })
-  }
-
-  const keywords = (data ?? []).map((r: any) => String(r.keyword)).filter(Boolean)
-  return NextResponse.json({ keywords, data: [] })
 }
 
 export async function POST(req: NextRequest) {
-  // ✅ 관리자만 추가 가능 (세션 이메일 도메인 체크)
-  const { isAdmin, userId } = await isAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  try {
+    const admin = await getAdminSessionSafe()
+    if (!admin.isAdmin) return jsonError(401, 'unauthorized')
 
-  const body = (await req.json().catch(() => ({}))) as Body
-  const keyword = (body.keyword ?? '').trim()
-  const order = Number(body.order)
+    const body = (await req.json().catch(() => ({}))) as Body
+    const keyword = (body.keyword ?? '').trim()
+    const order = Number(body.order)
 
-  if (!keyword || Number.isNaN(order)) {
-    return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+    if (!keyword || Number.isNaN(order)) return jsonError(400, 'bad_request')
+
+    const { client, error } = getServiceClient()
+    if (!client) return jsonError(500, error ?? 'missing_env')
+
+    // ⚠️ user_id 컬럼 없으면 db_error 뜸. 있으면 유지.
+    const payload: any = { keyword, order }
+    if (admin.userId) payload.user_id = admin.userId
+
+    const { error: dbError } = await client.from(TABLE).insert([payload])
+    if (dbError) return jsonError(500, 'db_error', dbError.message)
+
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return jsonError(500, 'unhandled_error', e?.message ?? 'unknown')
   }
-
-  const { error, client } = getServiceClient()
-  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
-
-  // ⚠️ user_id 컬럼이 테이블에 없으면 여기서 db_error 남
-  const { error: dbError } = await client
-    .from(TABLE)
-    .insert([{ keyword, order, user_id: userId } as any])
-
-  if (dbError) {
-    return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: NextRequest) {
-  // ✅ 관리자만 삭제 가능
-  const { isAdmin } = await isAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  try {
+    const admin = await getAdminSessionSafe()
+    if (!admin.isAdmin) return jsonError(401, 'unauthorized')
 
-  const id = req.nextUrl.searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+    const id = req.nextUrl.searchParams.get('id')
+    if (!id) return jsonError(400, 'bad_request')
 
-  const { error, client } = getServiceClient()
-  if (error || !client) return NextResponse.json({ error: 'missing_env' }, { status: 500 })
+    const { client, error } = getServiceClient()
+    if (!client) return jsonError(500, error ?? 'missing_env')
 
-  const { error: dbError } = await client.from(TABLE).delete().eq('id', id)
+    const { error: dbError } = await client.from(TABLE).delete().eq('id', id)
+    if (dbError) return jsonError(500, 'db_error', dbError.message)
 
-  if (dbError) {
-    return NextResponse.json({ error: 'db_error', detail: dbError.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return jsonError(500, 'unhandled_error', e?.message ?? 'unknown')
   }
-
-  return NextResponse.json({ ok: true })
 }
