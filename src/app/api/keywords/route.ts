@@ -32,16 +32,19 @@ function getAnonClient(): { client: SupabaseClient | null; error?: string } {
   return { client: createClient(url, anon, { auth: { persistSession: false } }) }
 }
 
-async function getAdminFromAuthHeader(req: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
+async function getAdminFromAuthHeader(
+  req: NextRequest
+): Promise<{ isAdmin: boolean; userId?: string }> {
   const auth = req.headers.get('authorization') || ''
   const m = auth.match(/^Bearer\s+(.+)$/i)
   const token = m?.[1]?.trim()
   if (!token) return { isAdmin: false }
 
-  const { client: anonClient } = getAnonClient()
-  if (!anonClient) return { isAdmin: false }
+  // ✅ anon 키 말고 service role로 user 확인 (ENV 꼬임 방지)
+  const { client: serviceClient } = getServiceClient()
+  if (!serviceClient) return { isAdmin: false }
 
-  const { data, error } = await anonClient.auth.getUser(token)
+  const { data, error } = await serviceClient.auth.getUser(token)
   if (error) return { isAdmin: false }
 
   const email = (data.user?.email ?? '').toLowerCase()
