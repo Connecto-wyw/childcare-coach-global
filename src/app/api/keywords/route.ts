@@ -24,7 +24,32 @@ function getServiceClient(): { client: SupabaseClient | null; error?: string } {
   return { client: createClient(url, key, { auth: { persistSession: false } }) }
 }
 
-async function getAdminSessionSafe(): Promise<{ isAdmin: boolean; userId?: string }> {
+function getAnonClient(): { client: SupabaseClient | null; error?: string } {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url) return { client: null, error: 'missing_env_url' }
+  if (!anon) return { client: null, error: 'missing_env_anon_key' }
+  return { client: createClient(url, anon, { auth: { persistSession: false } }) }
+}
+
+async function getAdminFromAuthHeader(req: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
+  const auth = req.headers.get('authorization') || ''
+  const m = auth.match(/^Bearer\s+(.+)$/i)
+  const token = m?.[1]?.trim()
+  if (!token) return { isAdmin: false }
+
+  const { client: anonClient } = getAnonClient()
+  if (!anonClient) return { isAdmin: false }
+
+  const { data, error } = await anonClient.auth.getUser(token)
+  if (error) return { isAdmin: false }
+
+  const email = (data.user?.email ?? '').toLowerCase()
+  const isAdmin = !!email && email.endsWith(ADMIN_DOMAIN)
+  return { isAdmin, userId: data.user?.id }
+}
+
+async function getAdminFromCookieSafe(): Promise<{ isAdmin: boolean; userId?: string }> {
   try {
     const sb = createRouteHandlerClient<Database>({ cookies })
     const { data, error } = await sb.auth.getUser()
@@ -33,22 +58,28 @@ async function getAdminSessionSafe(): Promise<{ isAdmin: boolean; userId?: strin
     const isAdmin = !!email && email.endsWith(ADMIN_DOMAIN)
     return { isAdmin, userId: data.user?.id }
   } catch {
-    // ✅ 여기서 터지면 GET이 HTML 500이 되니까 무조건 false로 fallback
     return { isAdmin: false }
   }
 }
 
+async function getAdmin(req: NextRequest) {
+  // 1) Authorization 헤더 우선 (가장 확실)
+  const byHeader = await getAdminFromAuthHeader(req)
+  if (byHeader.isAdmin) return byHeader
+  // 2) 쿠키 fallback
+  return await getAdminFromCookieSafe()
+}
+
 type Body = { keyword?: string; order?: number }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const { client, error } = getServiceClient()
     if (!client) return jsonError(500, error ?? 'missing_env')
 
-    const { isAdmin } = await getAdminSessionSafe()
+    const admin = await getAdmin(req)
 
-    // ✅ 관리자면: 어드민이 필요로 하는 data 형태로 전체 반환
-    if (isAdmin) {
+    if (admin.isAdmin) {
       const { data, error: dbError } = await client
         .from(TABLE)
         .select('id, keyword, "order"')
@@ -69,7 +100,7 @@ export async function GET() {
       })
     }
 
-    // ✅ 공개(일반): 상단 4개만
+    // public: top 4
     const { data, error: dbError } = await client
       .from(TABLE)
       .select('keyword, "order"')
@@ -87,7 +118,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await getAdminSessionSafe()
+    const admin = await getAdmin(req)
     if (!admin.isAdmin) return jsonError(401, 'unauthorized')
 
     const body = (await req.json().catch(() => ({}))) as Body
@@ -99,8 +130,8 @@ export async function POST(req: NextRequest) {
     const { client, error } = getServiceClient()
     if (!client) return jsonError(500, error ?? 'missing_env')
 
-    // ⚠️ user_id 컬럼 없으면 db_error 뜸. 있으면 유지.
     const payload: any = { keyword, order }
+    // user_id 컬럼 없으면 넣지 마 (있어도 문제 없음)
     if (admin.userId) payload.user_id = admin.userId
 
     const { error: dbError } = await client.from(TABLE).insert([payload])
@@ -114,7 +145,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const admin = await getAdminSessionSafe()
+    const admin = await getAdmin(req)
     if (!admin.isAdmin) return jsonError(401, 'unauthorized')
 
     const id = req.nextUrl.searchParams.get('id')

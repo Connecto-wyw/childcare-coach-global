@@ -78,6 +78,12 @@ export default function KeywordAdminPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // ✅ access token (Authorization 헤더용)
+  const getAccessToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token ?? null
+  }, [supabase])
+
   // ✅ 세션 초기 로드 + 변경 구독
   useEffect(() => {
     let mounted = true
@@ -105,12 +111,19 @@ export default function KeywordAdminPage() {
     }
   }, [supabase])
 
-  // ✅ 목록은 Supabase 직접조회 대신, 항상 API로 조회 (환경/세션 꼬임 방지 + 홈과 동일 소스)
+  // ✅ 목록은 항상 API로 조회 + Authorization 헤더 포함
   const fetchKeywords = useCallback(async () => {
     setErrorMsg(null)
 
     try {
-      const res = await fetch('/api/keywords', { method: 'GET', cache: 'no-store' })
+      const token = await getAccessToken()
+
+      const res = await fetch('/api/keywords', {
+        method: 'GET',
+        cache: 'no-store',
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      })
+
       if (!res.ok) {
         const err = await readError(res)
         setKeywords([])
@@ -130,7 +143,7 @@ export default function KeywordAdminPage() {
       setKeywords([])
       setErrorMsg(`네트워크 오류(GET): ${msg}`)
     }
-  }, [])
+  }, [getAccessToken])
 
   useEffect(() => {
     if (!authChecked) return
@@ -193,9 +206,14 @@ export default function KeywordAdminPage() {
       keywords.length > 0 ? Math.max(...keywords.map((k) => k.order)) + 1 : 0
 
     try {
+      const token = await getAccessToken()
+
       const res = await fetch('/api/keywords', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ keyword: value, order: nextOrder }),
       })
 
@@ -225,7 +243,12 @@ export default function KeywordAdminPage() {
     setErrorMsg(null)
 
     try {
-      const res = await fetch(`/api/keywords?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const token = await getAccessToken()
+
+      const res = await fetch(`/api/keywords?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      })
 
       if (!res.ok) {
         const err = await readError(res)
@@ -246,7 +269,7 @@ export default function KeywordAdminPage() {
     }
   }
 
-  // ✅ 세션 체크 중(깜빡임/오판 방지)
+  // ✅ 세션 체크 중
   if (!authChecked) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
@@ -258,7 +281,7 @@ export default function KeywordAdminPage() {
     )
   }
 
-  // ✅ 미로그인: 매직링크 폼 보여주기
+  // ✅ 미로그인
   if (!isSignedIn) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
@@ -298,7 +321,7 @@ export default function KeywordAdminPage() {
     )
   }
 
-  // ✅ 로그인 했지만 도메인 불일치
+  // ✅ 로그인했지만 도메인 불일치
   if (!isAllowed) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
