@@ -1,27 +1,41 @@
-export function calcDiscountedPrice(params: {
+// src/lib/teamPricing.ts
+export function calcTeamItemPricing(args: {
   basePrice: number
   minPrice: number
-  participants: number
   discountStepPercent: number
   discountStepEvery: number
   maxDiscountPercent: number
+  participantCount: number
 }) {
   const {
     basePrice,
     minPrice,
-    participants,
     discountStepPercent,
     discountStepEvery,
     maxDiscountPercent,
-  } = params
+    participantCount,
+  } = args
 
-  const stepEvery = Math.max(1, discountStepEvery)
-  const stepPercent = Math.min(3, Math.max(1, discountStepPercent))
-  const steps = Math.floor(participants / stepEvery)
+  const stepEvery = Math.max(1, Math.floor(discountStepEvery || 1))
+  const stepPercent = Math.max(0, Number(discountStepPercent || 0))
+  const maxPercent = Math.max(0, Number(maxDiscountPercent || 0))
 
-  const rawDiscountPercent = steps * stepPercent
-  const discountPercent = Math.min(maxDiscountPercent, Math.max(0, rawDiscountPercent))
+  const steps = Math.floor(participantCount / stepEvery)
+  const discountPercent = Math.min(maxPercent, steps * stepPercent)
 
-  const discounted = Math.round(basePrice * (1 - discountPercent / 100))
-  return Math.max(minPrice, discounted)
+  const raw = basePrice * (1 - discountPercent / 100)
+  const currentPrice = Math.max(minPrice, Math.round(raw))
+
+  const nextStepTarget = (steps + 1) * stepEvery
+  const toNextStep = Math.max(0, nextStepTarget - participantCount)
+
+  const withinStep = participantCount % stepEvery
+  const progressPercent = Math.min(100, Math.round((withinStep / stepEvery) * 100))
+
+  return {
+    discountPercent,
+    currentPrice,
+    toNextStep,
+    progressPercent,
+  }
 }
