@@ -50,9 +50,9 @@ async function createAction(formData: FormData) {
     is_active: formData.get('is_active') === 'on',
   }
 
- const { data, error } = await (sb as any)
+ const { data, error } = await sb
   .from('team_items')
-  .insert(payload as any)
+  .insert(payload)
   .select('id')
   .single()
 
