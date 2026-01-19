@@ -81,7 +81,6 @@ function CheckIcon() {
 
 function pickTwoRandom(tips: Tip[]) {
   const arr = tips.slice()
-  // Fisher-Yates shuffle (partial)
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[arr[i], arr[j]] = [arr[j], arr[i]]
@@ -92,32 +91,29 @@ function pickTwoRandom(tips: Tip[]) {
 export default function TipSection({ tips = DEFAULT_TIPS }: { tips?: Tip[] }) {
   const items = useMemo(() => {
     const source = Array.isArray(tips) && tips.length > 0 ? tips : DEFAULT_TIPS
-    // ✅ 랜덤 2개
     return pickTwoRandom(source)
   }, [tips])
 
   return (
-    <div>
+    // ✅ 각 팁이 "개별 하늘색 카드"가 되도록 변경
+    <div className="space-y-3">
       {items.map((tip, idx) => (
-        <div key={`${tip.title}-${idx}`} className={idx === 0 ? '' : 'border-t border-[#dcdcdc]'}>
-          {/* ✅ coach/page.tsx에서 이미 p-4로 감싸고 있으니 여기서 추가 px를 안 줌 */}
-          <div className="py-4">
-            {/* ✅ 본문이 “아이콘 아래부터” 시작하도록 grid로 구성 */}
-            <div className="grid grid-cols-[20px_1fr] gap-x-3">
-              <div className="pt-[2px]">
-                <CheckIcon />
-              </div>
+        <div key={`${tip.title}-${idx}`} className="bg-[#f0f7fd] px-4 py-4">
+          {/* ✅ 본문이 “아이콘 아래부터” 시작하도록 grid 유지 */}
+          <div className="grid grid-cols-[20px_1fr] gap-x-3">
+            <div className="pt-[2px]">
+              <CheckIcon />
+            </div>
 
-              <div className="min-w-0">
-                <div className="text-[#3497f3] text-[15px] font-medium leading-snug">
-                  {tip.title}
-                </div>
+            <div className="min-w-0">
+              <div className="text-[#3497f3] text-[15px] font-medium leading-snug">
+                {tip.title}
               </div>
+            </div>
 
-              {/* ✅ body는 col-span 2로 내려서 “아이콘 시작점”에 맞춤 */}
-              <div className="col-span-2 mt-2 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">
-                {tip.body}
-              </div>
+            {/* ✅ body는 col-span 2로 내려서 “아이콘 시작점”에 맞춤 */}
+            <div className="col-span-2 mt-2 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">
+              {tip.body}
             </div>
           </div>
         </div>
