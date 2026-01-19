@@ -48,32 +48,36 @@ export default function NavBar() {
   const item = (href: string, key: Menu, label: string) => (
     <Link
       href={href}
-      className={`transition ${
-        active === key ? 'text-[#9F1D23] font-semibold' : 'text-[#eae3de] hover:text-[#9F1D23]'
-      }`}
+      className={[
+        'transition',
+        'text-[13px]',
+        active === key
+          ? 'text-[#1e1e1e] font-semibold'
+          : 'text-[#b4b4b4] font-medium hover:text-[#1e1e1e]',
+      ].join(' ')}
     >
       {label}
     </Link>
   )
 
   return (
-    <nav className="w-full bg-[#191919] text-[#eae3de] border-b border-gray-700">
+    <nav className="w-full bg-white border-b border-[#eeeeee]">
       <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
-        <div className="flex gap-6 text-base font-medium">
+        <div className="flex gap-6">
           {item('/', 'home', 'HOME')}
           {item('/news', 'news', 'NEWS')}
           {item('/team', 'team', 'TEAM')}
         </div>
 
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3">
           {user ? (
             <>
-              <span className="text-gray-300 truncate max-w-[160px]">
+              <span className="truncate max-w-[180px] text-[13px] font-medium text-[#b4b4b4]">
                 {user.user_metadata?.full_name || user.user_metadata?.name || user.email}
               </span>
               <button
                 onClick={logout}
-                className="rounded-md border border-gray-600 px-3 py-1.5 hover:bg-gray-800"
+                className="px-4 h-8 bg-[#1e1e1e] text-white text-[13px] font-semibold"
               >
                 Sign out
               </button>
@@ -81,9 +85,9 @@ export default function NavBar() {
           ) : (
             <button
               onClick={loginGoogle}
-              className="rounded-md bg-white px-3 py-1.5 text-black hover:opacity-90"
+              className="px-4 h-8 bg-[#1e1e1e] text-white text-[13px] font-semibold"
             >
-              Sign in with Google
+              Sign in
             </button>
           )}
         </div>

@@ -48,18 +48,16 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
-  // ✅ 높이 자동 확장(초기 = 작게, 대화가 쌓이면 늘어남)
+  // 높이 자동 확장
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const [scrollHeightPx, setScrollHeightPx] = useState<number>(260)
-  const MIN_H = 260
-  const MAX_H = 720
+  const [scrollHeightPx, setScrollHeightPx] = useState<number>(220)
+  const MIN_H = 220
+  const MAX_H = 520
 
-  // ✅ 로그인 되면 모달 자동 닫기 (Providers가 세션을 갱신하므로 user만 보면 됨)
   useEffect(() => {
     if (user) setShowLoginModal(false)
   }, [user])
 
-  // loading dots
   useEffect(() => {
     if (!loading) {
       setDots(0)
@@ -69,7 +67,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return () => clearInterval(id)
   }, [loading])
 
-  // auto grow height
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -79,12 +76,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, loading])
 
-  // scroll to bottom
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length, loading])
 
-  // ✅ PKCE mismatch 방지용: redirectTo origin을 "고정된 SITE" 우선으로 계산
   const getAuthRedirectTo = useCallback(() => {
     const base = getSiteOrigin()
     return `${base}/auth/callback?next=/coach`
@@ -107,7 +102,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       const q = (override ?? input).trim()
       if (!q) return
 
-      // ✅ 첫 질문부터 로그인 강제
       if (!user) {
         setShowLoginModal(true)
         return
@@ -157,7 +151,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     [input, user, push, systemPrompt]
   )
 
-  // ✅ keyword 버튼 → ChatBox 연동 이벤트
   useEffect(() => {
     const handler = (e: Event) => {
       const text = (e as CustomEvent<string>).detail
@@ -181,105 +174,118 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      <div className="mx-auto max-w-3xl rounded-2xl border border-[#3a3a3a] bg-[#3b3b3b] overflow-hidden">
-        <div
-          ref={scrollRef}
-          style={{ height: `${scrollHeightPx}px` }}
-          className="overflow-y-auto px-4 py-4"
-        >
-          {messages.length === 0 ? (
-            <div className="h-full" />
-          ) : (
-            <div className="space-y-3">
-              {messages.map((m) => (
+      {/* 메시지 영역: 테두리/배경 최소화 (화이트 톤) */}
+      <div
+        ref={scrollRef}
+        style={{ height: `${scrollHeightPx}px` }}
+        className="overflow-y-auto"
+      >
+        {messages.length === 0 ? (
+          <div className="h-full" />
+        ) : (
+          <div className="space-y-3">
+            {messages.map((m) => (
+              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  key={m.id}
-                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={[
+                    'max-w-[80%] rounded-xl px-4 py-3',
+                    'text-[15px] leading-relaxed',
+                    m.role === 'user'
+                      ? 'bg-[#f0f1f6] text-[#0e0e0e] font-bold'
+                      : 'bg-white border border-[#dcdcdc] text-[#0e0e0e] font-medium',
+                  ].join(' ')}
                 >
-                  <div
-                    className={[
-                      'max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-black',
-                      m.role === 'user' ? 'bg-[#d0d0d0]' : 'bg-white border border-[#cfcfcf]',
-                    ].join(' ')}
-                  >
-                    {m.role === 'assistant' ? (
-                      <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
-                          }}
-                        >
-                          {m.content}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      <span className="whitespace-pre-wrap">{m.content}</span>
-                    )}
-                  </div>
+                  {m.role === 'assistant' ? (
+                    <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
+                          li: ({ children }) => <li className="mb-1">{children}</li>,
+                        }}
+                      >
+                        {m.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <span className="whitespace-pre-wrap">{m.content}</span>
+                  )}
                 </div>
-              ))}
+              </div>
+            ))}
 
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl bg-white border border-[#cfcfcf] px-4 py-3 text-sm text-black">
-                    Thinking{'.'.repeat(dots)}
-                  </div>
+            {loading && (
+              <div className="flex justify-start">
+                <div className="rounded-xl bg-white border border-[#dcdcdc] px-4 py-3 text-[15px] font-medium text-[#0e0e0e]">
+                  Thinking{'.'.repeat(dots)}
                 </div>
-              )}
+              </div>
+            )}
 
-              <div ref={endRef} />
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-[#2f2f2f] bg-[#363636] px-4 py-3">
-          <div className="flex items-center gap-3">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void ask()
-                }
-              }}
-              placeholder="Anything on your mind?"
-              rows={1}
-              className="flex-1 h-[44px] resize-none rounded-xl bg-white px-4 py-2 text-sm text-black outline-none border border-[#cfcfcf] leading-[24px]"
-              disabled={loading}
-            />
-            <button
-              onClick={() => void ask()}
-              disabled={loading || !input.trim()}
-              className="h-[44px] rounded-xl bg-[#3EB6F1] px-5 text-sm font-medium text-white disabled:opacity-50"
-            >
-              Send
-            </button>
+            <div ref={endRef} />
           </div>
+        )}
+      </div>
 
-          {error && <p className="mt-2 text-center text-xs text-red-200">{error}</p>}
+      {/* 입력창: 스펙 그대로 */}
+      <div className="mt-6 border border-[#dcdcdc] bg-white">
+        <div className="flex items-stretch">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                void ask()
+              }
+            }}
+            placeholder="Anything on your mind?"
+            rows={1}
+            disabled={loading}
+            className={[
+              'flex-1 resize-none outline-none',
+              'bg-[#f5f5f5]',
+              'px-4 py-3',
+              'text-[15px] font-bold text-[#0e0e0e]',
+              'placeholder:text-[#dcdcdc] placeholder:font-normal',
+              'leading-[24px]',
+            ].join(' ')}
+          />
+          <button
+            onClick={() => void ask()}
+            disabled={loading || !input.trim()}
+            className={[
+              'w-[92px]',
+              'bg-[#DA3632] text-white',
+              'text-[15px] font-semibold',
+              'disabled:opacity-50',
+            ].join(' ')}
+          >
+            Send
+          </button>
         </div>
       </div>
 
+      {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
+
+      {/* 로그인 모달: UI 톤 맞춤 */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center text-black">
-            <h3 className="text-sm font-semibold">Sign in with Google to continue.</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm bg-white p-6 text-center text-[#0e0e0e] border border-[#dcdcdc]">
+            <h3 className="text-[13px] font-semibold text-[#1e1e1e]">Sign in to continue</h3>
 
             <div className="mt-4 grid gap-2">
-              <button onClick={loginGoogle} className="rounded-lg bg-black py-2 text-sm text-white">
-                Sign in with Google
+              <button onClick={loginGoogle} className="h-10 bg-[#1e1e1e] text-white text-[13px] font-semibold">
+                Sign in
               </button>
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="rounded-lg border border-gray-300 py-2 text-sm"
+                className="h-10 border border-[#dcdcdc] text-[13px] font-medium text-[#1e1e1e]"
               >
                 Close
               </button>
             </div>
 
-            {/* 디버그: 로그인 상태/오류 확인용 (원하면 이 블록 자체를 삭제해도 됨) */}
+            {/* 디버그(원하면 삭제) */}
             <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
               user: {user?.id ?? 'null'}
               {'\n'}

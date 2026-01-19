@@ -35,12 +35,10 @@ async function getPopularKeywords() {
     const json = (await res.json().catch(() => ({}))) as any
     if (!res.ok) return null
 
-    // 1) { keywords: string[] }
     if (Array.isArray(json.keywords) && json.keywords.length > 0) {
       return json.keywords.map((k: any) => String(k)).filter(Boolean).slice(0, 4)
     }
 
-    // 2) { data: [{ keyword, ... }] }  ← 지금 네 route.ts 형태
     if (Array.isArray(json.data) && json.data.length > 0) {
       return json.data
         .map((row: any) => String(row.keyword))
@@ -99,54 +97,64 @@ export default async function CoachPage() {
   const news: NewsPostRow[] = newsErr || !newsRes ? [] : (newsRes as NewsPostRow[])
 
   return (
-    <main className="min-h-screen bg-[#282828] text-white font-sans">
-      <div className="max-w-5xl mx-auto px-4 py-12">
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="max-w-5xl mx-auto px-4 py-10">
+        {/* 로고 */}
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
 
-        <section className="mb-8 text-center">
-          <h2 className="text-[24px] font-semibold mb-3 text-white">
-            "Ask me anything about parenting—I’m here to help."
-          </h2>
+        {/* 타이틀 */}
+        <section className="text-center mb-10">
+          <div className="leading-tight">
+            <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
+            <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
+          </div>
+        </section>
+
+        {/* Popular ways */}
+        <section className="mb-10">
+          <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">
+            Popular ways to get started
+          </div>
           <KeywordButtons keywords={keywords} />
         </section>
 
-        <ChatBox />
+        {/* Chat */}
+        <section className="mb-14">
+          <ChatBox />
+        </section>
 
-        <section className="mt-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Tips + News (스샷처럼 라이트 블루 카드 톤) */}
+        <section>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div>
-              <h3 className="text-xl font-semibold mb-3">Today’s Parenting Tips</h3>
-              <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
-                <TipSection />
+              <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
+
+              <div className="space-y-4">
+                {/* TipSection 내부가 카드들을 그리는 구조라면: TipSection은 그대로 두고, 바깥 래퍼만 톤 맞춤 */}
+                <div className="bg-[#f0f7fd] p-4">
+                  <TipSection />
+                </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-3">K-Parenting News</h3>
-              <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a] p-4">
+              <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">K-Parenting News</h3>
+
+              <div className="bg-[#f0f7fd] p-4">
                 {news.length === 0 ? (
-                  <p className="text-gray-300 text-sm">No news available.</p>
+                  <p className="text-[13px] font-medium text-[#b4b4b4]">No news available.</p>
                 ) : (
                   <ul className="space-y-3">
                     {news.map((n) => (
-                      <li key={n.id} className="group">
+                      <li key={n.id}>
                         <Link
                           href={`/news/${n.slug}`}
-                          className="block text-gray-100 hover:text-[#3EB6F1] transition"
-                          title={
-                            n.created_at
-                              ? new Date(n.created_at).toLocaleDateString('en-US')
-                              : undefined
-                          }
+                          className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
+                          title={n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined}
                         >
-                          <span className="inline-block mr-2 text-xs text-gray-300 align-middle">
-                            {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : ''}
-                          </span>
-                          <span className="align-middle underline-offset-2 group-hover:underline">
-                            {n.title}
-                          </span>
+                          {n.title}
                         </Link>
                       </li>
                     ))}
