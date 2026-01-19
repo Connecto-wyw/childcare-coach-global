@@ -359,6 +359,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          is_active: boolean
           name: string
           owner_id: string
           purpose: string | null
@@ -371,6 +372,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           name: string
           owner_id: string
           purpose?: string | null
@@ -383,6 +385,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           name?: string
           owner_id?: string
           purpose?: string | null

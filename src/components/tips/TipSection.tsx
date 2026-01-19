@@ -1,5 +1,7 @@
 // src/components/tips/TipSection.tsx
-import React, { useMemo } from 'react'
+'use client'
+
+import { useMemo } from 'react'
 
 type Tip = {
   title: string
@@ -7,71 +9,61 @@ type Tip = {
 }
 
 const DEFAULT_TIPS: Tip[] = [
-  { title: 'Be Specific with Praise', body: 'Praise actions, not outcomes. “I liked how you put the cars in the box when you cleaned up.” Specific praise sustains motivation.' },
-  { title: 'Name the Feeling', body: 'Label emotions calmly: “You’re frustrated.” Naming feelings reduces intensity and helps kids regain control.' },
-  { title: 'Offer Two Good Choices', body: 'Instead of “Stop,” offer options: “Do you want to put on shoes first or jacket first?” Choices reduce power struggles.' },
-  { title: 'Catch Them Being Good', body: 'Notice small wins: “You started homework right away.” Specific noticing increases repeat behavior.' },
-  { title: 'One Clear Instruction', body: 'Give one short direction at a time. Too many steps at once makes kids tune out.' },
-  { title: 'Connect Before Correct', body: 'Get eye level, a gentle touch, then guide. Connection lowers defensiveness.' },
-  { title: 'Use a Calm Countdown', body: 'Give a predictable transition: “In 5 minutes we clean up.” Kids handle change better with warnings.' },
-  { title: 'Describe, Don’t Lecture', body: 'Say what you see: “Toys are on the floor.” Then ask: “What’s our next step?”' },
-  { title: 'Praise Effort, Not Talent', body: 'Say “You worked hard” instead of “You’re smart.” Effort praise builds resilience.' },
-  { title: 'Keep Rules Few', body: 'Pick 3 core rules and repeat them. Too many rules means none stick.' },
+  { title: 'Be Specific with Praise', body: 'Praise actions, not outcomes. “I liked how you cleaned up your toys.” keeps motivation steady.' },
+  { title: 'Name the Feeling First', body: 'Try “You seem frustrated.” Naming emotions reduces intensity and opens cooperation.' },
+  { title: 'One Instruction at a Time', body: 'Short, single-step directions work better than multi-step commands.' },
+  { title: 'Offer Two Good Choices', body: '“Red cup or blue cup?” gives autonomy while keeping boundaries.' },
+  { title: 'Connect Before Correct', body: 'A brief connection (“I’m here.”) makes guidance land better.' },
+  { title: 'Use a Calm Countdown', body: 'Give a gentle 10→0 countdown for transitions instead of repeating yourself.' },
+  { title: 'Describe What You See', body: 'Narrate: “Shoes are by the door.” Description can prompt action without a fight.' },
+  { title: 'Repair After a Hard Moment', body: 'After conflict: “We both got upset. Let’s try again.” Repair builds trust.' },
+  { title: 'Tiny Routines Win', body: 'Small, repeatable routines beat big plans. Keep it easy to do daily.' },
+  { title: 'Move the Body to Reset', body: 'A short walk, stretch, or jumping breaks can reduce big feelings fast.' },
 
-  { title: 'Repair After Conflict', body: 'After a tough moment, reconnect: “I didn’t like how I spoke. I’m here.” Repairs build trust.' },
-  { title: 'Use a Visual Routine', body: 'A simple checklist (morning, bedtime) reduces reminders and arguments.' },
-  { title: 'Whisper to De-escalate', body: 'Lower your voice; kids often mirror volume. Whispering can pull them back faster.' },
-  { title: 'Set a Timer Together', body: 'Let them press start. Ownership makes transitions smoother.' },
-  { title: 'Validate, Then Limit', body: '“You’re upset. And we’re still leaving.” Validation doesn’t remove the boundary.' },
-  { title: 'Short, Neutral Consequences', body: 'Immediate and calm consequences work better than big punishments later.' },
-  { title: 'Teach the Next Skill', body: 'After misbehavior, teach the alternative: “Next time say ‘Can I have a turn?’”' },
-  { title: 'Reduce Words Under Stress', body: 'When emotions are high, use fewer words. Long explanations won’t land.' },
-  { title: 'Use “When/Then”', body: '“When toys are in the box, then we can read.” It’s clearer than threats.' },
-  { title: 'Create a Calm Corner', body: 'A cozy spot with books or sensory tools helps kids reset without shame.' },
+  { title: 'Use Visual Reminders', body: 'Simple pictures (morning steps) help kids follow routines with less nagging.' },
+  { title: 'Catch the Good Fast', body: 'Point out good behavior the moment it happens. The timing matters.' },
+  { title: 'Lower the Words, Raise the Warmth', body: 'Fewer words + gentle tone often works better than long explanations.' },
+  { title: 'Make Transitions Predictable', body: '“In 5 minutes we’ll stop.” Predictability reduces resistance.' },
+  { title: 'Pre-Teach Expectations', body: 'Before leaving: “We’re buying only groceries. You can help pick apples.”' },
+  { title: 'Use “When/Then” Language', body: '“When shoes are on, then we go.” Clear and non-negotiable without sounding harsh.' },
+  { title: 'Give a Job', body: 'Kids cooperate more when they have a role: “You’re the door opener.”' },
+  { title: 'Validate + Boundary', body: '“You’re mad. It’s okay to be mad. It’s not okay to hit.”' },
+  { title: 'Short Time-In', body: 'Sit nearby for 1 minute. Connection can calm faster than isolation.' },
+  { title: 'Build a “Calm Corner”', body: 'A pillow + book + sensory item gives a go-to reset spot.' },
 
-  { title: 'Give Attention Early', body: 'Ten minutes of “special time” daily can reduce attention-seeking behaviors.' },
-  { title: 'Narrate the Routine', body: '“First brush, then pajamas.” Calm narration keeps kids oriented.' },
-  { title: 'Use Natural Consequences', body: 'If they forget the water bottle, they feel thirsty (and learn). Keep it safe, not punitive.' },
-  { title: 'Prime Before Triggers', body: 'Before a tough situation, preview: “We’ll buy only milk. You can hold the list.”' },
-  { title: 'Make Sleep Predictable', body: 'Same steps, same order. Predictability reduces bedtime battles.' },
-  { title: 'Limit “No”', body: 'Use “Yes, and…” or redirect when possible. Too many “no”s create constant conflict.' },
-  { title: 'Use Humor Carefully', body: 'Playfulness can reset tension. Avoid sarcasm; keep it warm.' },
-  { title: 'Check Hunger & Fatigue', body: 'A lot of “behavior” is hunger, tiredness, or overstimulation.' },
-  { title: 'Give a Job', body: 'Kids cooperate more when they feel useful: “Can you carry the napkins?”' },
-  { title: 'Model the Words', body: 'Say the phrase you want them to use: “I’m mad. I need space.”' },
+  { title: 'Use Natural Consequences', body: 'If water spills, we wipe together. Keep it calm and matter-of-fact.' },
+  { title: 'Reduce Decision Fatigue', body: 'Offer fewer options when a child is tired/hungry.' },
+  { title: 'Fuel First', body: 'Snack + water often fixes “mystery” meltdowns faster than talking.' },
+  { title: 'Morning Wins Start at Night', body: 'Lay out clothes and bags the night before to cut morning friction.' },
+  { title: 'Make “Yes” Easy', body: 'Move tempting items out of reach so you can say “yes” more often.' },
+  { title: 'Use a Timer for Fairness', body: 'A timer reduces power struggles: “Timer decides, not me.”' },
+  { title: 'Praise Effort, Not Talent', body: '“You kept trying.” builds resilience more than “You’re so smart.”' },
+  { title: 'Practice in Low-Stress Moments', body: 'Teach skills (sharing, waiting) when calm—then it shows up under stress.' },
+  { title: 'Keep Consequences Immediate', body: 'Immediate and small is more effective than delayed and big.' },
+  { title: 'Model the Words', body: 'Give scripts: “Can I have a turn?” Practice it once, then use it.' },
 
-  { title: 'Praise the Start', body: 'Even beginning is progress: “You started cleaning—nice.” Momentum matters.' },
-  { title: 'Use Specific “Thank You”', body: '“Thanks for putting your plate in the sink.” Specific gratitude reinforces habits.' },
-  { title: 'Ask for a Redo', body: '“Try that again with a kinder voice.” Redos teach skills without shame.' },
-  { title: 'Keep Boundaries Simple', body: 'One sentence boundary, then follow through. Repeating invites negotiation.' },
-  { title: 'Focus on Safety First', body: 'When safety is involved, act quickly—then explain later when calm.' },
-  { title: 'Use a Calm Face', body: 'Kids read your face faster than your words. Neutral calm helps them settle.' },
-  { title: 'Limit Screen Transitions', body: 'Screens are hard to stop. Use a timer + clear “last episode” plan.' },
-  { title: 'Celebrate Micro-Wins', body: 'Small wins stack up. Celebrating the tiny steps boosts persistence.' },
-  { title: 'Keep Promises Small', body: 'Don’t promise big rewards. Small, consistent follow-through builds trust.' },
-  { title: 'Co-regulate First', body: 'If they’re flooded, regulate with them (breathing, hug), then problem-solve.' },
+  { title: 'Use Humor (Lightly)', body: 'A silly voice or playful line can break tension without dismissing feelings.' },
+  { title: 'Notice Triggers', body: 'Track patterns: hunger, noise, screens, transitions. Then prevent more.' },
+  { title: 'Screen Time: End with a Ritual', body: 'A consistent “one last thing” + shutdown routine reduces battles.' },
+  { title: 'Keep Rules Few and Clear', body: '3–5 house rules beat a long list. Kids remember simple.' },
+  { title: 'Whisper to Lower the Room', body: 'Whispering can pull kids toward calm without escalating volume.' },
+  { title: 'Give Space for Processing', body: 'Some kids need 5–10 seconds before answering. Wait quietly.' },
+  { title: 'Use Positive Framing', body: '“Walk inside” works better than “Don’t run.”' },
+  { title: 'Front-Load Attention', body: '10 minutes of focused attention reduces attention-seeking later.' },
+  { title: 'Make Cleanup a Game', body: 'Race the song, “toy rescue,” or “color hunt” makes it doable.' },
+  { title: 'Use Micro-Goals', body: '“Put away 5 blocks” is easier than “Clean everything.”' },
 
-  { title: 'Use “I Notice…”', body: '“I notice you shared.” Noticing feels less performative than praise to some kids.' },
-  { title: 'Make Cleanup a Game', body: 'Race the timer or sort by color. Play turns chores into cooperation.' },
-  { title: 'Give Space for Big Feelings', body: 'You can hold the boundary and allow feelings: “Cry if you need. I’m here.”' },
-  { title: 'Teach “Help” Words', body: 'Practice: “Help me,” “Can you show me?” It reduces whining and shutdowns.' },
-  { title: 'One Routine Change at a Time', body: 'If you change everything at once, nothing sticks. Change one habit for a week.' },
-  { title: 'Use a Bridge Activity', body: 'Between tasks, use a short bridge: water sip, stretch, 10 breaths.' },
-  { title: 'Prepare the Environment', body: 'If it’s hard to succeed, change the setup: fewer toys out, clear bins, visible labels.' },
-  { title: 'Use Gentle Touch Cues', body: 'A hand on the shoulder can guide better than repeating words.' },
-  { title: 'End With Connection', body: 'After rules and routines, end with warmth: a story, cuddle, or quick chat.' },
-  { title: 'Stay Consistent for 7 Days', body: 'Most changes look worse before better. Give a full week before you judge the method.' },
+  { title: 'Teach “Pause Breath Try”', body: 'A simple coping script kids can remember in tough moments.' },
+  { title: 'Separate Child from Behavior', body: '“You’re a good kid having a hard time.” reduces shame.' },
+  { title: 'Hold the Boundary, Keep the Warmth', body: 'Firm + kind works. “I won’t let you throw. I’m here.”' },
+  { title: 'Avoid Lectures at Bedtime', body: 'Bedtime is for calm. Teach in daylight, repair in daylight.' },
+  { title: 'Use a Routine Phrase', body: 'Same phrase every time (“First bathroom, then story”) builds safety.' },
+  { title: 'Give a Transitional Object', body: 'A small toy or photo can ease separation anxiety.' },
+  { title: 'Practice “Redo”', body: '“Let’s redo that with a calmer voice.” Teaches skill without punishment.' },
+  { title: 'Simplify Your “No”', body: 'Short “No + what to do” is better than long explanations in the moment.' },
+  { title: 'Teach Waiting with Tiny Steps', body: 'Start with 10 seconds, then 20, then 30—waiting is a skill.' },
+  { title: 'Celebrate Small Improvements', body: 'Progress is the goal. Notice the 5% change and name it.' },
 ]
-
-function pickTwoRandom(tips: Tip[]) {
-  if (!Array.isArray(tips) || tips.length === 0) return DEFAULT_TIPS.slice(0, 2)
-  if (tips.length === 1) return tips
-
-  const a = Math.floor(Math.random() * tips.length)
-  let b = Math.floor(Math.random() * tips.length)
-  if (b === a) b = (a + 1) % tips.length
-  return [tips[a], tips[b]]
-}
 
 function CheckIcon() {
   return (
@@ -87,30 +79,46 @@ function CheckIcon() {
   )
 }
 
+function pickTwoRandom(tips: Tip[]) {
+  const arr = tips.slice()
+  // Fisher-Yates shuffle (partial)
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr.slice(0, 2)
+}
+
 export default function TipSection({ tips = DEFAULT_TIPS }: { tips?: Tip[] }) {
-  // ✅ 랜덤 2개만
-  const items = useMemo(() => pickTwoRandom(Array.isArray(tips) && tips.length > 0 ? tips : DEFAULT_TIPS), [tips])
+  const items = useMemo(() => {
+    const source = Array.isArray(tips) && tips.length > 0 ? tips : DEFAULT_TIPS
+    // ✅ 랜덤 2개
+    return pickTwoRandom(source)
+  }, [tips])
 
   return (
-    <div className="space-y-4">
+    <div>
       {items.map((tip, idx) => (
-        <div
-          key={`${tip.title}-${idx}`}
-          // ✅ "왼쪽으로 붙어보이게": px-4 -> px-3 (패딩 축소)
-          className="bg-[#f0f7fd] px-3 py-4"
-        >
-          {/* 상단: 체크 + 제목 */}
-          <div className="flex items-start gap-2">
-            <CheckIcon />
-            <div className="text-[#3497f3] text-[15px] font-medium leading-snug">
-              {tip.title}
-            </div>
-          </div>
+        <div key={`${tip.title}-${idx}`} className={idx === 0 ? '' : 'border-t border-[#dcdcdc]'}>
+          {/* ✅ coach/page.tsx에서 이미 p-4로 감싸고 있으니 여기서 추가 px를 안 줌 */}
+          <div className="py-4">
+            {/* ✅ 본문이 “아이콘 아래부터” 시작하도록 grid로 구성 */}
+            <div className="grid grid-cols-[20px_1fr] gap-x-3">
+              <div className="pt-[2px]">
+                <CheckIcon />
+              </div>
 
-          {/* 본문: 체크 아이콘 아래부터 시작 */}
-          {/* ✅ gap도 줄였으니 20(icon)+8(gap)=28px -> ml-[28px] */}
-          <div className="mt-2 ml-[28px] text-[#1e1e1e] text-[13px] font-normal leading-relaxed">
-            {tip.body}
+              <div className="min-w-0">
+                <div className="text-[#3497f3] text-[15px] font-medium leading-snug">
+                  {tip.title}
+                </div>
+              </div>
+
+              {/* ✅ body는 col-span 2로 내려서 “아이콘 시작점”에 맞춤 */}
+              <div className="col-span-2 mt-2 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">
+                {tip.body}
+              </div>
+            </div>
           </div>
         </div>
       ))}

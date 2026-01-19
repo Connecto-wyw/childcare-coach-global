@@ -1,12 +1,13 @@
 // src/app/coach/page.tsx (Server Component)
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import KeywordButtons from './KeywordButtons'
-import CoachHero from './CoachHero'
 import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
+import ActiveTeamsGrid, { mapTeamRowToCard } from '@/components/team/ActiveTeamsGrid'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -74,14 +75,29 @@ async function createSupabaseServer() {
   })
 }
 
+// ✅ mapTeamRowToCard가 요구하는 “풀 Row”에 맞춰서 select를 넓힘
+type TeamRowForCard = Database['public']['Tables']['teams']['Row']
+
+async function getActiveTeams(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+): Promise<ReturnType<typeof mapTeamRowToCard>[]> {
+  const { data, error } = await supabase
+    .from('teams')
+    .select('created_at, description, id, image_url, name, owner_id, purpose, region, tag1, tag2, is_active')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(8)
+
+  if (error || !data) return []
+  return (data as TeamRowForCard[]).map(mapTeamRowToCard)
+}
+
 export default async function CoachPage() {
   const supabase = await createSupabaseServer()
 
   const kw = await getPopularKeywords()
   const keywords =
-    kw && kw.length > 0
-      ? kw
-      : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
+    kw && kw.length > 0 ? kw : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
 
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
@@ -91,11 +107,34 @@ export default async function CoachPage() {
 
   const news: NewsPostRow[] = newsErr || !newsRes ? [] : (newsRes as NewsPostRow[])
 
+  const activeTeams = await getActiveTeams(supabase)
+
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* ✅ 첫 화면 모션 */}
-        <CoachHero keywords={keywords} />
+        {/* 로고 */}
+        <div className="flex justify-center mb-4">
+          <Logo />
+        </div>
+
+        {/* 타이틀 */}
+        <section className="text-center mb-6">
+          <div className="leading-tight">
+            <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
+            <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
+          </div>
+        </section>
+
+        {/* Popular ways */}
+        <section className="mb-6">
+          <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">Popular ways to get started</div>
+          <KeywordButtons keywords={keywords} />
+        </section>
+
+        {/* ✅ Ongoing Teams (Today’s Parenting Tips 위) */}
+        <section className="mb-8">
+          <ActiveTeamsGrid title="Ongoing Teams" teams={activeTeams} />
+        </section>
 
         {/* Chat */}
         <section className="mb-8">
@@ -107,7 +146,9 @@ export default async function CoachPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div>
               <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
-              <TipSection />
+              <div className="bg-[#f0f7fd] p-4">
+                <TipSection />
+              </div>
             </div>
 
             <div>
@@ -123,9 +164,7 @@ export default async function CoachPage() {
                         <Link
                           href={`/news/${n.slug}`}
                           className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
-                          title={
-                            n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined
-                          }
+                          title={n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined}
                         >
                           {n.title}
                         </Link>
