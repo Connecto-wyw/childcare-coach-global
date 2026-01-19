@@ -1,30 +1,66 @@
 // src/components/tips/TipSection.tsx
-'use client'
+import React from 'react'
 
-import { useEffect, useState } from 'react'
-import tips, { Tip } from '@/data/tips/todayTips'
+type Tip = {
+  title: string
+  body: string
+}
 
-export default function TipSection() {
-  const [selectedTips, setSelectedTips] = useState<Tip[]>([])
+const DEFAULT_TIPS: Tip[] = [
+  {
+    title: 'Be Specific with Praise',
+    body:
+      'Praise actions, not outcomes. “I liked how you put the cars in the box when you cleaned up.” Specific praise sustains motivation.',
+  },
+  {
+    title: 'Be Specific with Praise',
+    body:
+      'Praise actions, not outcomes. “I liked how you put the cars in the box when you cleaned up.” Specific praise sustains motivation.',
+  },
+]
 
-  useEffect(() => {
-    const pool: Tip[] = Array.isArray(tips) ? [...tips] : []
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[pool[i], pool[j]] = [pool[j], pool[i]]
-    }
-    setSelectedTips(pool.slice(0, 2))
-  }, [])
-
+function CheckIcon() {
   return (
-    <ul className="space-y-4 text-sm text-[#e0dcd7]">
-      {selectedTips.map((tip, idx) => (
-        <li key={idx} className="list-none">
-          <h3 className="font-semibold mb-1 text-base">✔️ {tip.title}</h3>
-          <p>{tip.content}</p>
-        </li>
-      ))}
-    </ul>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0 mt-[2px]"
+    >
+      <path
+        d="M20 6L9 17l-5-5"
+        stroke="#1e1e1e"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
+export default function TipSection({ tips = DEFAULT_TIPS }: { tips?: Tip[] }) {
+  const items = Array.isArray(tips) && tips.length > 0 ? tips.slice(0, 2) : DEFAULT_TIPS
+
+  return (
+    <div className="space-y-4">
+      {items.map((tip, idx) => (
+        <div key={`${tip.title}-${idx}`} className="bg-[#f0f7fd] px-4 py-4">
+          <div className="flex gap-3">
+            <CheckIcon />
+
+            <div className="min-w-0">
+              <div className="text-[#3497f3] text-[15px] font-medium leading-snug">
+                {tip.title}
+              </div>
+              <div className="mt-2 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">
+                {tip.body}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

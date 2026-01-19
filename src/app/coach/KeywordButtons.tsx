@@ -2,6 +2,7 @@
 'use client'
 
 import { useMemo, useCallback, useEffect, useState } from 'react'
+import { motion, type Variants } from 'framer-motion'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
 
@@ -10,7 +11,6 @@ const supabase = createClientComponentClient<Database>()
 export const COACH_SET_MESSAGE_EVENT = 'coach:setMessage'
 
 type Props = {
-  /** 외부에서 직접 키워드 배열을 넘기면 이 값을 우선 사용 */
   keywords?: string[]
   className?: string
   max?: number
@@ -21,12 +21,42 @@ type PopularKeywordRow = {
   order: number
 }
 
+const list: Variants = {
+  hidden: { opacity: 1 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.07 },
+  },
+}
+
+const row: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.32,
+      ease: 'easeOut', // ✅ 타입 에러 방지 (v11)
+    },
+  },
+}
+
+function withEmoji(label: string, idx: number) {
+  const trimmed = (label ?? '').trim()
+  // 이미 이모지로 시작하면 그대로
+  if (/^\p{Extended_Pictographic}/u.test(trimmed)) return trimmed
+
+  const presets = ['🎯', '🧠', '🌱', '✨']
+  const emoji = presets[idx] ?? '✨'
+  return `${emoji} ${trimmed}`
+}
+
 export default function KeywordButtons({ keywords, className, max = 12 }: Props) {
   const [dbKeywords, setDbKeywords] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (keywords && keywords.length > 0) return // 프롭이 있으면 DB 조회 생략
+    if (keywords && keywords.length > 0) return
 
     let cancelled = false
     ;(async () => {
@@ -52,12 +82,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   }, [keywords])
 
   const items = useMemo(() => {
-    const fallback = [
-      'Could my child have ADHD?',
-      'Fun things to do at home this weekend',
-      'How to handle a child’s fever',
-      'How to discipline a child who won’t listen',
-    ]
+    const fallback = ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
     const source =
       keywords && keywords.length > 0 ? keywords : dbKeywords.length > 0 ? dbKeywords : fallback
     const deduped = Array.from(new Set(source.filter(Boolean)))
@@ -70,26 +95,34 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   }, [])
 
   return (
-    <div className={className ?? 'flex flex-col gap-3'}>
-      {items.map((kw) => (
-        <button
-          key={kw}
-          type="button"
-          onClick={() => fill(kw)}
-          className={[
-            // ✅ 스샷/스펙 기준
-            'w-full text-left',
-            'bg-[#f0f7fd]',
-            'px-4 py-3',
-            'text-[#3497f3] text-[15px] font-medium',
-            'transition hover:opacity-90',
-          ].join(' ')}
-          aria-label={`Select keyword ${kw}`}
-          disabled={loading && dbKeywords.length === 0 && (!keywords || keywords.length === 0)}
-        >
-          {kw}
-        </button>
-      ))}
-    </div>
+    <motion.div
+      variants={list}
+      initial="hidden"
+      animate="show"
+      className={className ?? 'flex flex-col gap-3'}
+    >
+      {items.slice(0, 3).map((kw, i) => {
+        const label = withEmoji(kw, i)
+        return (
+          <motion.button
+            key={kw}
+            variants={row}
+            type="button"
+            onClick={() => fill(kw)}
+            className={[
+              'w-full text-left',
+              'bg-[#f0f7fd]',
+              'px-4 py-3',
+              'text-[#3497f3] text-[15px] font-medium',
+              'transition hover:opacity-90',
+            ].join(' ')}
+            aria-label={`Select keyword ${kw}`}
+            disabled={loading && dbKeywords.length === 0 && (!keywords || keywords.length === 0)}
+          >
+            {label}
+          </motion.button>
+        )
+      })}
+    </motion.div>
   )
 }

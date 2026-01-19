@@ -1,9 +1,9 @@
 // src/app/coach/page.tsx (Server Component)
 import Link from 'next/link'
-import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
 import KeywordButtons from './KeywordButtons'
+import CoachHero from './CoachHero'
 import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
@@ -81,12 +81,7 @@ export default async function CoachPage() {
   const keywords =
     kw && kw.length > 0
       ? kw
-      : [
-          'Could my child have ADHD?',
-          'Fun things to do at home this weekend',
-          'How to handle a child’s fever',
-          'How to discipline a child who won’t listen',
-        ]
+      : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
 
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
@@ -98,34 +93,11 @@ export default async function CoachPage() {
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
-      {/* ✅ py-10 -> py-6 */}
       <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* 로고 */}
-        {/* ✅ mb-6 -> mb-4 */}
-        <div className="flex justify-center mb-4">
-          <Logo />
-        </div>
-
-        {/* 타이틀 */}
-        {/* ✅ mb-10 -> mb-6 */}
-        <section className="text-center mb-6">
-          <div className="leading-tight">
-            <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
-            <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
-          </div>
-        </section>
-
-        {/* Popular ways */}
-        {/* ✅ mb-10 -> mb-6 */}
-        <section className="mb-6">
-          <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">
-            Popular ways to get started
-          </div>
-          <KeywordButtons keywords={keywords} />
-        </section>
+        {/* ✅ 첫 화면 모션 */}
+        <CoachHero keywords={keywords} />
 
         {/* Chat */}
-        {/* ✅ mb-14 -> mb-8 */}
         <section className="mb-8">
           <ChatBox />
         </section>
@@ -135,11 +107,7 @@ export default async function CoachPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div>
               <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
-              <div className="space-y-4">
-                <div className="bg-[#f0f7fd] p-4">
-                  <TipSection />
-                </div>
-              </div>
+              <TipSection />
             </div>
 
             <div>
