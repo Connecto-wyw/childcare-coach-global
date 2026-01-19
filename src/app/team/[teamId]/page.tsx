@@ -1,143 +1,122 @@
 // src/app/team/[teamId]/page.tsx
-import { headers } from 'next/headers'
-import { notFound } from 'next/navigation'
+'use client'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
-function mask(v: string | undefined | null) {
-  if (!v) return '(missing)'
-  if (v.length <= 12) return '***'
-  return `${v.slice(0, 6)}...${v.slice(-6)}`
+type Team = {
+  id: string
+  name: string
+  description: string | null
+  created_at: string
 }
 
-function extractTeamIdFromText(text: string | null | undefined) {
-  if (!text) return null
-  const m = text.match(/\/team\/([0-9a-fA-F-]{36})/i)
+function extractUuidFromPath(pathname: string) {
+  const m = pathname.match(/\/team\/([0-9a-fA-F-]{36})$/)
   return m?.[1] ?? null
 }
 
-async function safeText(res: Response) {
-  try {
-    const t = await res.text()
-    return t.length > 2000 ? t.slice(0, 2000) + '\n...<truncated>' : t
-  } catch {
-    return '(failed to read body)'
-  }
-}
+export default function TeamDetailClientPage() {
+  const pathname = usePathname()
 
-export default async function TeamDetailPage({
-  params,
-}: {
-  params: { teamId?: string }
-}) {
-  // ✅ Next 16: headers()는 Promise
-  const h = await headers()
+  const teamId = useMemo(() => extractUuidFromPath(pathname), [pathname])
 
-  // ✅ 1) Next params에서 먼저 시도
-  let teamId = params?.teamId ?? null
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [team, setTeam] = useState<Team | null>(null)
 
-  // ✅ 2) params가 비면, 헤더에서 URL을 찾아 teamId 추출
-  if (!teamId) {
-    const candidates = {
-      'x-original-url': h.get('x-original-url'),
-      'x-rewrite-url': h.get('x-rewrite-url'),
-      'x-forwarded-uri': h.get('x-forwarded-uri'),
-      'x-invoke-path': h.get('x-invoke-path'),
-      'x-matched-path': h.get('x-matched-path'),
-      referer: h.get('referer'),
+  useEffect(() => {
+    let mounted = true
+
+    async function run() {
+      setLoading(true)
+      setError(null)
+      setTeam(null)
+
+      if (!teamId) {
+        setLoading(false)
+        setError(`Invalid URL. pathname=${pathname}`)
+        return
+      }
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+      if (!supabaseUrl || !anonKey) {
+        setLoading(false)
+        setError('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        return
+      }
+
+      const url = `${supabaseUrl}/rest/v1/teams?id=eq.${encodeURIComponent(
+        teamId
+      )}&select=id,name,description,created_at`
+
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${anonKey}`,
+            Accept: 'application/json',
+          },
+          cache: 'no-store',
+        })
+
+        const text = await res.text()
+        if (!res.ok) {
+          throw new Error(`Supabase REST ${res.status} ${res.statusText}: ${text}`)
+        }
+
+        const rows = JSON.parse(text) as Team[]
+        const first = rows?.[0] ?? null
+
+        if (!mounted) return
+
+        if (!first) {
+          setError('Team not found (empty result). Check teams table / id.')
+          setTeam(null)
+        } else {
+          setTeam(first)
+        }
+      } catch (e: any) {
+        if (!mounted) return
+        setError(String(e?.message ?? e))
+      } finally {
+        if (!mounted) return
+        setLoading(false)
+      }
     }
 
-    teamId =
-      extractTeamIdFromText(candidates['x-original-url']) ||
-      extractTeamIdFromText(candidates['x-rewrite-url']) ||
-      extractTeamIdFromText(candidates['x-forwarded-uri']) ||
-      extractTeamIdFromText(candidates['x-invoke-path']) ||
-      extractTeamIdFromText(candidates['x-matched-path']) ||
-      extractTeamIdFromText(candidates.referer)
-
-    if (!teamId) {
-      return (
-        <main style={{ padding: 16 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>TEAM PARAMS STILL EMPTY</h1>
-          <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
-{JSON.stringify(
-  {
-    params,
-    candidates,
-    note: 'No teamId found in params or headers. This indicates routing/rewrites issue.',
-  },
-  null,
-  2
-)}
-          </pre>
-        </main>
-      )
+    run()
+    return () => {
+      mounted = false
     }
-  }
-
-  // ✅ 3) Supabase REST로 조회
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !anonKey) {
-    return (
-      <main style={{ padding: 16 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 900 }}>ENV ERROR</h1>
-        <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
-{JSON.stringify(
-  {
-    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ?? null,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: mask(anonKey),
-  },
-  null,
-  2
-)}
-        </pre>
-      </main>
-    )
-  }
-
-  const url = `${supabaseUrl}/rest/v1/teams?id=eq.${encodeURIComponent(teamId)}&select=id,name,description,created_at`
-
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  })
-
-  if (!res.ok) {
-    const body = await safeText(res)
-    return (
-      <main style={{ padding: 16 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 900 }}>SUPABASE REST ERROR</h1>
-        <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
-{JSON.stringify(
-  { teamId, status: res.status, statusText: res.statusText, body, url },
-  null,
-  2
-)}
-        </pre>
-      </main>
-    )
-  }
-
-  const rows = (await res.json()) as any[]
-  const team = rows?.[0] ?? null
-  if (!team) notFound()
+  }, [teamId, pathname])
 
   return (
     <main style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 900 }}>{team.name ?? 'TEAM'}</h1>
-      {team.description ? (
-        <p style={{ marginTop: 8, lineHeight: 1.6 }}>{team.description}</p>
+      <h1 style={{ fontSize: 22, fontWeight: 900 }}>
+        {loading ? 'Loading...' : team?.name ?? 'TEAM'}
+      </h1>
+
+      <p style={{ marginTop: 8, opacity: 0.8 }}>
+        pathname: <b>{pathname}</b>
+      </p>
+      <p style={{ marginTop: 4, opacity: 0.8 }}>
+        teamId: <b>{teamId ?? '(missing)'}</b>
+      </p>
+
+      {error ? (
+        <div style={{ marginTop: 12, padding: 12, border: '1px solid #ddd' }}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>ERROR</div>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{error}</pre>
+        </div>
       ) : null}
-      <p style={{ marginTop: 10, opacity: 0.7 }}>teamId: {team.id}</p>
+
+      {team?.description ? (
+        <p style={{ marginTop: 12, lineHeight: 1.6 }}>{team.description}</p>
+      ) : null}
     </main>
   )
 }
