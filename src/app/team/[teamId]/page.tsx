@@ -1,87 +1,103 @@
 // src/app/team/[teamId]/page.tsx
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import type { Database, Tables } from '@/lib/database.types'
+import { notFound } from 'next/navigation'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 
+// ✅ alias(@) 대신 상대경로로 고정 (빌드/paths 꼬임 방지)
+import type { Database } from '../../../lib/database.types'
+
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type TeamRow = Tables<'teams'>
+type Props = { params: { teamId: string } }
 
-const FALLBACK_IMG =
-  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=60'
+type TeamRow = Database['public']['Tables']['teams']['Row']
+type ActivityRow = Database['public']['Tables']['team_activities']['Row']
 
-export default async function TeamDetailPage({ params }: { params: { teamId: string } }) {
+export default async function TeamDetailPage({ params }: Props) {
+  const teamId = params?.teamId
+  if (!teamId) notFound()
+
+  // ✅ 제네릭을 명시해서 supabase 타입도 정상화
   const supabase = createServerComponentClient<Database>({ cookies })
 
-  // ✅ select('*') 로 단순화: 타입 추론 깨지는 걸 피함
-  const { data, error } = await supabase
-    .from('teams')
-    .select('*')
-    .eq('id', params.teamId)
-    .maybeSingle()
+  // ✅ team 변수를 "명시 타입"으로 선언 (never 방지)
+  let team: TeamRow | null = null
+  let activities: ActivityRow[] = []
 
-  if (error) throw new Error(error.message)
-  if (!data) redirect('/team')
+  try {
+    const teamRes = await supabase
+      .from('teams')
+      .select('id, name, description, created_at, image_url')
+      .eq('id', teamId)
+      .maybeSingle()
 
-  // ✅ 여기서 타입을 강제로 확정 (never 방지)
-  const team = data as TeamRow
+    if (teamRes.error) {
+      console.error('[teamRes.error]', teamRes.error)
+      notFound()
+    }
+
+    // ✅ 여기서 unknown을 한번 거쳐 강제 캐스팅 (TS 꼬임 완전 차단)
+    team = (teamRes.data as unknown as TeamRow) ?? null
+    if (!team) notFound()
+
+    const activitiesRes = await supabase
+      .from('team_activities')
+      .select('id, team_id, title, description, created_at, starts_at, ends_at')
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false })
+
+    if (activitiesRes.error) {
+      console.error('[activitiesRes.error]', activitiesRes.error)
+    } else {
+      activities = ((activitiesRes.data ?? []) as unknown as ActivityRow[])
+    }
+  } catch (e) {
+    console.error('[TeamDetailPage fatal]', e)
+    notFound()
+  }
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">{team.name}</h1>
-          <Link href="/team" className="text-sm text-white/70 hover:text-white">
-            ← TEAM 목록
-          </Link>
-        </div>
+    <main style={{ padding: 16 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700 }}>
+        {team.name ?? 'TEAM'}
+      </h1>
 
-        <div className="mt-6 rounded-2xl overflow-hidden border border-white/10 bg-black/30">
-          <div className="w-full aspect-[16/9] bg-black/40">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={team.image_url ?? FALLBACK_IMG}
-              alt={team.name ?? 'team'}
-              className="w-full h-full object-cover"
-            />
-          </div>
+      {team.description ? (
+        <p style={{ marginTop: 8, lineHeight: 1.6 }}>{team.description}</p>
+      ) : null}
 
-          <div className="p-5">
-            <div className="text-sm text-white/60">
-              {team.region ? `지역: ${team.region}` : '지역: 미설정'}
-            </div>
+      <div style={{ marginTop: 18, fontWeight: 700 }}>Ongoing TEAM UP</div>
 
-            <p className="mt-3 text-white/85 leading-relaxed">
-              {team.purpose ?? team.description ?? '팀 소개가 아직 등록되지 않았습니다.'}
-            </p>
-
-            <div className="flex gap-2 mt-4">
-              {team.tag1 ? (
-                <span className="text-xs px-2 py-1 rounded-full bg-[#3EB6F1] text-black">
-                  {team.tag1}
-                </span>
+      {activities.length === 0 ? (
+        <p style={{ marginTop: 8 }}>No activities yet.</p>
+      ) : (
+        <div style={{ marginTop: 10, display: 'grid', gap: 12 }}>
+          {activities.map((a) => (
+            <Link
+              key={a.id}
+              href={`/team/${teamId}/activities/${a.id}`}
+              style={{
+                display: 'block',
+                padding: 12,
+                border: '1px solid #e5e5e5',
+                borderRadius: 12,
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>{a.title ?? 'Untitled'}</div>
+              {a.description ? (
+                <div style={{ marginTop: 6, opacity: 0.8 }}>
+                  {a.description}
+                </div>
               ) : null}
-              {team.tag2 ? (
-                <span className="text-xs px-2 py-1 rounded-full bg-[#3EB6F1] text-black">
-                  {team.tag2}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="mt-6">
-              <Link
-                href={`/team/${team.id}/activities`}
-                className="inline-flex rounded-xl bg-[#3EB6F1] px-4 py-2 font-semibold text-black"
-              >
-                TEAM UP 활동 보기
-              </Link>
-            </div>
-          </div>
+            </Link>
+          ))}
         </div>
-      </div>
+      )}
     </main>
   )
 }

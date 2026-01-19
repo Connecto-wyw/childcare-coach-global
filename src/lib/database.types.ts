@@ -556,21 +556,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// -----------------------------------------------------------------------------
-// ✅ 추가: 자주 쓰는 테이블 타입 alias (never 전염 방지용)
-// -----------------------------------------------------------------------------
-// 이 alias들은 "편의" + "타입이 never로 무너질 때 고정점" 역할을 함.
-
-export type ProfilesRow = Tables<'profiles'>
-export type ProfilesInsert = TablesInsert<'profiles'>
-export type ProfilesUpdate = TablesUpdate<'profiles'>
-
-export type TeamsRow = Tables<'teams'>
-export type TeamItemsRow = Tables<'team_items'>
-export type TeamItemsInsert = TablesInsert<'team_items'>
-export type TeamItemsUpdate = TablesUpdate<'team_items'>
-
-export type TeamItemParticipantsRow = Tables<'team_item_participants'>
-export type TeamActivitiesRow = Tables<'team_activities'>
-export type TeamMembersRow = Tables<'team_members'>
