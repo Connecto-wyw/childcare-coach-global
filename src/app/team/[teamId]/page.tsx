@@ -1,102 +1,74 @@
 // src/app/team/[teamId]/page.tsx
+import { cookies } from 'next/headers'
+import { notFound } from 'next/navigation'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '../../../lib/database.types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type Props = { params: { teamId?: string } }
+type Props = { params: Record<string, string | string[] | undefined> }
 
-function mask(v: string | undefined | null) {
-  if (!v) return '(missing)'
-  if (v.length <= 12) return '***'
-  return `${v.slice(0, 6)}...${v.slice(-6)}`
+// ✅ DB Row 타입을 명시로 고정
+type TeamRow = Database['public']['Tables']['teams']['Row']
+
+function pickFirst(v: string | string[] | undefined) {
+  if (!v) return null
+  return Array.isArray(v) ? v[0] ?? null : v
 }
 
-async function safeText(res: Response) {
-  try {
-    const t = await res.text()
-    // 너무 길면 잘라서 표시
-    return t.length > 2000 ? t.slice(0, 2000) + '\n...<truncated>' : t
-  } catch {
-    return '(failed to read body)'
-  }
+function getTeamId(params: Record<string, any>) {
+  return (
+    pickFirst(params.teamId) ||
+    pickFirst(params.id) ||
+    pickFirst(params.slug) ||
+    (Object.keys(params).length === 1 ? pickFirst(params[Object.keys(params)[0]]) : null)
+  )
 }
 
-export default async function TeamDebugPage({ params }: Props) {
-  const teamId = params?.teamId ?? '(missing teamId)'
+export default async function TeamDetailPage({ params }: Props) {
+  const teamId = getTeamId(params)
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  // 1) ENV 점검
-  const envInfo = {
-    teamId,
-    NODE_ENV: process.env.NODE_ENV ?? null,
-    VERCEL_ENV: process.env.VERCEL_ENV ?? null,
-    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ?? null,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: mask(anonKey),
+  // ✅ 파라미터 없으면 디버그 화면 노출
+  if (!teamId) {
+    return (
+      <main style={{ padding: 16 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 800 }}>TEAM PARAMS ERROR</h1>
+        <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
+          {JSON.stringify({ params }, null, 2)}
+        </pre>
+      </main>
+    )
   }
 
-  // 2) Supabase REST로 “직접” 조회 (auth-helpers, cookies 전부 배제)
-  //    => 여기서 200/401/403/404/0rows가 나오면 원인이 바로 확정됨.
-  let rest = {
-    ok: false,
-    status: null as number | null,
-    statusText: null as string | null,
-    body: null as string | null,
-    hint: null as string | null,
+  // ✅ 제네릭 지정 (중요)
+  const supabase = createServerComponentClient<Database>({ cookies })
+
+  const teamRes = await supabase
+    .from('teams')
+    .select('id, name, description, created_at')
+    .eq('id', teamId)
+    .maybeSingle()
+
+  if (teamRes.error) {
+    console.error('[teamRes.error]', teamRes.error)
+    notFound()
   }
 
-  if (!supabaseUrl || !anonKey) {
-    rest.hint = 'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in runtime env.'
-  } else {
-    const url = `${supabaseUrl}/rest/v1/teams?id=eq.${encodeURIComponent(teamId)}&select=id,name,created_at`
-    try {
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-          Accept: 'application/json',
-        },
-        cache: 'no-store',
-      })
-
-      const body = await safeText(res)
-
-      rest = {
-        ok: res.ok,
-        status: res.status,
-        statusText: res.statusText,
-        body,
-        hint:
-          res.status === 401
-            ? '401: anon key / URL mismatch, or invalid key.'
-            : res.status === 403
-              ? '403: RLS or permissions blocked for anon.'
-              : res.status === 404
-                ? '404: Supabase REST endpoint not reachable (URL wrong) OR project not found.'
-                : null,
-      }
-    } catch (e: any) {
-      rest.hint = `Fetch failed: ${String(e?.message ?? e)}`
-    }
-  }
-
-  // 3) 타입은 있어도 여기서는 사용 안함(진단이 목적)
-  const info = { env: envInfo, supabase_rest_test: rest }
+  // ✅ 여기서 타입 강제 고정 (never 방지)
+  const team = (teamRes.data as unknown as TeamRow) ?? null
+  if (!team) notFound()
 
   return (
     <main style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 800 }}>TEAM DEBUG (no notFound)</h1>
-      <p style={{ marginTop: 6, opacity: 0.8 }}>
-        This page always renders to reveal runtime env and Supabase REST response.
-      </p>
+      <h1 style={{ fontSize: 22, fontWeight: 800 }}>{team.name ?? 'TEAM'}</h1>
 
-      <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
-        {JSON.stringify(info, null, 2)}
-      </pre>
+      {team.description ? (
+        <p style={{ marginTop: 8, lineHeight: 1.6 }}>{team.description}</p>
+      ) : null}
+
+      <p style={{ marginTop: 10, opacity: 0.7 }}>teamId: {team.id}</p>
     </main>
   )
 }
