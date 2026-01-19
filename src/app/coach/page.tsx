@@ -7,7 +7,7 @@ import KeywordButtons from './KeywordButtons'
 import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
-import ActiveTeamsGrid, { mapTeamRowToCard, type TeamCard } from '@/components/team/ActiveTeamsGrid'
+import ActiveTeamsGrid, { type TeamCard } from '@/components/team/ActiveTeamsGrid'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -19,12 +19,45 @@ type NewsPostRow = {
   created_at: string | null
 }
 
+type TeamRow = Database['public']['Tables']['teams']['Row']
+
 async function getRequestOrigin() {
   const h = await headers()
   const host = h.get('x-forwarded-host') ?? h.get('host')
   const proto = h.get('x-forwarded-proto') ?? 'https'
   if (!host) return null
   return `${proto}://${host}`
+}
+
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
+}
+
+function buildTeamImageUrl(image_url: string | null) {
+  if (!image_url) return null
+
+  const raw = String(image_url).trim()
+  if (!raw) return null
+
+  // ✅ 이미 전체 URL이면 그대로 사용
+  if (/^https?:\/\//i.test(raw)) return raw
+
+  // ✅ 경로(team/xxx.png)면 Supabase public URL로 조합
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
+  if (!supabaseUrl) return raw // env 없으면 그냥 반환(로컬 확인용)
+
+  const path = raw.replace(/^\//, '') // leading slash 제거
+  return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/team-images/${path}`
+}
+
+function mapTeamRowToCard(row: TeamRow): TeamCard {
+  const tags = [row.tag1, row.tag2].filter((x): x is string => Boolean(x && String(x).trim()))
+  return {
+    id: row.id,
+    name: row.name,
+    imageUrl: buildTeamImageUrl(row.image_url),
+    tags,
+  }
 }
 
 async function getPopularKeywords() {
@@ -75,24 +108,16 @@ async function createSupabaseServer() {
   })
 }
 
-async function getActiveTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>): Promise<TeamCard[]> {
+async function getOngoingTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, image_url, tag1, tag2, is_active, created_at')
+    .select('id, name, image_url, tag1, tag2, created_at, is_active')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
     .limit(8)
 
   if (error || !data) return []
-  return data.map((row) =>
-    mapTeamRowToCard({
-      id: row.id,
-      name: row.name,
-      image_url: row.image_url,
-      tag1: row.tag1,
-      tag2: row.tag2,
-    })
-  )
+  return (data as TeamRow[]).map(mapTeamRowToCard)
 }
 
 export default async function CoachPage() {
@@ -109,7 +134,7 @@ export default async function CoachPage() {
 
   const news: NewsPostRow[] = newsErr || !newsRes ? [] : (newsRes as NewsPostRow[])
 
-  const activeTeams = await getActiveTeams(supabase)
+  const ongoingTeams = await getOngoingTeams(supabase)
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -138,9 +163,9 @@ export default async function CoachPage() {
           <ChatBox />
         </section>
 
-        {/* ✅ Ongoing Teams: ChatBox 입력창 아래 + Tips 위 */}
+        {/* ✅ Ongoing Teams: ChatBox 입력창 아래, Tips 위 */}
         <section className="mb-8">
-          <ActiveTeamsGrid title="Ongoing Teams" teams={activeTeams} />
+          <ActiveTeamsGrid title="Ongoing Teams" teams={ongoingTeams} />
         </section>
 
         {/* Tips + News */}
