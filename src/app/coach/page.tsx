@@ -157,8 +157,8 @@ export default async function CoachPage() {
 
         <section className="text-center mb-16">
           <div className="leading-tight">
-            <div className="text-[23px] text-[#0e0e0e] font-medium">HELLO</div>
-            <div className="text-[23px] text-[#0e0e0e] font-medium">I AM YOUR AI PARENTING COACH</div>
+            <div className="text-[25px] text-[#0e0e0e] font-medium">HELLO</div>
+            <div className="text-[25px] text-[#0e0e0e] font-medium">I AM YOUR AI PARENTING COACH</div>
           </div>
         </section>
 

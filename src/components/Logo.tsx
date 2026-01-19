@@ -7,8 +7,8 @@ export default function Logo() {
       <Image
         src="/logo.png"
         alt="Logo"
-        width={120}
-        height={120}
+        width={60}
+        height={60}
         priority
       />
     </div>
