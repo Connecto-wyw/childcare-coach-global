@@ -48,11 +48,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
-  // 높이 자동 확장
+  // ✅ 높이 자동 확장 (입력창이 첫 화면에서 보이도록 최소 높이 축소)
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const [scrollHeightPx, setScrollHeightPx] = useState<number>(220)
-  const MIN_H = 220
-  const MAX_H = 520
+  const [scrollHeightPx, setScrollHeightPx] = useState<number>(160)
+  const MIN_H = 140
+  const MAX_H = 460
 
   useEffect(() => {
     if (user) setShowLoginModal(false)
@@ -174,12 +174,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* 메시지 영역: 테두리/배경 최소화 (화이트 톤) */}
-      <div
-        ref={scrollRef}
-        style={{ height: `${scrollHeightPx}px` }}
-        className="overflow-y-auto"
-      >
+      <div ref={scrollRef} style={{ height: `${scrollHeightPx}px` }} className="overflow-y-auto">
         {messages.length === 0 ? (
           <div className="h-full" />
         ) : (
@@ -226,8 +221,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         )}
       </div>
 
-      {/* 입력창: 스펙 그대로 */}
-      <div className="mt-6 border border-[#dcdcdc] bg-white">
+      {/* ✅ mt-6 -> mt-3 */}
+      <div className="mt-3 border border-[#dcdcdc] bg-white">
         <div className="flex items-stretch">
           <textarea
             value={input}
@@ -267,14 +262,16 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
 
-      {/* 로그인 모달: UI 톤 맞춤 */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm bg-white p-6 text-center text-[#0e0e0e] border border-[#dcdcdc]">
             <h3 className="text-[13px] font-semibold text-[#1e1e1e]">Sign in to continue</h3>
 
             <div className="mt-4 grid gap-2">
-              <button onClick={loginGoogle} className="h-10 bg-[#1e1e1e] text-white text-[13px] font-semibold">
+              <button
+                onClick={loginGoogle}
+                className="h-10 bg-[#1e1e1e] text-white text-[13px] font-semibold"
+              >
                 Sign in
               </button>
               <button
@@ -285,7 +282,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
               </button>
             </div>
 
-            {/* 디버그(원하면 삭제) */}
             <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
               user: {user?.id ?? 'null'}
               {'\n'}
