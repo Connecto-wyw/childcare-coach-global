@@ -137,7 +137,7 @@ export default async function CoachPage() {
   const ongoingTeams = await getOngoingTeams(supabase)
 
   return (
-    <main className="min-h-screen bg-white text-[#0e0e0e]">
+    <main className="min-h-screen bg-white text-[#0e0e0e] pb-28">
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* 로고 */}
         <div className="flex justify-center mb-4">
@@ -146,8 +146,8 @@ export default async function CoachPage() {
 
         <section className="text-center mb-16">
   <div className="leading-tight">
-    <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
-    <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
+    <div className="text-[23px] text-[#0e0e0e] font-medium">HELLO</div>
+    <div className="text-[23px] text-[#0e0e0e] font-medium">I AM YOUR AI PARENTING COACH</div>
   </div>
 </section>
 
