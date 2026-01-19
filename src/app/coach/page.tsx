@@ -144,24 +144,23 @@ export default async function CoachPage() {
           <Logo />
         </div>
 
-        {/* 타이틀 */}
-        <section className="text-center mb-6">
-          <div className="leading-tight">
-            <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
-            <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
-          </div>
-        </section>
+        <section className="text-center mb-16">
+  <div className="leading-tight">
+    <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
+    <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
+  </div>
+</section>
 
-        {/* Popular ways */}
-        <section className="mb-6">
-          <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">Popular ways to get started</div>
-          <KeywordButtons keywords={keywords} />
-        </section>
+{/* People also ask */}
+<section className="mb-6">
+  <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">People also ask</div>
+  <KeywordButtons keywords={keywords} />
+</section>
 
-        {/* Chat */}
-        <section className="mb-6">
-          <ChatBox />
-        </section>
+{/* ✅ 입력창/대화는 “키워드 바로 밑”에 오도록 ChatBox를 여기 둠 */}
+<section className="mb-8">
+  <ChatBox />
+</section>
 
         {/* ✅ Ongoing Teams: ChatBox 입력창 아래, Tips 위 */}
         <section className="mb-8">

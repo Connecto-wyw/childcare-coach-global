@@ -43,26 +43,15 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const [error, setError] = useState('')
   const [debug, setDebug] = useState('')
-
   const [showLoginModal, setShowLoginModal] = useState(false)
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
   // ✅ 메시지 영역 높이 자동 확장
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const [scrollHeightPx, setScrollHeightPx] = useState<number>(160)
-  const MIN_H = 140
-  const MAX_H = 460
-
-  // ✅ fixed 입력창 높이만큼 메시지 영역 아래 여백 확보
-  // - 입력박스(대략 56~72px) + 에러(있으면) + safe-area + 약간의 버퍼
-  const INPUT_BOX_ESTIMATED_H = 72
-  const ERROR_ESTIMATED_H = 24
-  const EXTRA_BUFFER = 16
-  const hasError = Boolean(error)
-
-  // safe-area(inset-bottom)은 iOS 등에서만 의미 있음. 없는 환경은 0처럼 동작.
-  const scrollPaddingBottom = `calc(${INPUT_BOX_ESTIMATED_H + (hasError ? ERROR_ESTIMATED_H : 0) + EXTRA_BUFFER}px + env(safe-area-inset-bottom))`
+  const [scrollHeightPx, setScrollHeightPx] = useState<number>(220)
+  const MIN_H = 160
+  const MAX_H = 520
 
   useEffect(() => {
     if (user) setShowLoginModal(false)
@@ -184,12 +173,51 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* ✅ 메시지 영역: fixed 입력창에 가리지 않게 padding-bottom 확보 */}
-      <div
-        ref={scrollRef}
-        style={{ height: `${scrollHeightPx}px`, paddingBottom: scrollPaddingBottom }}
-        className="overflow-y-auto"
-      >
+      {/* ✅ 입력창: 페이지 하단 fixed가 아니라, "키워드 섹션 아래"에 sticky */}
+      <div className="sticky top-0 z-30 bg-white">
+        <div className="border border-[#dcdcdc] bg-white shadow-sm">
+          <div className="flex items-stretch">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void ask()
+                }
+              }}
+              placeholder="Anything on your mind?"
+              rows={1}
+              disabled={loading}
+              className={[
+                'flex-1 resize-none outline-none',
+                'bg-[#f5f5f5]',
+                'px-4 py-3',
+                'text-[15px] font-bold text-[#0e0e0e]',
+                'placeholder:text-[#dcdcdc] placeholder:font-normal',
+                'leading-[24px]',
+              ].join(' ')}
+            />
+            <button
+              onClick={() => void ask()}
+              disabled={loading || !input.trim()}
+              className={[
+                'w-[92px]',
+                'bg-[#DA3632] text-white',
+                'text-[15px] font-semibold',
+                'disabled:opacity-50',
+              ].join(' ')}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
+      </div>
+
+      {/* ✅ 메시지 영역 (입력창이 위에 있으니까 padding-bottom 필요 없음) */}
+      <div ref={scrollRef} style={{ height: `${scrollHeightPx}px` }} className="overflow-y-auto mt-4">
         {messages.length === 0 ? (
           <div className="h-full" />
         ) : (
@@ -234,56 +262,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
             <div ref={endRef} />
           </div>
         )}
-      </div>
-
-      {/* ✅ 입력창: 진짜 하단 고정(bottom-0) + safe-area 대응 */}
-      <div className="fixed left-0 right-0 bottom-0 z-40">
-        <div
-          className="bg-white border-t border-[#dcdcdc]"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="mt-3 border border-[#dcdcdc] bg-white shadow-sm">
-              <div className="flex items-stretch">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      void ask()
-                    }
-                  }}
-                  placeholder="Anything on your mind?"
-                  rows={1}
-                  disabled={loading}
-                  className={[
-                    'flex-1 resize-none outline-none',
-                    'bg-[#f5f5f5]',
-                    'px-4 py-3',
-                    'text-[15px] font-bold text-[#0e0e0e]',
-                    'placeholder:text-[#dcdcdc] placeholder:font-normal',
-                    'leading-[24px]',
-                  ].join(' ')}
-                />
-                <button
-                  onClick={() => void ask()}
-                  disabled={loading || !input.trim()}
-                  className={[
-                    'w-[92px]',
-                    'bg-[#DA3632] text-white',
-                    'text-[15px] font-semibold',
-                    'disabled:opacity-50',
-                  ].join(' ')}
-                >
-                  Send
-                </button>
-              </div>
-            </div>
-
-            {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
-          </div>
-        </div>
       </div>
 
       {showLoginModal && (

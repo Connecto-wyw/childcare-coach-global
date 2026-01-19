@@ -72,12 +72,12 @@ export default function NavBar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <span className="truncate max-w-[180px] text-[13px] font-medium text-[#b4b4b4]">
+              <span className="truncate max-w-[180px] text-[15px] font-medium text-[#b4b4b4]">
                 {user.user_metadata?.full_name || user.user_metadata?.name || user.email}
               </span>
               <button
                 onClick={logout}
-                className="px-4 h-8 bg-[#1e1e1e] text-white text-[13px] font-semibold"
+                className="px-4 h-8 bg-[#1e1e1e] text-white text-[15px] font-semibold"
               >
                 Sign out
               </button>
@@ -85,7 +85,7 @@ export default function NavBar() {
           ) : (
             <button
               onClick={loginGoogle}
-              className="px-4 h-8 bg-[#1e1e1e] text-white text-[13px] font-semibold"
+              className="px-4 h-8 bg-[#1e1e1e] text-white text-[15px] font-semibold"
             >
               Sign in
             </button>

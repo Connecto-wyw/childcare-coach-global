@@ -55,7 +55,7 @@ export default function CoachHero({ keywords }: Props) {
       </motion.div>
 
       <motion.div variants={item} className="leading-tight mb-6">
-        <div className="text-[23px] text-[#0e0e0e] font-medium">Ask me anything</div>
+        <div className="text-[23px] text-[#0e0e0e] font-medium">team-itemsthing</div>
         <div className="text-[23px] text-[#0e0e0e] font-light">about parenting</div>
       </motion.div>
 
