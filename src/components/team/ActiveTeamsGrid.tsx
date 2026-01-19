@@ -25,7 +25,7 @@ function TagPill({ label }: { label: string }) {
   )
 }
 
-export default function ActiveTeamsGrid({ title = 'Ongoing Teams', teams, className }: Props) {
+export default function ActiveTeamsGrid({ title = 'Ongoing Teams', teams, className="mt-3" }: Props) {
   const items = useMemo(() => (Array.isArray(teams) ? teams : []), [teams])
 
   if (items.length === 0) return null

@@ -1,7 +1,7 @@
 // src/components/chat/ChatBox.tsx
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAuthUser, useSupabase } from '@/app/providers'
 
@@ -46,16 +46,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [showLoginModal, setShowLoginModal] = useState(false)
 
   const endRef = useRef<HTMLDivElement | null>(null)
-  const scrollRef = useRef<HTMLDivElement | null>(null)
-
-  // 메시지 영역 높이 자동 확장
-  const [scrollHeightPx, setScrollHeightPx] = useState<number>(200)
-  const MIN_H = 160
-  const MAX_H = 520
-
-  // ✅ 하단 플로팅 입력창 높이만큼 "메시지 영역/페이지"가 가려지지 않도록 여백 확보
-  // (textarea + button + border + 여백 고려해서 안전하게)
-  const FLOAT_ESTIMATED_H = 96
 
   useEffect(() => {
     if (user) setShowLoginModal(false)
@@ -69,15 +59,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     const id = setInterval(() => setDots((d) => (d + 1) % 4), 400)
     return () => clearInterval(id)
   }, [loading])
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const contentHeight = el.scrollHeight
-    const target = Math.min(MAX_H, Math.max(MIN_H, contentHeight))
-    if (target !== scrollHeightPx) setScrollHeightPx(target)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, loading])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -177,60 +158,50 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* 메시지 영역 (floating input 때문에 아래쪽 여백 확보) */}
-      <div
-        ref={scrollRef}
-        style={{ height: `${scrollHeightPx}px`, paddingBottom: `${FLOAT_ESTIMATED_H}px` }}
-        className="overflow-y-auto"
-      >
-        {messages.length === 0 ? (
-          <div className="h-full" />
-        ) : (
-          <div className="space-y-3">
-            {messages.map((m) => (
-              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={[
-                    'max-w-[80%] rounded-xl px-4 py-3',
-                    'text-[15px] leading-relaxed',
-                    m.role === 'user'
-                      ? 'bg-[#f0f1f6] text-[#0e0e0e] font-bold'
-                      : 'bg-white border border-[#dcdcdc] text-[#0e0e0e] font-medium',
-                  ].join(' ')}
-                >
-                  {m.role === 'assistant' ? (
-                    <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
-                          li: ({ children }) => <li className="mb-1">{children}</li>,
-                        }}
-                      >
-                        {m.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <span className="whitespace-pre-wrap">{m.content}</span>
-                  )}
+      {/* ✅ 메시지는 페이지에 그대로 쌓이게 (페이지 스크롤이 늘어남) */}
+      <div className="space-y-3 pb-28">
+        {messages.map((m) => (
+          <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              className={[
+                'max-w-[80%] rounded-xl px-4 py-3',
+                'text-[15px] leading-relaxed',
+                m.role === 'user'
+                  ? 'bg-[#f0f1f6] text-[#0e0e0e] font-bold'
+                  : 'bg-white border border-[#dcdcdc] text-[#0e0e0e] font-medium',
+              ].join(' ')}
+            >
+              {m.role === 'assistant' ? (
+                <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
                 </div>
-              </div>
-            ))}
+              ) : (
+                <span className="whitespace-pre-wrap">{m.content}</span>
+              )}
+            </div>
+          </div>
+        ))}
 
-            {loading && (
-              <div className="flex justify-start">
-                <div className="rounded-xl bg-white border border-[#dcdcdc] px-4 py-3 text-[15px] font-medium text-[#0e0e0e]">
-                  Thinking{'.'.repeat(dots)}
-                </div>
-              </div>
-            )}
-
-            <div ref={endRef} />
+        {loading && (
+          <div className="flex justify-start">
+            <div className="rounded-xl bg-white border border-[#dcdcdc] px-4 py-3 text-[15px] font-medium text-[#0e0e0e]">
+              Thinking{'.'.repeat(dots)}
+            </div>
           </div>
         )}
+
+        <div ref={endRef} />
       </div>
 
-      {/* ✅ 하단 플로팅 입력창 (항상 보이게) */}
-      <div className="fixed left-0 right-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
+      {/* ✅ 입력창: 하단 플로팅 유지 + 여백 줄이기 (bottom-12 -> bottom-4) */}
+      <div className="fixed left-0 right-0 bottom-4 z-40">
         <div className="max-w-5xl mx-auto px-4">
           <div className="border border-[#dcdcdc] bg-white shadow-sm">
             <div className="flex items-stretch">
