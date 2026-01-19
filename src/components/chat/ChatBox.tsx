@@ -233,7 +233,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   'w-[92px]',
                   'bg-[#DA3632] text-white',
                   'text-[15px] font-semibold',
-                  'disabled:opacity-50',
+                  'cursor-pointer',
+                  'disabled:cursor-not-allowed',
                 ].join(' ')}
               >
                 Send
