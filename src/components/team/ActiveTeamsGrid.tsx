@@ -1,26 +1,11 @@
 // src/components/team/ActiveTeamsGrid.tsx
 import Link from 'next/link'
-import Image from 'next/image'
-import type { Database } from '@/lib/database.types'
-
-export type TeamRow = Database['public']['Tables']['teams']['Row']
 
 export type TeamCard = {
   id: string
   name: string
   imageUrl: string | null
-  tag1: string | null
-  tag2: string | null
-}
-
-export function mapTeamRowToCard(row: TeamRow): TeamCard {
-  return {
-    id: row.id,
-    name: row.name,
-    imageUrl: row.image_url ?? null,
-    tag1: row.tag1 ?? null,
-    tag2: row.tag2 ?? null,
-  }
+  tags: string[]
 }
 
 type Props = {
@@ -29,21 +14,48 @@ type Props = {
   className?: string
 }
 
-function Tags({ tag1, tag2 }: { tag1: string | null; tag2: string | null }) {
-  const tags = [tag1, tag2].filter(Boolean) as string[]
-  if (tags.length === 0) return null
+export function buildTeamImageUrl(input: string | null | undefined) {
+  const raw = (input ?? '').trim()
+  if (!raw) return null
 
+  // 이미 완성 URL이면 그대로 사용
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
+  if (!base) return null
+
+  // 1) DB에 "team-images/..." 형태로 들어온 경우
+  if (raw.startsWith('team-images/')) {
+    return `${base}/storage/v1/object/public/${raw}`
+  }
+
+  // 2) DB에 "team/..." 또는 "7d08.../..." 형태로 경로만 들어온 경우
+  // -> bucket: team-images
+  return `${base}/storage/v1/object/public/team-images/${raw.replace(/^\//, '')}`
+}
+
+// ✅ DB Row -> TeamCard 변환용 (page.tsx에서 쓰려고 export)
+export function mapTeamRowToCard(row: {
+  id: string
+  name: string
+  image_url: string | null
+  tag1: string | null
+  tag2: string | null
+}) {
+  const tags = [row.tag1, row.tag2].map((v) => (v ?? '').trim()).filter(Boolean)
+  return {
+    id: row.id,
+    name: row.name,
+    imageUrl: buildTeamImageUrl(row.image_url),
+    tags,
+  } satisfies TeamCard
+}
+
+function TagPill({ label }: { label: string }) {
   return (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {tags.map((t) => (
-        <span
-          key={t}
-          className="text-[11px] leading-none px-2 py-1 rounded bg-white/70 text-[#1e1e1e] border border-[#dcdcdc]"
-        >
-          {t}
-        </span>
-      ))}
-    </div>
+    <span className="inline-flex items-center rounded border border-[#d9d9d9] bg-white px-2 py-[2px] text-[12px] text-[#1e1e1e]">
+      {label}
+    </span>
   )
 }
 
@@ -51,48 +63,63 @@ export default function ActiveTeamsGrid({ title = 'Ongoing Teams', teams, classN
   if (!teams || teams.length === 0) return null
 
   return (
-    <section className={className ?? ''}>
-      <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">{title}</div>
+    <section className={className}>
+      <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">{title}</h3>
 
-      {/* ✅ 모바일 2열 */}
+      {/* ✅ 모바일: 한 줄 2개 */}
       <div className="grid grid-cols-2 gap-3">
-        {teams.map((t) => {
-          const href = `/team/${t.id}`
-
-          return (
-            <Link
-              key={t.id}
-              href={href}
-              className="block rounded overflow-hidden bg-[#f0f7fd] border border-[#dcdcdc] hover:opacity-95 transition"
-            >
-              {/* 이미지 영역: 카드 폭에 맞춰 자동 반사이즈 */}
-              <div className="relative w-full aspect-square bg-[#f5f5f5]">
-                {t.imageUrl ? (
-                  <Image
-                    src={t.imageUrl}
-                    alt={t.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                    className="object-cover"
-                    priority={false}
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-[#b4b4b4] text-[12px]">
-                    No image
-                  </div>
-                )}
-              </div>
-
-              {/* 텍스트 영역 */}
-              <div className="px-3 py-3">
-                <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug line-clamp-2">
-                  {t.name}
+        {teams.map((t) => (
+          <Link
+            key={t.id}
+            href={`/team/${t.id}`}
+            className="block rounded border border-[#d9d9d9] bg-[#f0f7fd] overflow-hidden"
+          >
+            {/* 이미지 */}
+            <div className="w-full aspect-square bg-white">
+              {t.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={t.imageUrl}
+                  alt={t.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    const img = e.currentTarget
+                    img.style.display = 'none'
+                    const parent = img.parentElement
+                    if (parent) {
+                      parent.style.display = 'flex'
+                      parent.style.alignItems = 'center'
+                      parent.style.justifyContent = 'center'
+                      parent.style.color = '#b4b4b4'
+                      parent.style.fontSize = '12px'
+                      parent.textContent = 'No image'
+                    }
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[#b4b4b4] text-[12px]">
+                  No image
                 </div>
-                <Tags tag1={t.tag1} tag2={t.tag2} />
+              )}
+            </div>
+
+            {/* 텍스트 */}
+            <div className="p-3">
+              <div className="text-[#0e0e0e] text-[13px] font-semibold leading-snug line-clamp-2">
+                {t.name}
               </div>
-            </Link>
-          )
-        })}
+
+              {t.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {t.tags.slice(0, 3).map((tag) => (
+                    <TagPill key={`${t.id}-${tag}`} label={tag} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </Link>
+        ))}
       </div>
     </section>
   )

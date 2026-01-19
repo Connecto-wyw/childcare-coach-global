@@ -7,7 +7,7 @@ import KeywordButtons from './KeywordButtons'
 import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
-import ActiveTeamsGrid, { mapTeamRowToCard } from '@/components/team/ActiveTeamsGrid'
+import ActiveTeamsGrid, { mapTeamRowToCard, type TeamCard } from '@/components/team/ActiveTeamsGrid'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -75,29 +75,31 @@ async function createSupabaseServer() {
   })
 }
 
-// ✅ mapTeamRowToCard가 요구하는 “풀 Row”에 맞춰서 select를 넓힘
-type TeamRowForCard = Database['public']['Tables']['teams']['Row']
-
-async function getActiveTeams(
-  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
-): Promise<ReturnType<typeof mapTeamRowToCard>[]> {
+async function getActiveTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>): Promise<TeamCard[]> {
   const { data, error } = await supabase
     .from('teams')
-    .select('created_at, description, id, image_url, name, owner_id, purpose, region, tag1, tag2, is_active')
+    .select('id, name, image_url, tag1, tag2, is_active, created_at')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
     .limit(8)
 
   if (error || !data) return []
-  return (data as TeamRowForCard[]).map(mapTeamRowToCard)
+  return data.map((row) =>
+    mapTeamRowToCard({
+      id: row.id,
+      name: row.name,
+      image_url: row.image_url,
+      tag1: row.tag1,
+      tag2: row.tag2,
+    })
+  )
 }
 
 export default async function CoachPage() {
   const supabase = await createSupabaseServer()
 
   const kw = await getPopularKeywords()
-  const keywords =
-    kw && kw.length > 0 ? kw : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
+  const keywords = kw && kw.length > 0 ? kw : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
 
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
@@ -131,14 +133,14 @@ export default async function CoachPage() {
           <KeywordButtons keywords={keywords} />
         </section>
 
-        {/* ✅ Ongoing Teams (Today’s Parenting Tips 위) */}
-        <section className="mb-8">
-          <ActiveTeamsGrid title="Ongoing Teams" teams={activeTeams} />
+        {/* Chat */}
+        <section className="mb-6">
+          <ChatBox />
         </section>
 
-        {/* Chat */}
+        {/* ✅ Ongoing Teams: ChatBox 입력창 아래 + Tips 위 */}
         <section className="mb-8">
-          <ChatBox />
+          <ActiveTeamsGrid title="Ongoing Teams" teams={activeTeams} />
         </section>
 
         {/* Tips + News */}
