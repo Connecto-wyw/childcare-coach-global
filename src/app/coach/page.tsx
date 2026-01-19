@@ -153,7 +153,7 @@ export default async function CoachPage() {
 
 {/* People also ask */}
 <section className="mb-3">
-  <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">People also ask</div>
+  <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">People are also asking</div>
   <KeywordButtons keywords={keywords} />
 </section>
 
