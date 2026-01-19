@@ -1,6 +1,5 @@
 // src/app/team/[teamId]/page.tsx
 import { cookies } from 'next/headers'
-import { notFound } from 'next/navigation'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '../../../lib/database.types'
 
@@ -8,41 +7,100 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type TeamRow = Database['public']['Tables']['teams']['Row']
+function mask(v: string | undefined | null) {
+  if (!v) return '(missing)'
+  if (v.length <= 12) return '***'
+  return `${v.slice(0, 6)}...${v.slice(-6)}`
+}
 
-export default async function TeamDetailPage({
+async function safeText(res: Response) {
+  try {
+    const t = await res.text()
+    return t.length > 2000 ? t.slice(0, 2000) + '\n...<truncated>' : t
+  } catch {
+    return '(failed to read body)'
+  }
+}
+
+export default async function TeamDebugPage({
   params,
 }: {
   params: { teamId: string }
 }) {
-  // ✅ 표준 시그니처면 여기엔 무조건 값이 들어와야 정상
   const teamId = params.teamId
 
-  const supabase = createServerComponentClient<Database>({ cookies })
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  // 1) auth-helpers 기반 조회(현재 너 코드 흐름)
+  const supabase = createServerComponentClient<Database>({ cookies })
   const teamRes = await supabase
     .from('teams')
     .select('id, name, description, created_at')
     .eq('id', teamId)
     .maybeSingle()
 
-  if (teamRes.error) {
-    console.error('[teamRes.error]', teamRes.error)
-    notFound()
+  // 2) Supabase REST 직접 조회(쿠키/세션 영향 제거)
+  let rest = {
+    ok: false,
+    status: null as number | null,
+    statusText: null as string | null,
+    body: null as string | null,
   }
 
-  const team = (teamRes.data as unknown as TeamRow) ?? null
-  if (!team) notFound()
+  if (supabaseUrl && anonKey) {
+    const url = `${supabaseUrl}/rest/v1/teams?id=eq.${encodeURIComponent(teamId)}&select=id,name,created_at`
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          Accept: 'application/json',
+        },
+        cache: 'no-store',
+      })
+      rest = {
+        ok: res.ok,
+        status: res.status,
+        statusText: res.statusText,
+        body: await safeText(res),
+      }
+    } catch (e: any) {
+      rest = {
+        ok: false,
+        status: null,
+        statusText: 'FETCH_FAILED',
+        body: String(e?.message ?? e),
+      }
+    }
+  } else {
+    rest.body = 'Missing env NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  }
 
   return (
     <main style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800 }}>{team.name ?? 'TEAM'}</h1>
-
-      {team.description ? (
-        <p style={{ marginTop: 8, lineHeight: 1.6 }}>{team.description}</p>
-      ) : null}
-
-      <p style={{ marginTop: 10, opacity: 0.7 }}>teamId: {team.id}</p>
+      <h1 style={{ fontSize: 18, fontWeight: 900 }}>TEAM DEBUG</h1>
+      <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
+{JSON.stringify(
+  {
+    teamId,
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ?? null,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: mask(anonKey),
+      NODE_ENV: process.env.NODE_ENV ?? null,
+      VERCEL_ENV: process.env.VERCEL_ENV ?? null,
+    },
+    auth_helpers_query: {
+      data: teamRes.data ?? null,
+      error: teamRes.error ?? null,
+    },
+    rest_query: rest,
+  },
+  null,
+  2
+)}
+      </pre>
     </main>
   )
 }
