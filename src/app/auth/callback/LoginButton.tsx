@@ -19,8 +19,8 @@ export default function LoginButton() {
       envSite.length > 0
         ? stripTrailingSlash(envSite)
         : typeof window !== 'undefined'
-          ? window.location.origin
-          : ''
+        ? window.location.origin
+        : ''
 
     const redirectTo = `${base}/auth/callback?next=/coach`
 
@@ -31,8 +31,11 @@ export default function LoginButton() {
   }, [auth])
 
   return (
-    <button onClick={signInWithGoogle} className="px-3 py-2 rounded bg-black text-white">
-      Google로 로그인
+    <button
+      onClick={signInWithGoogle}
+      className="px-3 py-2 rounded bg-black text-white text-[14px] font-semibold"
+    >
+      Continue with Google
     </button>
   )
 }
