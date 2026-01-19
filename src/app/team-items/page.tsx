@@ -77,7 +77,7 @@ export default function TeamPage() {
             <section>
               <div className="flex items-end justify-between">
                 <h2 className="text-xl font-semibold">TEAM ITEMS</h2>
-                <Link href="/team-items" className="text-sm text-white/70 hover:text-white">
+                <Link href="/team-itemss" className="text-sm text-white/70 hover:text-white">
                   전체보기 →
                 </Link>
               </div>
@@ -89,7 +89,7 @@ export default function TeamPage() {
                   {teamItems.map((it) => (
                     <Link
                       key={it.id}
-                      href={`/team-items/${it.slug}`}
+                      href={`/team-itemss/${it.slug}`}
                       className="block bg-[#222] border border-gray-700 rounded-lg overflow-hidden hover:border-white/30 hover:bg-white/5 transition cursor-pointer"
                     >
                       <div className="w-full aspect-[4/3] bg-[#111]">

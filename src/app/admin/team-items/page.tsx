@@ -24,7 +24,7 @@ export default async function AdminTeamItemsPage() {
       <div className="mx-auto max-w-4xl p-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Admin · TEAM Items</h1>
-          <Link className="rounded-xl bg-[#3EB6F1] px-4 py-2 font-semibold text-black" href="/admin/team-items/new">
+          <Link className="rounded-xl bg-[#3EB6F1] px-4 py-2 font-semibold text-black" href="/admin/team-itemss/new">
             + New
           </Link>
         </div>
@@ -33,7 +33,7 @@ export default async function AdminTeamItemsPage() {
           {list.map((it) => (
             <Link
               key={it.id}
-              href={`/admin/team-items/${it.id}`}
+              href={`/admin/team-itemss/${it.id}`}
               className="rounded-2xl bg-white/5 p-4 hover:bg-white/10"
             >
               <div className="flex items-center justify-between">

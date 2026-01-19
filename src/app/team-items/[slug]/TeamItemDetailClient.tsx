@@ -1,4 +1,4 @@
-// src/app/team-items/[slug]/TeamItemDetailClient.tsx
+// src/app/team-itemss/[slug]/TeamItemDetailClient.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -44,7 +44,7 @@ export default function TeamItemDetailClient({
   }, [item, count])
 
   const refreshCount = async () => {
-    const res = await fetch(`/api/team-items/${item.slug}/count`, { cache: 'no-store' })
+    const res = await fetch(`/api/team-itemss/${item.slug}/count`, { cache: 'no-store' })
     if (!res.ok) return
     const json = (await res.json()) as { participant_count: number }
     setCount(json.participant_count ?? 0)
@@ -61,7 +61,7 @@ export default function TeamItemDetailClient({
       setJoining(true)
       const localUserId = getOrCreateLocalUserId()
 
-      const res = await fetch(`/api/team-items/${item.slug}/join`, {
+      const res = await fetch(`/api/team-itemss/${item.slug}/join`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ local_user_id: localUserId }),

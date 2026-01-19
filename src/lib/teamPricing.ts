@@ -88,3 +88,4 @@ export function calcTeamItemPricing(input: TeamPricingInput): TeamPricingResult 
 export function calcDiscountedPrice(input: TeamPricingInput): number {
   return calcTeamItemPricing(input).finalPrice
 }
+

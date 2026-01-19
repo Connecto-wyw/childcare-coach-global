@@ -58,7 +58,7 @@ async function createAction(formData: FormData) {
 
   if (error) throw new Error(error.message)
 
-  redirect(`/admin/team-items/${data.id}`)
+  redirect(`/admin/team-itemss/${data.id}`)
 }
 
 export default async function NewTeamItemPage() {

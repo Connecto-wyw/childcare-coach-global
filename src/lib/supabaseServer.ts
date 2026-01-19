@@ -1,10 +1,19 @@
+// src/lib/supabaseServer.ts
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
-export function supabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+export function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL is missing')
+  if (!serviceKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing')
+
   return createClient<Database>(url, serviceKey, {
     auth: { persistSession: false },
   })
 }
+
+// ✅ 기존 코드 호환용 별칭(export)
+// - import { supabaseAdmin } from '@/lib/supabaseServer'  를 살려줌
+export const supabaseAdmin = getSupabaseAdmin
