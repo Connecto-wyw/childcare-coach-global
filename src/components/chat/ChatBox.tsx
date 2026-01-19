@@ -204,7 +204,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       <div className="fixed left-0 right-0 bottom-4 z-40">
         <div className="max-w-5xl mx-auto px-4">
           <div className="border border-[#dcdcdc] bg-white shadow-sm">
-            <div className="flex items-stretch">
+            <div className="flex items-stretch gap-2">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
