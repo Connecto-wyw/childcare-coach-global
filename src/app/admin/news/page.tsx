@@ -1,13 +1,13 @@
 // src/app/admin/news/page.tsx
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Tables } from '@/lib/database.types'
 
 type NewsPost = Tables<'news_posts'>
 
-const NEWS_IMAGE_BUCKET = 'news-images' // ✅ Supabase Storage 버킷명 (다르면 이 값만 수정)
+const NEWS_IMAGE_BUCKET = 'news-images' // ✅ Supabase Storage 버킷명(다르면 여기만 수정)
 
 function yyyymmddhhmmss(d = new Date()) {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -39,7 +39,9 @@ function extFromFileName(name: string) {
 
 export default function AdminNewsPage() {
   const supabase = useSupabase()
-  const { user, loading } = useAuthUser()
+  const { user } = useAuthUser()
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [newsList, setNewsList] = useState<NewsPost[]>([])
 
@@ -51,11 +53,14 @@ export default function AdminNewsPage() {
   const [slugTouched, setSlugTouched] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  // ✅ 썸네일(cover_image_url) 상태
-  // - DB에는 문자열(스토리지 path 또는 전체 URL)을 저장
+  // ✅ 썸네일 상태
+  // coverPath: DB에 저장되는 값(스토리지 path 또는 전체 URL)
+  // coverFile: 새로 선택한 파일(업로드는 Save/Create 시)
+  // coverPreviewUrl: 화면 표시용 URL(스토리지 public URL 또는 objectURL)
   const [coverPath, setCoverPath] = useState<string | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
+  const [coverObjectUrl, setCoverObjectUrl] = useState<string | null>(null) // ✅ objectURL 추적(메모리 누수 방지)
 
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -64,6 +69,17 @@ export default function AdminNewsPage() {
   useEffect(() => {
     if (!slugTouched) setSlug(autoSlug)
   }, [autoSlug, slugTouched])
+
+  const computeCoverPreview = (pathOrUrl: string | null) => {
+    if (!pathOrUrl) return null
+    const raw = String(pathOrUrl).trim()
+    if (!raw) return null
+
+    if (/^https?:\/\//i.test(raw)) return raw
+
+    const { data } = supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(raw.replace(/^\//, ''))
+    return data?.publicUrl || null
+  }
 
   const fetchNews = async () => {
     const { data, error } = await supabase
@@ -83,23 +99,36 @@ export default function AdminNewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ✅ coverPath(스토리지 path)를 public URL로 변환(프리뷰용)
-  const computeCoverPreview = (pathOrUrl: string | null) => {
-    if (!pathOrUrl) return null
-    const raw = String(pathOrUrl).trim()
-    if (!raw) return null
+  const revokeObjectUrlIfAny = () => {
+    if (coverObjectUrl) {
+      try {
+        URL.revokeObjectURL(coverObjectUrl)
+      } catch {}
+      setCoverObjectUrl(null)
+    }
+  }
 
-    // 이미 전체 URL이면 그대로
-    if (/^https?:\/\//i.test(raw)) return raw
-
-    // storage public url로 변환
-    const { data } = supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(raw.replace(/^\//, ''))
-    return data?.publicUrl || null
+  const clearFileInputValue = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '' // ✅ 핵심: 실제 input 값을 비움
+    }
   }
 
   const clearCoverSelection = () => {
+    // ✅ 선택된 파일만 제거(저장된 coverPath는 유지)
+    revokeObjectUrlIfAny()
     setCoverFile(null)
+    clearFileInputValue()
     setCoverPreviewUrl(computeCoverPreview(coverPath))
+  }
+
+  const removeCover = () => {
+    // ✅ 저장 값까지 비움(실제 DB 반영은 Save/Create 눌러야 적용됨)
+    revokeObjectUrlIfAny()
+    setCoverPath(null)
+    setCoverFile(null)
+    clearFileInputValue()
+    setCoverPreviewUrl(null)
   }
 
   const clearForm = () => {
@@ -111,16 +140,16 @@ export default function AdminNewsPage() {
     setShowAdvanced(false)
     setErr('')
 
+    revokeObjectUrlIfAny()
     setCoverPath(null)
     setCoverFile(null)
     setCoverPreviewUrl(null)
+    clearFileInputValue()
   }
 
-  // ✅ (핵심) 파일이 선택되어 있으면 Supabase Storage에 업로드하고, "경로(path)"를 반환
   const uploadCoverIfNeeded = async (finalSlug: string) => {
-    if (!coverFile) return coverPath // 파일 없으면 기존 값 유지
+    if (!coverFile) return coverPath
 
-    // 파일명: news/<slug>_<timestamp>.<ext>
     const ext = extFromFileName(coverFile.name)
     const fileName = `news/${finalSlug}_${yyyymmddhhmmss()}.${ext}`
 
@@ -130,7 +159,7 @@ export default function AdminNewsPage() {
 
     if (error) throw new Error('Cover upload failed: ' + error.message)
 
-    // DB에는 path만 저장(권장). UI에서는 getPublicUrl로 표시.
+    // ✅ DB에는 path 저장
     return fileName
   }
 
@@ -146,7 +175,6 @@ export default function AdminNewsPage() {
     setErr('')
 
     try {
-      // ✅ 썸네일 업로드(선택된 파일이 있을 때만)
       const uploadedCoverPath = await uploadCoverIfNeeded(s)
 
       if (editingId) {
@@ -156,7 +184,7 @@ export default function AdminNewsPage() {
             title: t,
             slug: s,
             content: c,
-            cover_image_url: uploadedCoverPath, // ✅ 썸네일 저장
+            cover_image_url: uploadedCoverPath,
           })
           .eq('id', editingId)
 
@@ -168,7 +196,7 @@ export default function AdminNewsPage() {
             slug: s,
             content: c,
             user_id: user?.id ?? null,
-            cover_image_url: uploadedCoverPath, // ✅ 썸네일 저장
+            cover_image_url: uploadedCoverPath,
           },
         ])
 
@@ -193,6 +221,9 @@ export default function AdminNewsPage() {
     setShowAdvanced(false)
     setErr('')
 
+    revokeObjectUrlIfAny()
+    clearFileInputValue()
+
     const cp = (post as any).cover_image_url as string | null
     setCoverPath(cp || null)
     setCoverFile(null)
@@ -212,22 +243,21 @@ export default function AdminNewsPage() {
     }
   }
 
-  // ✅ 파일 선택 시 즉시 로컬 프리뷰(업로드는 Save/Create 누를 때)
   const onPickCoverFile = (file: File | null) => {
+    // ✅ 같은 파일 다시 선택해도 onChange가 잘 타게 하려면,
+    // clearFileInputValue()가 선행되어야 하는데,
+    // 사용자가 버튼(클리어) 눌렀을 때 우리가 이미 value='' 처리함.
+    revokeObjectUrlIfAny()
     setCoverFile(file)
+
     if (!file) {
       setCoverPreviewUrl(computeCoverPreview(coverPath))
       return
     }
-    const url = URL.createObjectURL(file)
-    setCoverPreviewUrl(url)
-  }
 
-  const removeCover = () => {
-    // DB 값까지 제거하려면 저장 눌러야 반영됨
-    setCoverPath(null)
-    setCoverFile(null)
-    setCoverPreviewUrl(null)
+    const url = URL.createObjectURL(file)
+    setCoverObjectUrl(url)
+    setCoverPreviewUrl(url)
   }
 
   return (
@@ -267,6 +297,7 @@ export default function AdminNewsPage() {
 
             <div className="flex-1">
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={(e) => onPickCoverFile(e.target.files?.[0] ?? null)}
@@ -297,7 +328,6 @@ export default function AdminNewsPage() {
                 </button>
               </div>
 
-              {/* 현재 DB에 저장된 값 표시(디버그 용) */}
               {(coverPath || coverFile) && (
                 <div className="mt-3 text-xs text-gray-400 break-all">
                   <div>Saved value: {coverPath || '(none yet)'}</div>
