@@ -13,7 +13,6 @@ type NewsRow = {
   slug: string
   created_at: string | null
   cover_image_url: string | null
-  // category 컬럼이 없을 수도 있어서 optional로 둠(있으면 사용)
   category?: string | null
 }
 
@@ -47,32 +46,18 @@ function formatDate(d: string | null) {
   if (!d) return ''
   const dt = new Date(d)
   if (Number.isNaN(dt.getTime())) return ''
-  return dt.toLocaleDateString('en-US') // 10/28/2025
+  return dt.toLocaleDateString('en-US')
 }
 
 async function fetchNewsList(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
-  // ✅ category 컬럼이 실제로 없을 가능성이 크니까:
-  // 1) category 포함 select 시도
-  // 2) 실패하면 category 없이 재시도
   const base = 'id, title, slug, created_at, cover_image_url'
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anySb: any = sb
 
-  const try1 = await anySb
-    .from('news_posts')
-    .select(`${base}, category`)
-    .order('created_at', { ascending: false })
+  const try1 = await anySb.from('news_posts').select(`${base}, category`).order('created_at', { ascending: false })
+  if (!try1?.error) return (try1.data ?? []) as NewsRow[]
 
-  if (!try1?.error) {
-    return (try1.data ?? []) as NewsRow[]
-  }
-
-  const try2 = await sb
-    .from('news_posts')
-    .select(base)
-    .order('created_at', { ascending: false })
-
+  const try2 = await sb.from('news_posts').select(base).order('created_at', { ascending: false })
   if (try2.error) return []
   return (try2.data ?? []) as NewsRow[]
 }
@@ -99,9 +84,7 @@ export default async function NewsPage() {
 
         <div className="mt-10 border-t border-[#eeeeee]">
           {news.length === 0 ? (
-            <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">
-              No news available.
-            </div>
+            <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">No news available.</div>
           ) : (
             <ul>
               {news.map((n) => {
@@ -111,13 +94,11 @@ export default async function NewsPage() {
 
                 return (
                   <li key={n.id} className="border-b border-[#eeeeee]">
-                    <Link
-                      href={`/news/${n.slug}`}
-                      className="block py-12 hover:bg-[#fafafa] transition"
-                    >
-                      <div className="flex flex-col sm:flex-row gap-8">
-                        {/* 썸네일(회색 영역 = 어드민 등록 이미지 노출) */}
-                        <div className="w-full sm:w-[220px]">
+                    <Link href={`/news/${n.slug}`} className="block py-10 hover:bg-[#fafafa] transition">
+                      {/* ✅ 모바일/PC 모두 "가로 배치" 고정 */}
+                      <div className="flex flex-row items-start gap-5">
+                        {/* ✅ 썸네일: 모바일에서도 왼쪽 고정 + 크기 고정 */}
+                        <div className="shrink-0 w-[120px] sm:w-[220px]">
                           <div className="w-full aspect-square bg-[#d9d9d9] overflow-hidden">
                             {cover ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -131,16 +112,14 @@ export default async function NewsPage() {
                           </div>
                         </div>
 
-                        {/* 텍스트 영역 */}
+                        {/* ✅ 텍스트: 오른쪽에서 항상 같이 보이게 */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <CategoryPill label={category} />
-                            <div className="text-[15px] text-[#b4b4b4] font-medium">
-                              {date}
-                            </div>
+                            <div className="text-[15px] text-[#b4b4b4] font-medium">{date}</div>
                           </div>
 
-                          <h2 className="mt-4 text-[34px] leading-tight font-semibold line-clamp-2">
+                          <h2 className="mt-3 text-[22px] sm:text-[34px] leading-tight font-semibold line-clamp-3">
                             {n.title}
                           </h2>
                         </div>
