@@ -7,6 +7,8 @@ import type { Tables } from '@/lib/database.types'
 
 type NewsPost = Tables<'news_posts'>
 
+const NEWS_IMAGE_BUCKET = 'news-images' // ✅ Supabase Storage 버킷명 (다르면 이 값만 수정)
+
 function yyyymmddhhmmss(d = new Date()) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return (
@@ -30,6 +32,11 @@ function slugify(input: string) {
   return base || `news-${yyyymmddhhmmss()}`
 }
 
+function extFromFileName(name: string) {
+  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/)
+  return m?.[1] || 'jpg'
+}
+
 export default function AdminNewsPage() {
   const supabase = useSupabase()
   const { user, loading } = useAuthUser()
@@ -44,6 +51,12 @@ export default function AdminNewsPage() {
   const [slugTouched, setSlugTouched] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // ✅ 썸네일(cover_image_url) 상태
+  // - DB에는 문자열(스토리지 path 또는 전체 URL)을 저장
+  const [coverPath, setCoverPath] = useState<string | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
+
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -55,7 +68,7 @@ export default function AdminNewsPage() {
   const fetchNews = async () => {
     const { data, error } = await supabase
       .from('news_posts')
-      .select('id, title, slug, content, created_at, user_id')
+      .select('id, title, slug, content, created_at, user_id, cover_image_url')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -70,6 +83,25 @@ export default function AdminNewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ✅ coverPath(스토리지 path)를 public URL로 변환(프리뷰용)
+  const computeCoverPreview = (pathOrUrl: string | null) => {
+    if (!pathOrUrl) return null
+    const raw = String(pathOrUrl).trim()
+    if (!raw) return null
+
+    // 이미 전체 URL이면 그대로
+    if (/^https?:\/\//i.test(raw)) return raw
+
+    // storage public url로 변환
+    const { data } = supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(raw.replace(/^\//, ''))
+    return data?.publicUrl || null
+  }
+
+  const clearCoverSelection = () => {
+    setCoverFile(null)
+    setCoverPreviewUrl(computeCoverPreview(coverPath))
+  }
+
   const clearForm = () => {
     setEditingId(null)
     setTitle('')
@@ -78,6 +110,28 @@ export default function AdminNewsPage() {
     setSlugTouched(false)
     setShowAdvanced(false)
     setErr('')
+
+    setCoverPath(null)
+    setCoverFile(null)
+    setCoverPreviewUrl(null)
+  }
+
+  // ✅ (핵심) 파일이 선택되어 있으면 Supabase Storage에 업로드하고, "경로(path)"를 반환
+  const uploadCoverIfNeeded = async (finalSlug: string) => {
+    if (!coverFile) return coverPath // 파일 없으면 기존 값 유지
+
+    // 파일명: news/<slug>_<timestamp>.<ext>
+    const ext = extFromFileName(coverFile.name)
+    const fileName = `news/${finalSlug}_${yyyymmddhhmmss()}.${ext}`
+
+    const { error } = await supabase.storage
+      .from(NEWS_IMAGE_BUCKET)
+      .upload(fileName, coverFile, { upsert: true, contentType: coverFile.type })
+
+    if (error) throw new Error('Cover upload failed: ' + error.message)
+
+    // DB에는 path만 저장(권장). UI에서는 getPublicUrl로 표시.
+    return fileName
   }
 
   const handleSubmit = async () => {
@@ -92,22 +146,29 @@ export default function AdminNewsPage() {
     setErr('')
 
     try {
+      // ✅ 썸네일 업로드(선택된 파일이 있을 때만)
+      const uploadedCoverPath = await uploadCoverIfNeeded(s)
+
       if (editingId) {
         const { error } = await supabase
           .from('news_posts')
-          .update({ title: t, slug: s, content: c })
+          .update({
+            title: t,
+            slug: s,
+            content: c,
+            cover_image_url: uploadedCoverPath, // ✅ 썸네일 저장
+          })
           .eq('id', editingId)
 
         if (error) return setErr('Update failed: ' + error.message)
       } else {
-        // ✅ insert는 object도 되지만, 타입/버전 섞일 때 덜 흔들리게 배열로 넣는 게 안정적
         const { error } = await supabase.from('news_posts').insert([
           {
             title: t,
             slug: s,
             content: c,
-            // (선택) 작성자 남기고 싶으면
             user_id: user?.id ?? null,
+            cover_image_url: uploadedCoverPath, // ✅ 썸네일 저장
           },
         ])
 
@@ -116,6 +177,8 @@ export default function AdminNewsPage() {
 
       clearForm()
       await fetchNews()
+    } catch (e: any) {
+      setErr(e?.message || 'Unknown error')
     } finally {
       setSaving(false)
     }
@@ -129,6 +192,11 @@ export default function AdminNewsPage() {
     setSlugTouched(true)
     setShowAdvanced(false)
     setErr('')
+
+    const cp = (post as any).cover_image_url as string | null
+    setCoverPath(cp || null)
+    setCoverFile(null)
+    setCoverPreviewUrl(computeCoverPreview(cp || null))
   }
 
   const handleDelete = async (id: string) => {
@@ -144,14 +212,30 @@ export default function AdminNewsPage() {
     }
   }
 
+  // ✅ 파일 선택 시 즉시 로컬 프리뷰(업로드는 Save/Create 누를 때)
+  const onPickCoverFile = (file: File | null) => {
+    setCoverFile(file)
+    if (!file) {
+      setCoverPreviewUrl(computeCoverPreview(coverPath))
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setCoverPreviewUrl(url)
+  }
+
+  const removeCover = () => {
+    // DB 값까지 제거하려면 저장 눌러야 반영됨
+    setCoverPath(null)
+    setCoverFile(null)
+    setCoverPreviewUrl(null)
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold mb-6">🛠️ News Admin</h1>
 
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">
-          {editingId ? 'Edit News' : 'Create News'}
-        </h2>
+        <h2 className="text-xl font-semibold mb-2">{editingId ? 'Edit News' : 'Create News'}</h2>
 
         <input
           placeholder="Title"
@@ -167,14 +251,69 @@ export default function AdminNewsPage() {
           className="w-full mb-3 p-2 h-40 bg-gray-800 text-white rounded"
         />
 
+        {/* ✅ 썸네일 업로드 섹션 */}
+        <div className="mb-4">
+          <div className="text-sm text-gray-300 mb-2">Thumbnail (cover image)</div>
+
+          <div className="flex items-start gap-4">
+            <div className="w-[140px] h-[140px] bg-gray-700 rounded overflow-hidden shrink-0 flex items-center justify-center">
+              {coverPreviewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverPreviewUrl} alt="cover preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-xs text-gray-300">No image</div>
+              )}
+            </div>
+
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => onPickCoverFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-gray-300"
+              />
+
+              <div className="mt-2 text-xs text-gray-400">
+                업로드는 <b>Create/Save</b> 버튼을 누를 때 저장됩니다.
+              </div>
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={clearCoverSelection}
+                  disabled={saving}
+                  className="px-3 py-2 bg-gray-700 text-white rounded hover:opacity-80 disabled:opacity-60 text-sm"
+                >
+                  Clear file selection
+                </button>
+
+                <button
+                  type="button"
+                  onClick={removeCover}
+                  disabled={saving}
+                  className="px-3 py-2 bg-gray-600 text-white rounded hover:opacity-80 disabled:opacity-60 text-sm"
+                >
+                  Remove cover (set empty)
+                </button>
+              </div>
+
+              {/* 현재 DB에 저장된 값 표시(디버그 용) */}
+              {(coverPath || coverFile) && (
+                <div className="mt-3 text-xs text-gray-400 break-all">
+                  <div>Saved value: {coverPath || '(none yet)'}</div>
+                  <div>Selected file: {coverFile ? coverFile.name : '(none)'}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <details
           className="mb-3"
           open={showAdvanced}
           onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
         >
-          <summary className="cursor-pointer text-sm text-gray-300">
-            Advanced options (edit slug)
-          </summary>
+          <summary className="cursor-pointer text-sm text-gray-300">Advanced options (edit slug)</summary>
           <div className="mt-2">
             <input
               placeholder={`Auto: ${autoSlug}`}
@@ -185,9 +324,7 @@ export default function AdminNewsPage() {
               }}
               className="w-full p-2 bg-gray-800 text-white rounded"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Leave empty to auto-generate from the title.
-            </p>
+            <p className="mt-1 text-xs text-gray-400">Leave empty to auto-generate from the title.</p>
           </div>
         </details>
 
@@ -217,30 +354,44 @@ export default function AdminNewsPage() {
       <div>
         <h2 className="text-xl font-semibold mb-3">News List</h2>
         <ul className="space-y-2">
-          {newsList.map((post) => (
-            <li key={post.id} className="border-b border-gray-600 pb-1">
-              <div className="flex justify-between items-center">
-                <div className="min-w-0">
-                  <div className="truncate">
-                    <span className="text-lg font-medium">{post.title}</span>{' '}
-                    <span className="text-sm text-gray-400">/news/{post.slug}</span>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {new Date(post.created_at).toLocaleString('en-US')}
-                  </p>
-                </div>
+          {newsList.map((post) => {
+            const cp = (post as any).cover_image_url as string | null
+            const cover = computeCoverPreview(cp || null)
 
-                <div className="flex gap-3 text-sm shrink-0">
-                  <button onClick={() => handleEdit(post)} className="text-blue-400 hover:underline">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(post.id)} className="text-red-400 hover:underline">
-                    Delete
-                  </button>
+            return (
+              <li key={post.id} className="border-b border-gray-600 pb-2">
+                <div className="flex gap-3 items-center">
+                  <div className="w-10 h-10 bg-gray-700 rounded overflow-hidden shrink-0 flex items-center justify-center">
+                    {cover ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={cover} alt="thumb" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] text-gray-300">No</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate">
+                      <span className="text-lg font-medium">{post.title}</span>{' '}
+                      <span className="text-sm text-gray-400">/news/{post.slug}</span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {post.created_at ? new Date(post.created_at).toLocaleString('en-US') : ''}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 text-sm shrink-0">
+                    <button onClick={() => handleEdit(post)} className="text-blue-400 hover:underline">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDelete(post.id)} className="text-red-400 hover:underline">
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
 
           {newsList.length === 0 && <li className="text-sm text-gray-400">No posts yet.</li>}
         </ul>
