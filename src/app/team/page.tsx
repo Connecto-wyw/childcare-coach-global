@@ -72,8 +72,8 @@ export default function TeamPage() {
           ) : teams.length === 0 ? (
             <p className="text-[15px] font-medium text-[#b4b4b4]">No active teams.</p>
           ) : (
-            // ✅ PC(>=md)에서는 2개씩, 모바일에서는 1개씩
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            // ✅ 모바일: 1열 유지 / PC(>=lg): 2열 고정
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               {teams.map((t) => {
                 const img = buildImg(t.image_url)
                 const tags = [t.tag1, t.tag2].filter((x): x is string => Boolean(safeText(x)))
@@ -85,11 +85,7 @@ export default function TeamPage() {
                       {/* Image */}
                       <div className="w-full bg-[#d9d9d9]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={img}
-                          alt={t.name}
-                          className="w-full h-auto block object-cover"
-                        />
+                        <img src={img} alt={t.name} className="w-full h-auto block object-cover" />
                       </div>
 
                       {/* Content */}
@@ -118,7 +114,7 @@ export default function TeamPage() {
                           </div>
                         )}
 
-                        {/* CTA: 카드 하단에 붙게 */}
+                        {/* CTA (항상 하단) */}
                         <div className="mt-8">
                           <Link
                             href={`/team/${t.id}`}
