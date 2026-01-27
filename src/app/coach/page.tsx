@@ -21,7 +21,6 @@ type NewsPostRow = {
   created_at: string | null
 }
 
-// ✅ 우리가 select로 가져오는 teams 컬럼만 정확히 타입으로 고정
 type TeamRow = Pick<
   Database['public']['Tables']['teams']['Row'],
   'id' | 'name' | 'image_url' | 'tag1' | 'tag2' | 'created_at' | 'is_active'
@@ -31,7 +30,6 @@ function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
 }
 
-// ✅ Next 16에서 headers()/cookies()가 Promise로 바뀐 케이스 대응: 전부 async로 await
 async function getRequestOrigin() {
   const h = await headers()
   const host = h.get('x-forwarded-host') ?? h.get('host')
@@ -44,11 +42,8 @@ function buildTeamImageUrl(image_url: string | null) {
   if (!image_url) return null
   const raw = String(image_url).trim()
   if (!raw) return null
-
-  // ✅ 이미 전체 URL이면 그대로 사용
   if (/^https?:\/\//i.test(raw)) return raw
 
-  // ✅ 경로(team/xxx.png)면 Supabase public URL로 조합
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
   if (!supabaseUrl) return raw
 
@@ -147,7 +142,8 @@ export default async function CoachPage() {
   const ongoingTeams = await getOngoingTeams(supabase)
 
   return (
-    <main className="min-h-screen bg-white text-[#0e0e0e] pb-28">
+    // ✅ 하단 입력창 때문에 "충분히 큰" 안전 여백 확보
+    <main className="min-h-screen bg-white text-[#0e0e0e] pb-[160px]">
       <ScrollToTop />
 
       <div className="max-w-5xl mx-auto px-4 py-6">
@@ -158,6 +154,7 @@ export default async function CoachPage() {
         <section className="text-center mb-16">
           <div className="leading-tight">
             <div className="text-[25px] text-[#0e0e0e] font-medium">HELLO</div>
+            {/* 오타 수정: #0e0gite0e -> #0e0e0e */}
             <div className="text-[25px] text-[#0e0e0e] font-medium">I AM YOUR AI PARENTING COACH</div>
           </div>
         </section>
@@ -209,6 +206,10 @@ export default async function CoachPage() {
             </div>
           </div>
         </section>
+
+        {/* ✅ 핵심: 맨 아래에 "흰색 safe area"를 명시적으로 만들어서
+            입력창 뒤로 어떤 컨텐츠도 비치지 않게 함 */}
+        <div aria-hidden className="h-[160px] bg-white" />
       </div>
     </main>
   )
