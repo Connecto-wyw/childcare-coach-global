@@ -1,9 +1,12 @@
+// src/app/team/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
+
+export const dynamic = 'force-dynamic'
 
 const supabase = createClientComponentClient<Database>()
 
@@ -20,6 +23,23 @@ type TeamCard = {
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=60'
 
+function safeText(s: unknown) {
+  return String(s ?? '').trim()
+}
+
+function buildImg(src: string | null) {
+  const raw = safeText(src)
+  return raw || FALLBACK_IMG
+}
+
+function Tag({ children }: { children: string }) {
+  return (
+    <span className="inline-flex items-center h-9 px-5 rounded border border-[#dbe9ff] bg-white text-[#2a7de1] text-[18px] font-medium">
+      {children}
+    </span>
+  )
+}
+
 export default function TeamPage() {
   const [teams, setTeams] = useState<TeamCard[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +54,6 @@ export default function TeamPage() {
       } else {
         setTeams((data ?? []) as TeamCard[])
       }
-
       setLoading(false)
     }
 
@@ -42,94 +61,96 @@ export default function TeamPage() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-white text-[#0e0e0e] pb-28">
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* ✅ coach 톤: 큰 타이틀 + 서브카피 */}
-        <section className="mb-10">
-          <h1 className="text-[48px] font-semibold tracking-tight leading-none">Team</h1>
-          <p className="mt-3 text-[15px] font-medium text-[#b4b4b4]">
-            Join small challenges and share routines together.
-          </p>
-        </section>
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        {/* Title */}
+        <h1 className="text-[56px] leading-none font-bold">Team</h1>
+        <p className="mt-3 text-[16px] text-[#b4b4b4]">
+          Join small challenges and share routines together.
+        </p>
 
-        {/* ✅ coach 톤: 연한 블루 섹션 박스 */}
-        <section className="bg-[#f0f7fd] p-4 md:p-6">
+        {/* List */}
+        <div className="mt-10">
           {loading ? (
-            <p className="text-[13px] font-medium text-[#b4b4b4]">Loading…</p>
+            <p className="text-[15px] font-medium text-[#b4b4b4]">Loading…</p>
           ) : teams.length === 0 ? (
-            <p className="text-[13px] font-medium text-[#b4b4b4]">No teams available.</p>
+            <p className="text-[15px] font-medium text-[#b4b4b4]">No active teams.</p>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="space-y-10">
               {teams.map((t) => {
-                const tags = [t.tag1, t.tag2].filter((x): x is string => Boolean(x && x.trim()))
-                const img = t.image_url || FALLBACK_IMG
+                const img = buildImg(t.image_url)
+                const tags = [t.tag1, t.tag2].filter((x): x is string => Boolean(safeText(x)))
+                const purpose = safeText(t.purpose) || 'Team purpose is not available yet.'
 
                 return (
-                  <Link
+                  <article
                     key={t.id}
-                    href={`/team/${t.id}`}
-                    className={[
-                      'block',
-                      'overflow-hidden',
-                      'rounded-2xl',
-                      'border border-[#eeeeee]',
-                      'bg-white',
-                      'transition',
-                      'hover:bg-black/[0.02]',
-                    ].join(' ')}
+                    className="bg-[#f0f7fd] p-4 sm:p-6"
                   >
-                    {/* 이미지 */}
-                    <div className="aspect-[4/3] w-full bg-[#f7f7f7]">
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={t.name} className="h-full w-full object-cover" />
-                    </div>
+                    {/* Card */}
+                    <div className="bg-white rounded-[22px] border border-[#e9eef5] overflow-hidden shadow-sm">
+                      {/* Image (큰 배너) */}
+                      <div className="w-full bg-[#d9d9d9]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img}
+                          alt={t.name}
+                          className="w-full h-auto block object-cover"
+                        />
+                      </div>
 
-                    {/* 본문 */}
-                    <div className="p-4 md:p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="line-clamp-1 text-[20px] font-semibold leading-snug">
+                      {/* Content */}
+                      <div className="p-6 sm:p-8">
+                        <div className="flex items-start justify-between gap-4">
+                          <h2 className="text-[32px] sm:text-[36px] leading-tight font-semibold">
                             {t.name}
-                          </div>
+                          </h2>
 
-                          <div className="mt-2 min-h-[40px] line-clamp-2 text-[13px] font-medium text-[#b4b4b4]">
-                            {t.purpose || 'No description yet.'}
-                          </div>
-                        </div>
-
-                        {/* 참여자 배지: coach 톤 */}
-                        <span className="shrink-0 inline-flex items-center px-3 py-1 rounded-full bg-black/5 text-[13px] font-medium text-[#1e1e1e]">
-                          Joined {t.participant_count}
-                        </span>
-                      </div>
-
-                      {/* 태그: coach 블루(#3497f3) + pill */}
-                      {tags.length > 0 ? (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-[#eeeeee] text-[13px] font-medium text-[#3497f3]"
-                            >
-                              {tag}
+                          <div className="shrink-0">
+                            <span className="inline-flex items-center h-9 px-4 rounded-full bg-[#f2f2f2] text-[#8a8a8a] text-[15px] font-medium">
+                              Joined {t.participant_count}
                             </span>
-                          ))}
+                          </div>
                         </div>
-                      ) : null}
 
-                      {/* CTA 느낌(원하면 제거 가능): 카드 내부 링크 강조 */}
-                      <div className="mt-5">
-                        <span className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
-                          Open →
-                        </span>
+                        <p className="mt-4 text-[18px] leading-relaxed text-[#6f6f6f] line-clamp-3">
+                          {purpose}
+                        </p>
+
+                        {tags.length > 0 && (
+                          <div className="mt-6 flex flex-wrap gap-3">
+                            {tags.map((tag) => (
+                              <Tag key={tag}>{tag}</Tag>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* CTA */}
+                        <div className="mt-8">
+                          <Link
+                            href={`/team/${t.id}`}
+                            className="block w-full text-center bg-[#1e1e1e] text-white text-[28px] font-semibold py-6"
+                          >
+                            Join now
+                          </Link>
+
+                          <div className="mt-4">
+                            <Link
+                              href={`/team/${t.id}`}
+                              className="text-[#3497f3] text-[16px] font-medium hover:underline underline-offset-2"
+                            >
+                              Open →
+                            </Link>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </Link>
+                  </article>
                 )
               })}
             </div>
           )}
-        </section>
+        </div>
       </div>
     </main>
   )
