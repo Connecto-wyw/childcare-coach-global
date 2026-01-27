@@ -47,7 +47,6 @@ export default function TeamPage() {
   useEffect(() => {
     const fetchTeams = async () => {
       const { data, error } = await supabase.rpc('get_teams_with_counts')
-
       if (error) {
         console.error(error)
         setTeams([])
@@ -56,40 +55,34 @@ export default function TeamPage() {
       }
       setLoading(false)
     }
-
     fetchTeams()
   }, [])
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        {/* Title */}
         <h1 className="text-[56px] leading-none font-bold">Team</h1>
         <p className="mt-3 text-[16px] text-[#b4b4b4]">
           Join small challenges and share routines together.
         </p>
 
-        {/* List */}
         <div className="mt-10">
           {loading ? (
             <p className="text-[15px] font-medium text-[#b4b4b4]">Loading…</p>
           ) : teams.length === 0 ? (
             <p className="text-[15px] font-medium text-[#b4b4b4]">No active teams.</p>
           ) : (
-            <div className="space-y-10">
+            // ✅ PC(>=md)에서는 2개씩, 모바일에서는 1개씩
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               {teams.map((t) => {
                 const img = buildImg(t.image_url)
                 const tags = [t.tag1, t.tag2].filter((x): x is string => Boolean(safeText(x)))
                 const purpose = safeText(t.purpose) || 'Team purpose is not available yet.'
 
                 return (
-                  <article
-                    key={t.id}
-                    className="bg-[#f0f7fd] p-4 sm:p-6"
-                  >
-                    {/* Card */}
-                    <div className="bg-white rounded-[22px] border border-[#e9eef5] overflow-hidden shadow-sm">
-                      {/* Image (큰 배너) */}
+                  <article key={t.id} className="bg-[#f0f7fd] p-4 sm:p-6">
+                    <div className="bg-white rounded-[22px] border border-[#e9eef5] overflow-hidden shadow-sm h-full flex flex-col">
+                      {/* Image */}
                       <div className="w-full bg-[#d9d9d9]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -100,9 +93,9 @@ export default function TeamPage() {
                       </div>
 
                       {/* Content */}
-                      <div className="p-6 sm:p-8">
+                      <div className="p-6 sm:p-7 flex-1 flex flex-col">
                         <div className="flex items-start justify-between gap-4">
-                          <h2 className="text-[32px] sm:text-[36px] leading-tight font-semibold">
+                          <h2 className="text-[28px] sm:text-[32px] leading-tight font-semibold line-clamp-2">
                             {t.name}
                           </h2>
 
@@ -113,7 +106,7 @@ export default function TeamPage() {
                           </div>
                         </div>
 
-                        <p className="mt-4 text-[18px] leading-relaxed text-[#6f6f6f] line-clamp-3">
+                        <p className="mt-4 text-[16px] sm:text-[18px] leading-relaxed text-[#6f6f6f] line-clamp-3">
                           {purpose}
                         </p>
 
@@ -125,11 +118,11 @@ export default function TeamPage() {
                           </div>
                         )}
 
-                        {/* CTA */}
+                        {/* CTA: 카드 하단에 붙게 */}
                         <div className="mt-8">
                           <Link
                             href={`/team/${t.id}`}
-                            className="block w-full text-center bg-[#1e1e1e] text-white text-[28px] font-semibold py-6"
+                            className="block w-full text-center bg-[#1e1e1e] text-white text-[24px] sm:text-[28px] font-semibold py-5 sm:py-6"
                           >
                             Join now
                           </Link>
