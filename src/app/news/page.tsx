@@ -7,11 +7,14 @@ import type { Database } from '@/lib/database.types'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type NewsPostRow = {
+type NewsRow = {
   id: string
   title: string
   slug: string
   created_at: string | null
+  cover_image_url: string | null
+  // category 컬럼이 없을 수도 있어서 optional로 둠(있으면 사용)
+  category?: string | null
 }
 
 async function createSupabaseServer() {
@@ -40,83 +43,115 @@ async function createSupabaseServer() {
   })
 }
 
-function formatDate(created_at: string | null) {
-  if (!created_at) return ''
-  try {
-    return new Date(created_at).toLocaleDateString('en-US')
-  } catch {
-    return ''
+function formatDate(d: string | null) {
+  if (!d) return ''
+  const dt = new Date(d)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toLocaleDateString('en-US') // 10/28/2025
+}
+
+async function fetchNewsList(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
+  // ✅ category 컬럼이 실제로 없을 가능성이 크니까:
+  // 1) category 포함 select 시도
+  // 2) 실패하면 category 없이 재시도
+  const base = 'id, title, slug, created_at, cover_image_url'
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anySb: any = sb
+
+  const try1 = await anySb
+    .from('news_posts')
+    .select(`${base}, category`)
+    .order('created_at', { ascending: false })
+
+  if (!try1?.error) {
+    return (try1.data ?? []) as NewsRow[]
   }
+
+  const try2 = await sb
+    .from('news_posts')
+    .select(base)
+    .order('created_at', { ascending: false })
+
+  if (try2.error) return []
+  return (try2.data ?? []) as NewsRow[]
+}
+
+function CategoryPill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center h-7 px-3 rounded bg-[#f2f2f2] text-[#8a8a8a] text-[13px] font-medium">
+      {label}
+    </span>
+  )
 }
 
 export default async function NewsPage() {
   const supabase = await createSupabaseServer()
-
-  const { data, error } = await supabase
-    .from('news_posts')
-    // ✅ 네 coach 메인과 동일하게 "존재 확정 컬럼"만 select (컴파일/런타임 안전)
-    .select('id, title, slug, created_at')
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  const posts: NewsPostRow[] = error || !data ? [] : (data as NewsPostRow[])
+  const news = await fetchNewsList(supabase)
 
   return (
-    <main className="min-h-screen bg-white text-[#0e0e0e] pb-28">
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* ✅ coach 메인 톤: 큰 제목 + 여백 */}
-        <section className="mb-10">
-          <h1 className="text-[48px] font-semibold tracking-tight leading-none">News</h1>
-          <p className="mt-3 text-[15px] font-medium text-[#b4b4b4]">
-            Curated parenting research & book notes.
-          </p>
-        </section>
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        <h1 className="text-[56px] leading-none font-bold">News</h1>
+        <p className="mt-3 text-[16px] text-[#b4b4b4]">
+          Curated parenting research &amp; book notes.
+        </p>
 
-        {/* ✅ coach 메인 톤: 연한 블루 섹션 박스 */}
-        <section className="bg-[#f0f7fd] p-4 md:p-6">
-          {posts.length === 0 ? (
-            <p className="text-[13px] font-medium text-[#b4b4b4]">No news available.</p>
+        <div className="mt-10 border-t border-[#eeeeee]">
+          {news.length === 0 ? (
+            <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">
+              No news available.
+            </div>
           ) : (
-            <ul className="space-y-4">
-              {posts.map((p) => (
-                <li key={p.id}>
-                  {/* ✅ 카드 톤: 미니멀 + border + 라운드 */}
-                  <Link
-                    href={`/news/${p.slug}`}
-                    className={[
-                      'block',
-                      'bg-white',
-                      'border border-[#eeeeee]',
-                      'rounded-2xl',
-                      'p-4 md:p-5',
-                      'transition',
-                      'hover:bg-black/[0.02]',
-                    ].join(' ')}
-                  >
-                    {/* 상단 라벨 (스크린샷의 Research/Book Review 느낌을 “톤만” 맞춤) */}
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-black/5 text-[12px] font-medium text-[#1e1e1e]">
-                        Research
-                      </span>
-                      <span className="text-[13px] font-medium text-[#b4b4b4]">{formatDate(p.created_at)}</span>
-                    </div>
+            <ul>
+              {news.map((n) => {
+                const date = formatDate(n.created_at)
+                const category = (n.category && String(n.category).trim()) || 'Research'
+                const cover = n.cover_image_url ? String(n.cover_image_url).trim() : ''
 
-                    {/* 제목: coach의 링크 블루 유지 */}
-                    <div className="text-[20px] md:text-[22px] font-semibold text-[#0e0e0e] leading-snug">
-                      {p.title}
-                    </div>
+                return (
+                  <li key={n.id} className="border-b border-[#eeeeee]">
+                    <Link
+                      href={`/news/${n.slug}`}
+                      className="block py-12 hover:bg-[#fafafa] transition"
+                    >
+                      <div className="flex flex-col sm:flex-row gap-8">
+                        {/* 썸네일(회색 영역 = 어드민 등록 이미지 노출) */}
+                        <div className="w-full sm:w-[220px]">
+                          <div className="w-full aspect-square bg-[#d9d9d9] overflow-hidden">
+                            {cover ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={cover}
+                                alt={n.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : null}
+                          </div>
+                        </div>
 
-                    <div className="mt-2">
-                      <span className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
-                        Read →
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
+                        {/* 텍스트 영역 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-4">
+                            <CategoryPill label={category} />
+                            <div className="text-[15px] text-[#b4b4b4] font-medium">
+                              {date}
+                            </div>
+                          </div>
+
+                          <h2 className="mt-4 text-[34px] leading-tight font-semibold line-clamp-2">
+                            {n.title}
+                          </h2>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           )}
-        </section>
+        </div>
       </div>
     </main>
   )

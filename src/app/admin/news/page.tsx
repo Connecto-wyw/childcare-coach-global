@@ -7,7 +7,7 @@ import type { Tables } from '@/lib/database.types'
 
 type NewsPost = Tables<'news_posts'>
 
-const NEWS_IMAGE_BUCKET = 'news-images' // ✅ Supabase Storage 버킷명(다르면 여기만 수정)
+const NEWS_IMAGE_BUCKET = 'news-images'
 
 function yyyymmddhhmmss(d = new Date()) {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -53,14 +53,15 @@ export default function AdminNewsPage() {
   const [slugTouched, setSlugTouched] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  // ✅ 썸네일 상태
-  // coverPath: DB에 저장되는 값(스토리지 path 또는 전체 URL)
-  // coverFile: 새로 선택한 파일(업로드는 Save/Create 시)
-  // coverPreviewUrl: 화면 표시용 URL(스토리지 public URL 또는 objectURL)
-  const [coverPath, setCoverPath] = useState<string | null>(null)
+  // ✅ DB에 저장될 cover_image_url (이제는 "public URL" 저장)
+  const [coverUrl, setCoverUrl] = useState<string | null>(null)
+
+  // ✅ 새로 선택한 파일(업로드는 Save/Create 때)
   const [coverFile, setCoverFile] = useState<File | null>(null)
+
+  // ✅ 화면 프리뷰(로컬 objectURL 또는 coverUrl)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
-  const [coverObjectUrl, setCoverObjectUrl] = useState<string | null>(null) // ✅ objectURL 추적(메모리 누수 방지)
+  const [coverObjectUrl, setCoverObjectUrl] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -69,17 +70,6 @@ export default function AdminNewsPage() {
   useEffect(() => {
     if (!slugTouched) setSlug(autoSlug)
   }, [autoSlug, slugTouched])
-
-  const computeCoverPreview = (pathOrUrl: string | null) => {
-    if (!pathOrUrl) return null
-    const raw = String(pathOrUrl).trim()
-    if (!raw) return null
-
-    if (/^https?:\/\//i.test(raw)) return raw
-
-    const { data } = supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(raw.replace(/^\//, ''))
-    return data?.publicUrl || null
-  }
 
   const fetchNews = async () => {
     const { data, error } = await supabase
@@ -109,23 +99,21 @@ export default function AdminNewsPage() {
   }
 
   const clearFileInputValue = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '' // ✅ 핵심: 실제 input 값을 비움
-    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const clearCoverSelection = () => {
-    // ✅ 선택된 파일만 제거(저장된 coverPath는 유지)
+    // ✅ 파일 선택만 취소(저장된 coverUrl은 유지)
     revokeObjectUrlIfAny()
     setCoverFile(null)
     clearFileInputValue()
-    setCoverPreviewUrl(computeCoverPreview(coverPath))
+    setCoverPreviewUrl(coverUrl)
   }
 
   const removeCover = () => {
-    // ✅ 저장 값까지 비움(실제 DB 반영은 Save/Create 눌러야 적용됨)
+    // ✅ 저장값까지 제거(실제 DB 반영은 Save/Create 눌러야 함)
     revokeObjectUrlIfAny()
-    setCoverPath(null)
+    setCoverUrl(null)
     setCoverFile(null)
     clearFileInputValue()
     setCoverPreviewUrl(null)
@@ -141,26 +129,30 @@ export default function AdminNewsPage() {
     setErr('')
 
     revokeObjectUrlIfAny()
-    setCoverPath(null)
+    setCoverUrl(null)
     setCoverFile(null)
     setCoverPreviewUrl(null)
     clearFileInputValue()
   }
 
+  // ✅ 업로드 후 "public URL" 반환
   const uploadCoverIfNeeded = async (finalSlug: string) => {
-    if (!coverFile) return coverPath
+    if (!coverFile) return coverUrl
 
     const ext = extFromFileName(coverFile.name)
-    const fileName = `news/${finalSlug}_${yyyymmddhhmmss()}.${ext}`
+    const filePath = `news/${finalSlug}_${yyyymmddhhmmss()}.${ext}`
 
     const { error } = await supabase.storage
       .from(NEWS_IMAGE_BUCKET)
-      .upload(fileName, coverFile, { upsert: true, contentType: coverFile.type })
+      .upload(filePath, coverFile, { upsert: true, contentType: coverFile.type })
 
     if (error) throw new Error('Cover upload failed: ' + error.message)
 
-    // ✅ DB에는 path 저장
-    return fileName
+    const { data } = supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(filePath)
+    const publicUrl = data?.publicUrl || null
+    if (!publicUrl) throw new Error('Failed to get public URL after upload.')
+
+    return publicUrl
   }
 
   const handleSubmit = async () => {
@@ -175,7 +167,7 @@ export default function AdminNewsPage() {
     setErr('')
 
     try {
-      const uploadedCoverPath = await uploadCoverIfNeeded(s)
+      const uploadedCoverUrl = await uploadCoverIfNeeded(s)
 
       if (editingId) {
         const { error } = await supabase
@@ -184,7 +176,7 @@ export default function AdminNewsPage() {
             title: t,
             slug: s,
             content: c,
-            cover_image_url: uploadedCoverPath,
+            cover_image_url: uploadedCoverUrl,
           })
           .eq('id', editingId)
 
@@ -196,7 +188,7 @@ export default function AdminNewsPage() {
             slug: s,
             content: c,
             user_id: user?.id ?? null,
-            cover_image_url: uploadedCoverPath,
+            cover_image_url: uploadedCoverUrl,
           },
         ])
 
@@ -224,10 +216,10 @@ export default function AdminNewsPage() {
     revokeObjectUrlIfAny()
     clearFileInputValue()
 
-    const cp = (post as any).cover_image_url as string | null
-    setCoverPath(cp || null)
+    const cu = (post as any).cover_image_url as string | null
+    setCoverUrl(cu || null)
     setCoverFile(null)
-    setCoverPreviewUrl(computeCoverPreview(cp || null))
+    setCoverPreviewUrl(cu || null)
   }
 
   const handleDelete = async (id: string) => {
@@ -235,26 +227,21 @@ export default function AdminNewsPage() {
     if (!ok) return
 
     const { error } = await supabase.from('news_posts').delete().eq('id', id)
-    if (error) {
-      alert('Delete failed: ' + error.message)
-    } else {
+    if (error) alert('Delete failed: ' + error.message)
+    else {
       if (editingId === id) clearForm()
       fetchNews()
     }
   }
 
   const onPickCoverFile = (file: File | null) => {
-    // ✅ 같은 파일 다시 선택해도 onChange가 잘 타게 하려면,
-    // clearFileInputValue()가 선행되어야 하는데,
-    // 사용자가 버튼(클리어) 눌렀을 때 우리가 이미 value='' 처리함.
     revokeObjectUrlIfAny()
     setCoverFile(file)
 
     if (!file) {
-      setCoverPreviewUrl(computeCoverPreview(coverPath))
+      setCoverPreviewUrl(coverUrl)
       return
     }
-
     const url = URL.createObjectURL(file)
     setCoverObjectUrl(url)
     setCoverPreviewUrl(url)
@@ -281,7 +268,6 @@ export default function AdminNewsPage() {
           className="w-full mb-3 p-2 h-40 bg-gray-800 text-white rounded"
         />
 
-        {/* ✅ 썸네일 업로드 섹션 */}
         <div className="mb-4">
           <div className="text-sm text-gray-300 mb-2">Thumbnail (cover image)</div>
 
@@ -305,7 +291,7 @@ export default function AdminNewsPage() {
               />
 
               <div className="mt-2 text-xs text-gray-400">
-                업로드는 <b>Create/Save</b> 버튼을 누를 때 저장됩니다.
+                업로드는 <b>Create/Save</b> 버튼을 누를 때 DB에 저장됩니다.
               </div>
 
               <div className="mt-3 flex gap-2">
@@ -328,9 +314,9 @@ export default function AdminNewsPage() {
                 </button>
               </div>
 
-              {(coverPath || coverFile) && (
+              {(coverUrl || coverFile) && (
                 <div className="mt-3 text-xs text-gray-400 break-all">
-                  <div>Saved value: {coverPath || '(none yet)'}</div>
+                  <div>Saved cover_image_url: {coverUrl || '(none)'}</div>
                   <div>Selected file: {coverFile ? coverFile.name : '(none)'}</div>
                 </div>
               )}
@@ -385,16 +371,14 @@ export default function AdminNewsPage() {
         <h2 className="text-xl font-semibold mb-3">News List</h2>
         <ul className="space-y-2">
           {newsList.map((post) => {
-            const cp = (post as any).cover_image_url as string | null
-            const cover = computeCoverPreview(cp || null)
-
+            const cu = (post as any).cover_image_url as string | null
             return (
               <li key={post.id} className="border-b border-gray-600 pb-2">
                 <div className="flex gap-3 items-center">
                   <div className="w-10 h-10 bg-gray-700 rounded overflow-hidden shrink-0 flex items-center justify-center">
-                    {cover ? (
+                    {cu ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={cover} alt="thumb" className="w-full h-full object-cover" />
+                      <img src={cu} alt="thumb" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-[10px] text-gray-300">No</span>
                     )}
