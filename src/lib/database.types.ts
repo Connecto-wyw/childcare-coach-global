@@ -107,7 +107,9 @@ export type Database = {
       }
       news_posts: {
         Row: {
+          category: string | null
           content: string | null
+          cover_image_url: string | null
           created_at: string
           id: string
           slug: string
@@ -115,7 +117,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          category?: string | null
           content?: string | null
+          cover_image_url?: string | null
           created_at?: string
           id?: string
           slug: string
@@ -123,7 +127,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          category?: string | null
           content?: string | null
+          cover_image_url?: string | null
           created_at?: string
           id?: string
           slug?: string
