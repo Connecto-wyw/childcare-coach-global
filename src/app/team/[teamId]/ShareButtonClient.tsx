@@ -1,40 +1,40 @@
-// src/app/team/[teamId]/ShareButtonClient.tsx
 'use client'
 
 import { useState } from 'react'
 
 export default function ShareButtonClient() {
   const [copied, setCopied] = useState(false)
+
   const share = async () => {
-    const url = window.location.href
-    const title = document.title || 'Team'
+    const url = typeof window !== 'undefined' ? window.location.href : ''
 
     try {
-      // 모바일에서 특히 잘 됨
+      // Web Share API 지원 기기 우선
       if (navigator.share) {
-        await navigator.share({ title, url })
+        await navigator.share({ url })
         return
       }
-    } catch {
-      // share 취소 등은 무시
-    }
 
-    try {
+      // fallback: clipboard
       await navigator.clipboard.writeText(url)
       setCopied(true)
       setTimeout(() => setCopied(false), 1200)
     } catch {
-      // 마지막 fallback: prompt
-      window.prompt('Copy this link:', url)
+      // 마지막 fallback
+      try {
+        await navigator.clipboard.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1200)
+      } catch {}
     }
   }
 
   return (
     <button
       onClick={share}
-      className="h-9 rounded-xl bg-[#1e1e1e] px-4 text-[13px] font-semibold text-white"
+      className="rounded-xl bg-[#1e1e1e] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
     >
-      {copied ? 'Copied' : 'Copy link'}
+      {copied ? 'Copied' : 'Share'}
     </button>
   )
 }
