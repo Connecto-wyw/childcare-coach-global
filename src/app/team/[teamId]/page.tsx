@@ -1,15 +1,18 @@
 // src/app/team/[teamId]/page.tsx
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
 
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type TeamRow = Pick<Database['public']['Tables']['teams']['Row'], 'id' | 'name' | 'purpose' | 'image_url' | 'tag1' | 'tag2' | 'created_at'>
+type TeamRow = Pick<
+  Database['public']['Tables']['teams']['Row'],
+  'id' | 'name' | 'purpose' | 'image_url' | 'tag1' | 'tag2' | 'created_at'
+>
 type ActivityRow = Database['public']['Tables']['team_activities']['Row']
 type PricingRow = Database['public']['Tables']['team_pricing_rules']['Row']
 
@@ -56,10 +59,14 @@ async function createSupabaseServer() {
         return cookieStore.get(name)?.value
       },
       set(name: string, value: string, options: any) {
-        try { cookieStore.set({ name, value, ...options }) } catch {}
+        try {
+          cookieStore.set({ name, value, ...options })
+        } catch {}
       },
       remove(name: string, options: any) {
-        try { cookieStore.set({ name, value: '', ...options, maxAge: 0 }) } catch {}
+        try {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+        } catch {}
       },
     },
   })
@@ -75,11 +82,74 @@ async function getParticipantCount(supabase: Awaited<ReturnType<typeof createSup
   return Number(count ?? 0)
 }
 
+/**
+ * ✅ Next 16+ 환경에서는 headers()가 Promise일 수 있어서 await 필요
+ * ✅ params가 비는 케이스 방어
+ * - 1차: params.teamId
+ * - 2차: headers 기반으로 /team/{id} 파싱
+ */
+async function resolveTeamId(params: { teamId?: string } | undefined) {
+  const raw1 = params?.teamId
+  const teamId1 = typeof raw1 === 'string' ? decodeURIComponent(raw1).trim() : ''
+  if (teamId1 && teamId1 !== 'undefined' && teamId1 !== 'null') return teamId1
+
+  const h = await headers()
+
+  const originalUrl = h.get('x-original-url')
+  const invokePath = h.get('x-invoke-path')
+  const rewriteUrl = h.get('x-rewrite-url')
+  const matchedPath = h.get('x-matched-path')
+  const referer = h.get('referer')
+
+  const candidate = originalUrl || invokePath || rewriteUrl || referer || matchedPath || ''
+
+  const m = candidate.match(/\/team\/([^/?#]+)/)
+  const teamId2 = m?.[1] ? decodeURIComponent(m[1]).trim() : ''
+  if (teamId2 && teamId2 !== 'undefined' && teamId2 !== 'null') return teamId2
+
+  return ''
+}
+
 export default async function TeamDetailPage({ params }: { params: { teamId: string } }) {
   const supabase = await createSupabaseServer()
-  const teamId = params.teamId
+  const teamId = await resolveTeamId(params)
 
-  if (!teamId || teamId === 'undefined') return notFound()
+  // ✅ 이전처럼 notFound()로 죽이지 말고 원인 출력
+  if (!teamId) {
+    const h = await headers()
+    const debug = {
+      params,
+      headers: {
+        'x-original-url': h.get('x-original-url'),
+        'x-invoke-path': h.get('x-invoke-path'),
+        'x-rewrite-url': h.get('x-rewrite-url'),
+        'x-matched-path': h.get('x-matched-path'),
+        referer: h.get('referer'),
+      },
+      note: 'teamId could not be resolved. This indicates routing/Link issue.',
+    }
+
+    return (
+      <main className="min-h-screen bg-white text-[#0e0e0e]">
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <h1 className="text-[28px] font-semibold">TEAM route params missing</h1>
+          <p className="mt-2 text-[13px] text-[#7a7a7a]">
+            This is why you saw a 404 before: the page called notFound() when teamId was empty.
+          </p>
+
+          <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
+{JSON.stringify(debug, null, 2)}
+          </pre>
+
+          <div className="mt-6">
+            <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
+              Back to TEAM →
+            </Link>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   const { data: teamRes, error: teamErr } = await supabase
     .from('teams')
@@ -87,26 +157,26 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
     .eq('id', teamId)
     .maybeSingle()
 
-if (teamErr || !teamRes) {
-  return (
-    <main className="min-h-screen bg-white text-[#0e0e0e]">
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-[28px] font-semibold">Team load failed</h1>
-        <p className="mt-2 text-[13px] text-[#7a7a7a]">teamId: {teamId}</p>
+  if (teamErr || !teamRes) {
+    return (
+      <main className="min-h-screen bg-white text-[#0e0e0e]">
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <h1 className="text-[28px] font-semibold">Team load failed</h1>
+          <p className="mt-2 text-[13px] text-[#7a7a7a]">teamId: {teamId}</p>
 
-        <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
+          <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
 {JSON.stringify({ teamErr, teamRes }, null, 2)}
-        </pre>
+          </pre>
 
-        <div className="mt-6">
-          <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
-            Back to TEAM →
-          </Link>
+          <div className="mt-6">
+            <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
+              Back to TEAM →
+            </Link>
+          </div>
         </div>
-      </div>
-    </main>
-  )
-}
+      </main>
+    )
+  }
 
   const team = teamRes as TeamRow
 
@@ -129,9 +199,9 @@ if (teamErr || !teamRes) {
     .maybeSingle()
 
   const pricing = (pricingRes ?? null) as PricingRow | null
-  const steps = parseSteps(pricing?.discount_steps)
-  const basePrice = Number(pricing?.base_price ?? 0)
-  const currency = String(pricing?.currency ?? 'KRW')
+  const steps = parseSteps((pricing as any)?.discount_steps)
+  const basePrice = Number((pricing as any)?.base_price ?? 0)
+  const currency = String((pricing as any)?.currency ?? 'KRW')
 
   const curDiscount = calcCurrentDiscountPercent(participantCount, steps)
   const discountedPrice = Math.max(0, Math.round(basePrice * (1 - curDiscount / 100)))
@@ -168,9 +238,7 @@ if (teamErr || !teamRes) {
             </div>
 
             {/* purpose */}
-            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">
-              {team.purpose ?? 'No description yet.'}
-            </div>
+            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">{team.purpose ?? 'No description yet.'}</div>
 
             {/* tags */}
             <div className="mt-4 flex flex-wrap gap-2">
@@ -214,7 +282,9 @@ if (teamErr || !teamRes) {
               {progressMax > 0 ? (
                 <div className="mt-6">
                   <div className="flex items-center justify-between text-[12px] text-white/70">
-                    <span>{participantCount} / {progressMax}</span>
+                    <span>
+                      {participantCount} / {progressMax}
+                    </span>
                     <span>{progressPct}%</span>
                   </div>
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/15">
@@ -238,7 +308,10 @@ if (teamErr || !teamRes) {
                       return (
                         <div
                           key={`${s.participants}_${idx}`}
-                          className={['grid grid-cols-3 px-4 py-3 text-[13px]', hit ? 'bg-white/10' : 'bg-transparent'].join(' ')}
+                          className={[
+                            'grid grid-cols-3 px-4 py-3 text-[13px]',
+                            hit ? 'bg-white/10' : 'bg-transparent',
+                          ].join(' ')}
                         >
                           <div>{s.participants}+</div>
                           <div>{s.discount_percent}%</div>
