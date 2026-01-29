@@ -1,115 +1,67 @@
 // src/app/admin/team/[teamId]/activities/page.tsx
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/adminguard'
+import ActivitiesClient from './ActivitiesClient'
 import type { Tables } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type ActivityRow = Pick<
-  Tables<'team_activities'>,
-  'id' | 'team_id' | 'title' | 'description' | 'starts_at' | 'ends_at' | 'created_at'
->
+type ActivityRow = Tables<'team_activities'>
 
-function fmtDate(d: string | null) {
-  if (!d) return '-'
-  try {
-    return new Date(d).toLocaleDateString('en-US')
-  } catch {
-    return d
-  }
-}
-
-export default async function AdminTeamActivitiesPage({ params }: { params: { teamId: string } }) {
-  const teamId = params.teamId
-
+export default async function AdminTeamActivitiesPage({
+  params,
+}: {
+  params: { teamId: string }
+}) {
   const { ok, supabase } = await requireAdmin()
   if (!ok) redirect('/')
 
-  // 팀 존재 확인 (팀 이름 보여주려고)
-  const { data: team } = await supabase.from('teams').select('id,name').eq('id', teamId).maybeSingle()
-  if (!team) {
-    return (
-      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
-        <div className="mx-auto max-w-5xl px-4 py-10">
-          <h1 className="text-2xl font-bold">Admin · TEAM Activities</h1>
-          <p className="mt-4 text-gray-300">Team not found.</p>
-          <Link className="mt-6 inline-block text-[#3EB6F1] underline" href="/admin/team">
-            Back to Teams
-          </Link>
-        </div>
-      </main>
-    )
-  }
+  const teamId = params.teamId
+
+  // 팀 존재 확인(없으면 404 대신 admin 팀 목록으로 보내도 됨)
+  const { data: team, error: teamErr } = await supabase
+    .from('teams')
+    .select('id,name')
+    .eq('id', teamId)
+    .maybeSingle()
+
+  if (teamErr || !team) redirect('/admin/team')
 
   const { data, error } = await supabase
     .from('team_activities')
-    .select('id,team_id,title,description,starts_at,ends_at,created_at')
+    .select('id, team_id, title, body, description, image_url, is_active, sort_order, starts_at, ends_at, created_at')
     .eq('team_id', teamId)
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false })
 
-  const list = ((data ?? []) as ActivityRow[]) ?? []
+  const list = ((data ?? []) as ActivityRow[]).map((row) => ({
+    ...row,
+    // body가 null이면 기존 description을 보여주도록 안전장치
+    body: (row as any).body ?? row.description ?? null,
+  })) as any as ActivityRow[]
 
   return (
-    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Admin · TEAM Activities</h1>
-            <div className="mt-2 text-gray-300">
-              Team: <span className="font-semibold text-white">{team.name}</span>
-            </div>
-            <div className="mt-1 text-sm text-gray-400">/{teamId}</div>
+            <h1 className="text-[28px] font-semibold">TEAM · Activities</h1>
+            <p className="mt-1 text-[13px] font-medium text-[#b4b4b4]">
+              Team: <span className="text-[#0e0e0e]">{team.name}</span>
+            </p>
           </div>
-
-          <div className="flex gap-2">
-            <Link
-              className="rounded bg-[#9F1D23] px-4 py-2 text-white font-semibold hover:opacity-90"
-              href={`/admin/team/${teamId}/activities/new`}
-            >
-              + New Activity
-            </Link>
-            <Link className="rounded bg-gray-700 px-4 py-2 text-white font-semibold hover:opacity-90" href="/admin/team">
-              Back
-            </Link>
-          </div>
+          <a
+            href="/admin/team"
+            className="text-[13px] font-semibold text-[#3497f3] hover:underline underline-offset-2"
+          >
+            ← Back to Teams
+          </a>
         </div>
 
-        {error ? (
-          <div className="mt-6 rounded-lg border border-gray-700 bg-[#222] p-4 text-red-300">
-            Failed to load activities: {error.message}
-          </div>
-        ) : list.length === 0 ? (
-          <div className="mt-6 rounded-lg border border-gray-700 bg-[#222] p-6 text-gray-300">
-            No activities yet.
-          </div>
-        ) : (
-          <div className="mt-6 grid gap-3">
-            {list.map((a) => (
-              <Link
-                key={a.id}
-                href={`/admin/team/${teamId}/activities/${a.id}`}
-                className="rounded-lg border border-gray-700 bg-[#222] p-4 hover:bg-[#2a2a2a]"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="truncate text-lg font-semibold text-white">{a.title}</div>
-                    <div className="mt-1 line-clamp-2 text-sm text-gray-300">{a.description ?? ''}</div>
-
-                    <div className="mt-2 text-xs text-gray-400">
-                      Created: {fmtDate(a.created_at)} · Period: {fmtDate(a.starts_at)} ~ {fmtDate(a.ends_at)}
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 rounded bg-gray-700 px-3 py-1.5 text-xs font-semibold text-white">
-                    Edit
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <div className="mt-8">
+          <ActivitiesClient teamId={teamId} initial={list} />
+        </div>
       </div>
     </main>
   )

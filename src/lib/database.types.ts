@@ -486,7 +486,8 @@ export type Database = {
           tag2: string
         }[]
       }
-      is_admin: { Args: { p_uid?: string }; Returns: boolean }
+      is_admin: { Args: never; Returns: boolean }
+      is_admin_user: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
