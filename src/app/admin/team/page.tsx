@@ -2,6 +2,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Database } from '@/lib/database.types'
 
@@ -16,6 +18,7 @@ function safeFileExt(name: string) {
 
 export default function AdminTeamsPage() {
   const supabase = useSupabase()
+  const router = useRouter()
   const { user, loading: authLoading } = useAuthUser()
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
@@ -49,7 +52,6 @@ export default function AdminTeamsPage() {
   const loadAdminFlag = async () => {
     if (!user) return
 
-    // ✅ 0 rows도 정상 처리 (406 방지)
     const { data, error } = await supabase
       .from('profiles')
       .select('is_admin')
@@ -58,12 +60,10 @@ export default function AdminTeamsPage() {
 
     if (error) {
       console.error('[profiles.is_admin] error:', error)
-      // 조회 실패면 "권한없음"으로 단정하지 말고 null로 두는 게 안전
       setIsAdmin(null)
       return
     }
 
-    // data가 null이면 아직 profiles row가 없는 상태
     setIsAdmin(Boolean(data?.is_admin))
   }
 
@@ -115,7 +115,6 @@ export default function AdminTeamsPage() {
   const uploadImageIfNeeded = async (): Promise<string | null> => {
     if (!user) return null
 
-    // 새 파일이 선택된 경우에만 업로드
     if (!imageFile) return imageUrl ? imageUrl : null
 
     setUploading(true)
@@ -159,8 +158,6 @@ export default function AdminTeamsPage() {
       return
     }
 
-    // teams 테이블은 participant_count 컬럼이 없고,
-    // view에서 count를 계산하고 있으니 여기 값은 teams에 저장하지 않음.
     const payloadForTeamsTable = {
       name: name.trim(),
       purpose: purpose.trim() ? purpose.trim() : null,
@@ -169,6 +166,7 @@ export default function AdminTeamsPage() {
       image_url: finalImageUrl,
     }
 
+    // ✅ 수정이면 그대로 update
     if (editing?.id) {
       const { error } = await supabase.from('teams').update(payloadForTeamsTable).eq('id', editing.id)
       if (error) {
@@ -177,28 +175,40 @@ export default function AdminTeamsPage() {
         console.error(error)
         return
       }
-    } else {
-      const { error } = await supabase.from('teams').insert([
-        { owner_id: user.id, ...payloadForTeamsTable },
-      ])
-      if (error) {
-        setSaving(false)
-        alert(error.message)
-        console.error(error)
-        return
-      }
+
+      setSaving(false)
+      setShowModal(false)
+      setEditing(null)
+      resetForm()
+      fetchTeams()
+      return
     }
 
-    // participant_count를 “어드민 입력형”으로 유지하려면
-    // 여기서 teams가 아닌 별도 컬럼/테이블이 필요함.
-    // 지금 DB는 view로 계산 구조라서 입력값을 저장할 곳이 없음.
-    // (이건 아래 B에서 정확히 정리해줄게)
+    // ✅ 생성이면 insert 후 생성된 id를 받아서 바로 상세 설정으로 이동
+    const { data: inserted, error: insErr } = await supabase
+      .from('teams')
+      .insert([{ owner_id: user.id, ...payloadForTeamsTable }])
+      .select('id')
+      .single()
 
+    if (insErr) {
+      setSaving(false)
+      alert(insErr.message)
+      console.error(insErr)
+      return
+    }
+
+    const newId = inserted?.id
     setSaving(false)
     setShowModal(false)
     setEditing(null)
     resetForm()
     fetchTeams()
+
+    if (newId) {
+      router.push(`/admin/team/${newId}`)
+      return
+    }
   }
 
   const remove = async (id: string) => {
@@ -236,7 +246,6 @@ export default function AdminTeamsPage() {
     )
   }
 
-  // isAdmin이 null이면 아직 판단 전(또는 profiles row 없음/조회 실패)
   if (isAdmin === null) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
@@ -305,7 +314,17 @@ export default function AdminTeamsPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 shrink-0">
+                {/* ✅ 우측 버튼 영역 */}
+                <div className="flex gap-2 shrink-0 items-center">
+                  {/* ✅ 여기: 팀 상세 설정 페이지로 이동 */}
+                  <Link
+                    href={`/admin/team/${t.id}`}
+                    className="px-3 py-1.5 rounded bg-[#3EB6F1] text-black hover:opacity-90 text-sm font-semibold"
+                    title="상세 이미지/텍스트/가격/할인 규칙 설정"
+                  >
+                    상세 설정 →
+                  </Link>
+
                   <button onClick={() => openEdit(t)} className="px-3 py-1.5 rounded bg-gray-700 hover:opacity-90">
                     수정
                   </button>
@@ -350,7 +369,6 @@ export default function AdminTeamsPage() {
               />
 
               <div className="grid grid-cols-2 gap-3 mb-3">
-                {/* ⚠️ 지금 DB는 participant_count를 입력 저장할 컬럼이 없음 */}
                 <input
                   type="number"
                   placeholder="참여자 수(자동 계산)"
@@ -416,7 +434,9 @@ export default function AdminTeamsPage() {
               <p className="text-xs text-gray-500 mt-3">
                 * 이미지는 Supabase Storage(team-images)에 업로드되고, teams.image_url에 public URL이 저장됨.
                 <br />
-                * 참여자 수는 team_members 기반 자동 계산(view/RPC)이라 어드민 입력은 현재 비활성.
+                * 참여자 수는 team_members 기반 자동 계산(view/RPC)라 어드민 입력은 비활성.
+                <br />
+                * 팀 생성 후에는 자동으로 “상세 설정” 페이지로 이동함.
               </p>
             </div>
           </div>
