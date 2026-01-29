@@ -77,8 +77,8 @@ export default async function NewsPage() {
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="font-medium leading-tight">News</h1>
-        <p className="mt-3 text-[16px] text-[#b4b4b4]">
+        <h1 className="text-[24px] font-medium leading-tight">News</h1>
+        <p className="mt-3 text-[14px] text-[#b4b4b4]">
           Curated parenting research &amp; book notes.
         </p>
 

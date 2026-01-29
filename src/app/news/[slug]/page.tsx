@@ -30,8 +30,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-2">{data.title}</h1>
+      <div className="max-w-xl mx-auto px-4 py-12">
+        <h1 className="text-xl font-bold mb-2">{data.title}</h1>
 
         <p className="text-sm text-gray-400 mb-6">
           {data.created_at ? new Date(data.created_at).toLocaleString() : ''}
