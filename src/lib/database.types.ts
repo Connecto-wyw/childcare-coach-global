@@ -191,28 +191,40 @@ export type Database = {
       }
       team_activities: {
         Row: {
+          body: string | null
           created_at: string
           description: string | null
           ends_at: string | null
           id: string
+          image_url: string | null
+          is_active: boolean
+          sort_order: number
           starts_at: string | null
           team_id: string
           title: string
         }
         Insert: {
+          body?: string | null
           created_at?: string
           description?: string | null
           ends_at?: string | null
           id?: string
+          image_url?: string | null
+          is_active?: boolean
+          sort_order?: number
           starts_at?: string | null
           team_id: string
           title: string
         }
         Update: {
+          body?: string | null
           created_at?: string
           description?: string | null
           ends_at?: string | null
           id?: string
+          image_url?: string | null
+          is_active?: boolean
+          sort_order?: number
           starts_at?: string | null
           team_id?: string
           title?: string
@@ -354,6 +366,48 @@ export type Database = {
             foreignKeyName: "team_members_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
+            referencedRelation: "teams_with_counts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_pricing_rules: {
+        Row: {
+          base_price: number
+          created_at: string
+          currency: string
+          discount_steps: Json
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          created_at?: string
+          currency?: string
+          discount_steps?: Json
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          currency?: string
+          discount_steps?: Json
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_pricing_rules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_pricing_rules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
             referencedRelation: "teams_with_counts"
             referencedColumns: ["id"]
           },
