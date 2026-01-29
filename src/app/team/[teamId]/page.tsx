@@ -87,23 +87,23 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
     .eq('id', teamId)
     .maybeSingle()
 
- if (teamErr) {
+if (teamErr || !teamRes) {
   return (
-    <main className="min-h-screen bg-white text-black p-10">
-      <h1 className="text-xl font-bold">Team load failed</h1>
-      <pre className="mt-4 text-sm whitespace-pre-wrap">{teamErr.message}</pre>
-      <pre className="mt-2 text-sm whitespace-pre-wrap">teamId: {teamId}</pre>
-    </main>
-  )
-}
-if (!teamRes) {
-  return (
-    <main className="min-h-screen bg-white text-black p-10">
-      <h1 className="text-xl font-bold">Team not found</h1>
-      <pre className="mt-2 text-sm whitespace-pre-wrap">teamId: {teamId}</pre>
-      <pre className="mt-4 text-sm whitespace-pre-wrap">
-        teams row not returned (likely RLS blocked or row missing)
-      </pre>
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-[28px] font-semibold">Team load failed</h1>
+        <p className="mt-2 text-[13px] text-[#7a7a7a]">teamId: {teamId}</p>
+
+        <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
+{JSON.stringify({ teamErr, teamRes }, null, 2)}
+        </pre>
+
+        <div className="mt-6">
+          <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
+            Back to TEAM →
+          </Link>
+        </div>
+      </div>
     </main>
   )
 }
