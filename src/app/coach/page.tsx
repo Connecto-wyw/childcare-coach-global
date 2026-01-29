@@ -172,6 +172,7 @@ export default async function CoachPage() {
         <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">
         Ongoing Teams
         </div>
+        <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
 
 
