@@ -12,11 +12,18 @@ export const revalidate = 0
 type TeamRow = Pick<
   Database['public']['Tables']['teams']['Row'],
   'id' | 'name' | 'purpose' | 'image_url' | 'tag1' | 'tag2' | 'created_at'
->
+> & {
+  detail_image_url: string | null
+  detail_markdown: string | null
+}
+
 type ActivityRow = Database['public']['Tables']['team_activities']['Row']
 type PricingRow = Database['public']['Tables']['team_pricing_rules']['Row']
 
 type DiscountStep = { participants: number; discount_percent: number }
+
+const FALLBACK_DETAIL_TITLE = 'Details'
+const FALLBACK_DETAIL_TEXT = 'No additional details yet.'
 
 function parseSteps(raw: any): DiscountStep[] {
   if (!raw) return []
@@ -104,7 +111,7 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
   return ''
 }
 
-// ✅ 핵심: Next 16에서 params가 Promise로 올 수 있음
+// ✅ Next 16에서 params가 Promise로 올 수 있음
 export default async function TeamDetailPage({
   params,
 }: {
@@ -133,9 +140,7 @@ export default async function TeamDetailPage({
       <main className="min-h-screen bg-white text-[#0e0e0e]">
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="text-[28px] font-semibold">TEAM route params missing</h1>
-          <p className="mt-2 text-[13px] text-[#7a7a7a]">
-            This page used to 404 because teamId was empty.
-          </p>
+          <p className="mt-2 text-[13px] text-[#7a7a7a]">This page used to 404 because teamId was empty.</p>
 
           <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
 {JSON.stringify(debug, null, 2)}
@@ -151,9 +156,10 @@ export default async function TeamDetailPage({
     )
   }
 
+  // ✅ 여기서 detail_* 컬럼이 실제로 DB에 있어야 함
   const { data: teamRes, error: teamErr } = await sb
     .from('teams')
-    .select('id,name,purpose,image_url,tag1,tag2,created_at')
+    .select('id,name,purpose,image_url,tag1,tag2,detail_image_url,detail_markdown,created_at')
     .eq('id', teamId)
     .maybeSingle()
 
@@ -178,7 +184,7 @@ export default async function TeamDetailPage({
     )
   }
 
-  const team = teamRes as TeamRow
+  const team = teamRes as unknown as TeamRow
 
   const participantCount = await getParticipantCount(sb, teamId)
 
@@ -201,10 +207,12 @@ export default async function TeamDetailPage({
   const pricing = (pricingRes ?? null) as PricingRow | null
   const steps = parseSteps((pricing as any)?.discount_steps)
   const basePrice = Number((pricing as any)?.base_price ?? 0)
+  const minPrice = Number((pricing as any)?.min_price ?? 0)
   const currency = String((pricing as any)?.currency ?? 'KRW')
 
   const curDiscount = calcCurrentDiscountPercent(participantCount, steps)
-  const discountedPrice = Math.max(0, Math.round(basePrice * (1 - curDiscount / 100)))
+  const discountedPriceRaw = Math.max(0, Math.round(basePrice * (1 - curDiscount / 100)))
+  const discountedPrice = minPrice > 0 ? Math.max(minPrice, discountedPriceRaw) : discountedPriceRaw
 
   const progressMax = steps.length > 0 ? steps[steps.length - 1].participants : 0
   const progressPct = progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
@@ -254,6 +262,21 @@ export default async function TeamDetailPage({
               <ShareButtonClient />
             </div>
 
+            {/* ✅ 상세(어드민 입력) */}
+            <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-white p-6">
+              <div className="text-[18px] font-semibold">{FALLBACK_DETAIL_TITLE}</div>
+
+              {team.detail_image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={team.detail_image_url} alt="detail" className="mt-4 w-full h-auto rounded-2xl object-cover" />
+              ) : null}
+
+              <div className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-[#3a3a3a]">
+                {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+              </div>
+            </div>
+
+            {/* pricing */}
             <div className="mt-8 rounded-2xl bg-[#111111] px-6 py-8 text-white">
               <div className="text-center text-[28px] font-semibold">Join now</div>
 
@@ -264,6 +287,7 @@ export default async function TeamDetailPage({
                     <div className="mt-1 text-[26px] font-semibold">{formatMoney(discountedPrice, currency)}</div>
                     <div className="mt-1 text-[13px] text-white/70">
                       {participantCount} joined · {curDiscount}% discount
+                      {minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
                     </div>
                   </>
                 ) : (
@@ -274,7 +298,9 @@ export default async function TeamDetailPage({
               {progressMax > 0 ? (
                 <div className="mt-6">
                   <div className="flex items-center justify-between text-[12px] text-white/70">
-                    <span>{participantCount} / {progressMax}</span>
+                    <span>
+                      {participantCount} / {progressMax}
+                    </span>
                     <span>{progressPct}%</span>
                   </div>
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/15">
@@ -292,7 +318,8 @@ export default async function TeamDetailPage({
                   </div>
                   <div className="divide-y divide-white/10">
                     {steps.map((s, idx) => {
-                      const price = Math.max(0, Math.round(basePrice * (1 - s.discount_percent / 100)))
+                      const raw = Math.max(0, Math.round(basePrice * (1 - s.discount_percent / 100)))
+                      const price = minPrice > 0 ? Math.max(minPrice, raw) : raw
                       const hit = participantCount >= s.participants
                       return (
                         <div
@@ -310,6 +337,7 @@ export default async function TeamDetailPage({
               ) : null}
             </div>
 
+            {/* activities */}
             <div className="mt-10">
               <div className="text-[18px] font-semibold">TEAM UP Activities</div>
               <div className="mt-2 text-[14px] text-[#7a7a7a]">Activities created by admin will appear here.</div>
@@ -324,15 +352,13 @@ export default async function TeamDetailPage({
                     <div key={a.id} className="overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
                       {(a as any).image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={(a as any).image_url} alt={a.title} className="w-full h-auto object-cover" />
+                        <img src={(a as any).image_url} alt={(a as any).title ?? 'activity'} className="w-full h-auto object-cover" />
                       ) : null}
 
                       <div className="p-5">
-                        <div className="text-[20px] font-semibold">{a.title}</div>
-                        {a.description ? (
-                          <div className="mt-2 whitespace-pre-wrap text-[15px] leading-7 text-[#3a3a3a]">
-                            {a.description}
-                          </div>
+                        <div className="text-[20px] font-semibold">{(a as any).title}</div>
+                        {(a as any).description ? (
+                          <div className="mt-2 whitespace-pre-wrap text-[15px] leading-7 text-[#3a3a3a]">{(a as any).description}</div>
                         ) : null}
                       </div>
                     </div>
