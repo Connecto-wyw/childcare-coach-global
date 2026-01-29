@@ -169,9 +169,12 @@ export default async function CoachPage() {
         </section>
 
         <section className="mb-8">
-          <ActiveTeamsGrid title="Ongoing Teams" teams={ongoingTeams} />
-          <div className="text-[15px] font-medium text-[#0e0e0e] mb-3"> Ongoing Teams </div>
+        <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">
+        Ongoing Teams
+        </div>
+        <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
+
 
         <section>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
