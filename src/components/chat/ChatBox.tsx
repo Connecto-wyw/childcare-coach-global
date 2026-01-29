@@ -47,6 +47,13 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
+  // ✅ 플로팅 입력창 높이 측정용 ref
+  const chatBarRef = useRef<HTMLDivElement | null>(null)
+
+  // ✅ 첫 마운트 때 scrollIntoView 방지
+  const didMountRef = useRef(false)
+  const prevMsgLenRef = useRef(0)
+
   useEffect(() => {
     if (user) setShowLoginModal(false)
   }, [user])
@@ -60,8 +67,51 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return () => clearInterval(id)
   }, [loading])
 
+  // ✅ 고정 입력창 높이를 CSS 변수로 저장: --chatbar-h
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = chatBarRef.current
+    if (!el) return
+
+    const set = () => {
+      const h = el.getBoundingClientRect().height
+      document.documentElement.style.setProperty('--chatbar-h', `${Math.ceil(h)}px`)
+    }
+
+    set()
+
+    const ro = new ResizeObserver(() => set())
+    ro.observe(el)
+
+    window.addEventListener('resize', set)
+    window.addEventListener('orientationchange', set)
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', set)
+      window.removeEventListener('orientationchange', set)
+    }
+  }, [])
+
+  // ✅ 스크롤 끌림(=ongoing teams 포커싱) 원인 제거
+  // - mount 시 1회 실행 금지
+  // - 새 메시지가 추가되었거나, 로딩이 시작될 때만 endRef로 스크롤
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true
+      prevMsgLenRef.current = messages.length
+      return
+    }
+
+    const prevLen = prevMsgLenRef.current
+    const nowLen = messages.length
+    prevMsgLenRef.current = nowLen
+
+    const shouldScroll =
+      (nowLen > prevLen) || loading // 새 메시지 추가되거나 로딩 시작 시
+
+    if (!shouldScroll) return
+
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages.length, loading])
 
   const getAuthRedirectTo = useCallback(() => {
@@ -158,8 +208,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* ✅ 메시지는 페이지에 그대로 쌓이게 (페이지 스크롤이 늘어남) */}
-      <div className="space-y-3 pb-28">
+      {/* ✅ 메시지는 페이지에 그대로 쌓이되, 하단은 "플로팅 입력창 높이"만큼 자동 확보 */}
+      <div className="space-y-3 pb-[calc(var(--chatbar-h,96px)+16px)]">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
@@ -200,9 +250,9 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         <div ref={endRef} />
       </div>
 
-      {/* ✅ 입력창: 하단 플로팅 유지 + 여백 줄이기 (bottom-12 -> bottom-4) */}
-      <div className="fixed left-0 right-0 bottom-4 z-40">
-        <div className="max-w-5xl mx-auto px-4">
+      {/* ✅ 입력창: "아예 이 영역은 흰색 바닥"으로 깔고, 페이지가 그 높이만큼 자동 비움 */}
+      <div ref={chatBarRef} className="fixed left-0 right-0 bottom-0 z-50 bg-white border-t border-[#eeeeee]">
+        <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="border border-[#dcdcdc] bg-white shadow-sm">
             <div className="flex items-stretch gap-2">
               <textarea

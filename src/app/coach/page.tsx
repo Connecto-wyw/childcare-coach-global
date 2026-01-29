@@ -153,14 +153,14 @@ export default async function CoachPage() {
 
         <section className="text-center mb-16">
           <div className="leading-tight">
-            <div className="text-[25px] text-[#0e0e0e] font-medium">HELLO</div>
+            <div className="text-[30px] text-[#0e0e0e] font-Light">HELLO</div>
             {/* 오타 수정: #0e0gite0e -> #0e0e0e */}
             <div className="text-[25px] text-[#0e0e0e] font-medium">I AM YOUR AI PARENTING COACH</div>
           </div>
         </section>
 
         <section className="mb-3">
-          <div className="text-[13px] font-medium text-[#0e0e0e] mb-3">People are also asking</div>
+          <div className="text-[15px] font-medium text-[#0e0e0e] mb-3">People are also asking</div>
           <KeywordButtons keywords={keywords} />
         </section>
 
@@ -175,18 +175,18 @@ export default async function CoachPage() {
         <section>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div>
-              <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
+              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
               <div className="bg-[#f0f7fd] p-4">
                 <TipSection />
               </div>
             </div>
 
             <div>
-              <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">K-Parenting News</h3>
+              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">K-Parenting News</h3>
 
               <div className="bg-[#f0f7fd] p-4">
                 {news.length === 0 ? (
-                  <p className="text-[13px] font-medium text-[#b4b4b4]">No news available.</p>
+                  <p className="text-[15px] font-medium text-[#b4b4b4]">No news available.</p>
                 ) : (
                   <ul className="space-y-3">
                     {news.map((n) => (
