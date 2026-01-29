@@ -72,36 +72,30 @@ async function createSupabaseServer() {
   })
 }
 
-async function getParticipantCount(supabase: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
-  const { count, error } = await supabase
-    .from('team_members')
-    .select('*', { count: 'exact', head: true })
-    .eq('team_id', teamId)
-
+async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
+  const { count, error } = await sb.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId)
   if (error) return 0
   return Number(count ?? 0)
 }
 
 /**
- * ✅ Next 16+ 환경에서는 headers()가 Promise일 수 있어서 await 필요
- * ✅ params가 비는 케이스 방어
+ * params가 비는 케이스 방어
  * - 1차: params.teamId
- * - 2차: headers 기반으로 /team/{id} 파싱
+ * - 2차: headers에서 /team/{id} 추출
  */
-async function resolveTeamId(params: { teamId?: string } | undefined) {
-  const raw1 = params?.teamId
+async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
+  const raw1 = paramsObj?.teamId
   const teamId1 = typeof raw1 === 'string' ? decodeURIComponent(raw1).trim() : ''
   if (teamId1 && teamId1 !== 'undefined' && teamId1 !== 'null') return teamId1
 
   const h = await headers()
-
-  const originalUrl = h.get('x-original-url')
-  const invokePath = h.get('x-invoke-path')
-  const rewriteUrl = h.get('x-rewrite-url')
-  const matchedPath = h.get('x-matched-path')
-  const referer = h.get('referer')
-
-  const candidate = originalUrl || invokePath || rewriteUrl || referer || matchedPath || ''
+  const candidate =
+    h.get('x-original-url') ||
+    h.get('x-invoke-path') ||
+    h.get('x-rewrite-url') ||
+    h.get('referer') ||
+    h.get('x-matched-path') ||
+    ''
 
   const m = candidate.match(/\/team\/([^/?#]+)/)
   const teamId2 = m?.[1] ? decodeURIComponent(m[1]).trim() : ''
@@ -110,15 +104,21 @@ async function resolveTeamId(params: { teamId?: string } | undefined) {
   return ''
 }
 
-export default async function TeamDetailPage({ params }: { params: { teamId: string } }) {
-  const supabase = await createSupabaseServer()
-  const teamId = await resolveTeamId(params)
+// ✅ 핵심: Next 16에서 params가 Promise로 올 수 있음
+export default async function TeamDetailPage({
+  params,
+}: {
+  params: Promise<{ teamId: string }>
+}) {
+  const sb = await createSupabaseServer()
 
-  // ✅ 이전처럼 notFound()로 죽이지 말고 원인 출력
+  const p = await params
+  const teamId = await resolveTeamId(p)
+
   if (!teamId) {
     const h = await headers()
     const debug = {
-      params,
+      params: p,
       headers: {
         'x-original-url': h.get('x-original-url'),
         'x-invoke-path': h.get('x-invoke-path'),
@@ -126,7 +126,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
         'x-matched-path': h.get('x-matched-path'),
         referer: h.get('referer'),
       },
-      note: 'teamId could not be resolved. This indicates routing/Link issue.',
+      note: 'teamId could not be resolved. This usually happens when params is Promise or routing/link mismatch.',
     }
 
     return (
@@ -134,7 +134,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="text-[28px] font-semibold">TEAM route params missing</h1>
           <p className="mt-2 text-[13px] text-[#7a7a7a]">
-            This is why you saw a 404 before: the page called notFound() when teamId was empty.
+            This page used to 404 because teamId was empty.
           </p>
 
           <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
@@ -151,7 +151,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
     )
   }
 
-  const { data: teamRes, error: teamErr } = await supabase
+  const { data: teamRes, error: teamErr } = await sb
     .from('teams')
     .select('id,name,purpose,image_url,tag1,tag2,created_at')
     .eq('id', teamId)
@@ -180,9 +180,9 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
 
   const team = teamRes as TeamRow
 
-  const participantCount = await getParticipantCount(supabase, teamId)
+  const participantCount = await getParticipantCount(sb, teamId)
 
-  const { data: actRes } = await supabase
+  const { data: actRes } = await sb
     .from('team_activities')
     .select('*')
     .eq('team_id', teamId)
@@ -192,7 +192,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
 
   const activities = (actRes ?? []) as ActivityRow[]
 
-  const { data: pricingRes } = await supabase
+  const { data: pricingRes } = await sb
     .from('team_pricing_rules')
     .select('*')
     .eq('team_id', teamId)
@@ -207,8 +207,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
   const discountedPrice = Math.max(0, Math.round(basePrice * (1 - curDiscount / 100)))
 
   const progressMax = steps.length > 0 ? steps[steps.length - 1].participants : 0
-  const progressPct =
-    progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
+  const progressPct = progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -218,7 +217,6 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
         </div>
 
         <div className="mt-8 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
-          {/* cover */}
           <div className="w-full bg-[#f3f3f3]">
             {team.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -229,7 +227,6 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
           </div>
 
           <div className="p-6">
-            {/* title + joined */}
             <div className="flex items-center justify-between gap-4">
               <div className="text-[28px] font-semibold leading-tight">{team.name}</div>
               <div className="shrink-0 rounded-full bg-[#f2f2f2] px-4 py-2 text-[13px] font-medium text-[#6b6b6b]">
@@ -237,10 +234,8 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
               </div>
             </div>
 
-            {/* purpose */}
             <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">{team.purpose ?? 'No description yet.'}</div>
 
-            {/* tags */}
             <div className="mt-4 flex flex-wrap gap-2">
               {team.tag1 ? (
                 <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">
@@ -254,13 +249,11 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
               ) : null}
             </div>
 
-            {/* share */}
             <div className="mt-5 flex items-center justify-between gap-3">
               <div className="text-[13px] text-[#7a7a7a]">Share this team with friends</div>
               <ShareButtonClient />
             </div>
 
-            {/* pricing */}
             <div className="mt-8 rounded-2xl bg-[#111111] px-6 py-8 text-white">
               <div className="text-center text-[28px] font-semibold">Join now</div>
 
@@ -278,13 +271,10 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
                 )}
               </div>
 
-              {/* progress */}
               {progressMax > 0 ? (
                 <div className="mt-6">
                   <div className="flex items-center justify-between text-[12px] text-white/70">
-                    <span>
-                      {participantCount} / {progressMax}
-                    </span>
+                    <span>{participantCount} / {progressMax}</span>
                     <span>{progressPct}%</span>
                   </div>
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/15">
@@ -293,7 +283,6 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
                 </div>
               ) : null}
 
-              {/* steps table */}
               {steps.length > 0 ? (
                 <div className="mt-6 overflow-hidden rounded-xl border border-white/15">
                   <div className="grid grid-cols-3 bg-white/5 px-4 py-3 text-[13px] font-semibold">
@@ -308,10 +297,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
                       return (
                         <div
                           key={`${s.participants}_${idx}`}
-                          className={[
-                            'grid grid-cols-3 px-4 py-3 text-[13px]',
-                            hit ? 'bg-white/10' : 'bg-transparent',
-                          ].join(' ')}
+                          className={['grid grid-cols-3 px-4 py-3 text-[13px]', hit ? 'bg-white/10' : 'bg-transparent'].join(' ')}
                         >
                           <div>{s.participants}+</div>
                           <div>{s.discount_percent}%</div>
@@ -324,7 +310,6 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
               ) : null}
             </div>
 
-            {/* activities */}
             <div className="mt-10">
               <div className="text-[18px] font-semibold">TEAM UP Activities</div>
               <div className="mt-2 text-[14px] text-[#7a7a7a]">Activities created by admin will appear here.</div>

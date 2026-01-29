@@ -50,14 +50,21 @@ export default function ActivityDetailPage() {
   const { user, loading: authLoading } = useAuthUser()
   const params = useParams()
 
-  const teamId = useMemo(() => String(params.teamId), [params.teamId])
-  const activityId = useMemo(() => String(params.activityId), [params.activityId])
+  // ✅ params 안전 파싱 (중복 선언 금지)
+  const teamId = useMemo(() => {
+    const v = (params as any)?.teamId
+    return typeof v === 'string' ? v : ''
+  }, [params])
+
+  const activityId = useMemo(() => {
+    const v = (params as any)?.activityId
+    return typeof v === 'string' ? v : ''
+  }, [params])
 
   const [activity, setActivity] = useState<Activity | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
-
   const [showLoginModal, setShowLoginModal] = useState(false)
 
   const alreadyJoined = useMemo(() => {
@@ -105,7 +112,6 @@ export default function ActivityDetailPage() {
 
   const loginGoogle = async () => {
     const base = getSiteOrigin()
-    // 로그인 후 현재 페이지로 돌아오게
     const redirectTo = `${base}/auth/callback?next=/team/${teamId}/activities/${activityId}`
 
     await supabase.auth.signInWithOAuth({
@@ -115,13 +121,11 @@ export default function ActivityDetailPage() {
   }
 
   const join = async () => {
-    // ✅ 로그인 안 했으면 모달로 유도
     if (!user) {
       setShowLoginModal(true)
       return
     }
-
-    // ✅ 이미 참여했으면 막기
+    if (!activityId) return
     if (alreadyJoined) return
 
     setJoining(true)
@@ -164,11 +168,13 @@ export default function ActivityDetailPage() {
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <Link href={`/team/${teamId}`} className="text-sm text-gray-400 hover:underline">
+        <Link href={teamId ? `/team/${teamId}` : '/team'} className="text-sm text-gray-400 hover:underline">
           ← TEAM 상세로
         </Link>
 
-        {loading ? (
+        {!teamId || !activityId ? (
+          <p className="text-gray-400 mt-6">잘못된 링크입니다. (teamId/activityId 없음)</p>
+        ) : loading ? (
           <p className="text-gray-400 mt-6">불러오는 중…</p>
         ) : !activity ? (
           <p className="text-gray-400 mt-6">활동을 찾을 수 없습니다.</p>
@@ -177,9 +183,7 @@ export default function ActivityDetailPage() {
             <h1 className="text-3xl font-bold mt-4">{activity.title}</h1>
 
             {activity.description ? (
-              <div className="mt-4 text-gray-300 whitespace-pre-wrap">
-                {activity.description}
-              </div>
+              <div className="mt-4 text-gray-300 whitespace-pre-wrap">{activity.description}</div>
             ) : null}
 
             <div className="text-sm text-gray-400 mt-3">
@@ -188,10 +192,7 @@ export default function ActivityDetailPage() {
             </div>
 
             <div className="mt-6 flex gap-2">
-              <button
-                onClick={copyShareLink}
-                className="px-4 py-2 bg-[#3EB6F1] text-black rounded hover:opacity-90"
-              >
+              <button onClick={copyShareLink} className="px-4 py-2 bg-[#3EB6F1] text-black rounded hover:opacity-90">
                 공유
               </button>
 
@@ -204,9 +205,7 @@ export default function ActivityDetailPage() {
               </button>
             </div>
 
-            <h2 className="text-2xl font-bold mt-10 mb-3">
-              참여자 ({participants.length})
-            </h2>
+            <h2 className="text-2xl font-bold mt-10 mb-3">참여자 ({participants.length})</h2>
 
             <div className="rounded-lg bg-[#222] p-4 border border-gray-700">
               <div className="space-y-2">
@@ -216,10 +215,7 @@ export default function ActivityDetailPage() {
                   participants.map((p) => (
                     <div key={p.id} className="text-sm text-gray-200">
                       {p.nickname ?? p.user_id.slice(0, 8)}
-                      <span className="text-xs text-gray-500">
-                        {' '}
-                        · {new Date(p.created_at).toLocaleString()}
-                      </span>
+                      <span className="text-xs text-gray-500"> · {new Date(p.created_at).toLocaleString()}</span>
                     </div>
                   ))
                 )}
@@ -229,7 +225,6 @@ export default function ActivityDetailPage() {
         )}
       </div>
 
-      {/* ✅ 로그인 유도 모달 */}
       {showLoginModal && (
         <>
           <div
@@ -240,9 +235,7 @@ export default function ActivityDetailPage() {
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-[#222] border border-gray-700 rounded-lg p-6">
               <h3 className="text-xl font-bold">로그인이 필요해</h3>
-              <p className="text-gray-300 mt-2">
-                참여하기는 로그인 후 가능해. 구글로 바로 로그인할래?
-              </p>
+              <p className="text-gray-300 mt-2">참여하기는 로그인 후 가능해. 구글로 바로 로그인할래?</p>
 
               <div className="flex justify-end gap-2 mt-5">
                 <button
@@ -251,10 +244,7 @@ export default function ActivityDetailPage() {
                 >
                   닫기
                 </button>
-                <button
-                  onClick={loginGoogle}
-                  className="px-4 py-2 bg-white text-black rounded hover:opacity-90"
-                >
+                <button onClick={loginGoogle} className="px-4 py-2 bg-white text-black rounded hover:opacity-90">
                   Google로 로그인
                 </button>
               </div>
