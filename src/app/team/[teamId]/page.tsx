@@ -87,7 +87,27 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
     .eq('id', teamId)
     .maybeSingle()
 
-  if (teamErr || !teamRes) return notFound()
+ if (teamErr) {
+  return (
+    <main className="min-h-screen bg-white text-black p-10">
+      <h1 className="text-xl font-bold">Team load failed</h1>
+      <pre className="mt-4 text-sm whitespace-pre-wrap">{teamErr.message}</pre>
+      <pre className="mt-2 text-sm whitespace-pre-wrap">teamId: {teamId}</pre>
+    </main>
+  )
+}
+if (!teamRes) {
+  return (
+    <main className="min-h-screen bg-white text-black p-10">
+      <h1 className="text-xl font-bold">Team not found</h1>
+      <pre className="mt-2 text-sm whitespace-pre-wrap">teamId: {teamId}</pre>
+      <pre className="mt-4 text-sm whitespace-pre-wrap">
+        teams row not returned (likely RLS blocked or row missing)
+      </pre>
+    </main>
+  )
+}
+
   const team = teamRes as TeamRow
 
   const participantCount = await getParticipantCount(supabase, teamId)
