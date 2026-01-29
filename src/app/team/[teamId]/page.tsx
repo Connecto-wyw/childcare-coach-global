@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
+import JoinButtonClient from './JoinButtonClient'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,13 +18,15 @@ type TeamRow = Pick<
   detail_markdown: string | null
 }
 
-type ActivityRow = Database['public']['Tables']['team_activities']['Row']
 type PricingRow = Database['public']['Tables']['team_pricing_rules']['Row']
-
 type DiscountStep = { participants: number; discount_percent: number }
 
 const FALLBACK_DETAIL_TITLE = 'Details'
 const FALLBACK_DETAIL_TEXT = 'No additional details yet.'
+
+// ✅ 코치 페이지에서 쓰던 밝은 하늘색(네가 말한 그거)
+const SKY_BLUE = '#3EB6F1'
+const SKY_BLUE_LIGHT = '#EAF6FF'
 
 function parseSteps(raw: any): DiscountStep[] {
   if (!raw) return []
@@ -80,7 +83,11 @@ async function createSupabaseServer() {
 }
 
 async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
-  const { count, error } = await sb.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId)
+  const { count, error } = await sb
+    .from('team_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('team_id', teamId)
+
   if (error) return 0
   return Number(count ?? 0)
 }
@@ -156,7 +163,6 @@ export default async function TeamDetailPage({
     )
   }
 
-  // ✅ 여기서 detail_* 컬럼이 실제로 DB에 있어야 함
   const { data: teamRes, error: teamErr } = await sb
     .from('teams')
     .select('id,name,purpose,image_url,tag1,tag2,detail_image_url,detail_markdown,created_at')
@@ -185,18 +191,7 @@ export default async function TeamDetailPage({
   }
 
   const team = teamRes as unknown as TeamRow
-
   const participantCount = await getParticipantCount(sb, teamId)
-
-  const { data: actRes } = await sb
-    .from('team_activities')
-    .select('*')
-    .eq('team_id', teamId)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false })
-
-  const activities = (actRes ?? []) as ActivityRow[]
 
   const { data: pricingRes } = await sb
     .from('team_pricing_rules')
@@ -215,12 +210,12 @@ export default async function TeamDetailPage({
   const discountedPrice = minPrice > 0 ? Math.max(minPrice, discountedPriceRaw) : discountedPriceRaw
 
   const progressMax = steps.length > 0 ? steps[steps.length - 1].participants : 0
-  const progressPct = progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
+  const progressPct =
+    progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-
         <div className="mt-8 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
           <div className="w-full bg-[#f3f3f3]">
             {team.image_url ? (
@@ -259,6 +254,84 @@ export default async function TeamDetailPage({
               <ShareButtonClient />
             </div>
 
+            {/* ✅ (1) 가격/할인 영역을 Details 위로 올림 + (3) 밝은 하늘색 적용 */}
+            <div
+              className="mt-8 rounded-2xl px-6 py-8"
+              style={{
+                background: SKY_BLUE,
+                color: '#0e0e0e',
+              }}
+            >
+              <div className="text-center text-[28px] font-semibold">Join now</div>
+
+              <div className="mt-4 text-center">
+                {basePrice > 0 ? (
+                  <>
+                    <div className="text-[14px] text-black/70">Current price</div>
+                    <div className="mt-1 text-[30px] font-semibold">{formatMoney(discountedPrice, currency)}</div>
+                    <div className="mt-1 text-[13px] text-black/70">
+                      {participantCount} joined · {curDiscount}% discount
+                      {minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[14px] text-black/70">Pricing not set yet. (Admin needs base price + steps)</div>
+                )}
+              </div>
+
+              {progressMax > 0 ? (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between text-[12px] text-black/70">
+                    <span>
+                      {participantCount} / {progressMax}
+                    </span>
+                    <span>{progressPct}%</span>
+                  </div>
+
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/15">
+                    <div className="h-full bg-black/45" style={{ width: `${progressPct}%` }} />
+                  </div>
+                </div>
+              ) : null}
+
+              {steps.length > 0 ? (
+                <div className="mt-6 overflow-hidden rounded-xl border border-black/15" style={{ background: SKY_BLUE_LIGHT }}>
+                  <div className="grid grid-cols-3 px-4 py-3 text-[13px] font-semibold text-[#0e0e0e]">
+                    <div>Participants</div>
+                    <div>Discount</div>
+                    <div>Price</div>
+                  </div>
+                  <div className="divide-y divide-black/10">
+                    {steps.map((s, idx) => {
+                      const raw = Math.max(0, Math.round(basePrice * (1 - s.discount_percent / 100)))
+                      const price = minPrice > 0 ? Math.max(minPrice, raw) : raw
+                      const hit = participantCount >= s.participants
+
+                      return (
+                        <div
+                          key={`${s.participants}_${idx}`}
+                          className={['grid grid-cols-3 px-4 py-3 text-[13px]', hit ? 'bg-black/5' : 'bg-transparent'].join(' ')}
+                        >
+                          <div>{s.participants}+</div>
+                          <div>{s.discount_percent}%</div>
+                          <div>{formatMoney(price, currency)}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* ✅ (2) 실제로 눌리는 Join 버튼 */}
+              <div className="mt-6 flex justify-center">
+                <JoinButtonClient teamId={teamId} />
+              </div>
+
+              <div className="mt-3 text-center text-[12px] text-black/60">
+                * Join을 누르면 team_members에 참여가 기록돼.
+              </div>
+            </div>
+
             {/* ✅ 상세(어드민 입력) */}
             <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-white p-6">
               <div className="text-[18px] font-semibold">{FALLBACK_DETAIL_TITLE}</div>
@@ -271,67 +344,6 @@ export default async function TeamDetailPage({
               <div className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-[#3a3a3a]">
                 {team.detail_markdown || FALLBACK_DETAIL_TEXT}
               </div>
-            </div>
-
-            {/* pricing */}
-            <div className="mt-8 rounded-2xl bg-[#111111] px-6 py-8 text-white">
-              <div className="text-center text-[28px] font-semibold">Join now</div>
-
-              <div className="mt-4 text-center">
-                {basePrice > 0 ? (
-                  <>
-                    <div className="text-[14px] text-white/70">Current price</div>
-                    <div className="mt-1 text-[26px] font-semibold">{formatMoney(discountedPrice, currency)}</div>
-                    <div className="mt-1 text-[13px] text-white/70">
-                      {participantCount} joined · {curDiscount}% discount
-                      {minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-[14px] text-white/70">Pricing not set yet. (Admin needs base price + steps)</div>
-                )}
-              </div>
-
-              {progressMax > 0 ? (
-                <div className="mt-6">
-                  <div className="flex items-center justify-between text-[12px] text-white/70">
-                    <span>
-                      {participantCount} / {progressMax}
-                    </span>
-                    <span>{progressPct}%</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/15">
-                    <div className="h-full bg-white/60" style={{ width: `${progressPct}%` }} />
-                  </div>
-                </div>
-              ) : null}
-
-              {steps.length > 0 ? (
-                <div className="mt-6 overflow-hidden rounded-xl border border-white/15">
-                  <div className="grid grid-cols-3 bg-white/5 px-4 py-3 text-[13px] font-semibold">
-                    <div>Participants</div>
-                    <div>Discount</div>
-                    <div>Price</div>
-                  </div>
-                  <div className="divide-y divide-white/10">
-                    {steps.map((s, idx) => {
-                      const raw = Math.max(0, Math.round(basePrice * (1 - s.discount_percent / 100)))
-                      const price = minPrice > 0 ? Math.max(minPrice, raw) : raw
-                      const hit = participantCount >= s.participants
-                      return (
-                        <div
-                          key={`${s.participants}_${idx}`}
-                          className={['grid grid-cols-3 px-4 py-3 text-[13px]', hit ? 'bg-white/10' : 'bg-transparent'].join(' ')}
-                        >
-                          <div>{s.participants}+</div>
-                          <div>{s.discount_percent}%</div>
-                          <div>{formatMoney(price, currency)}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <div className="mt-10">
