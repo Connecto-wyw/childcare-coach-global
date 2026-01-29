@@ -220,9 +220,6 @@ export default async function TeamDetailPage({
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="text-center">
-          <div className="text-[44px] font-semibold tracking-tight">Team</div>
-        </div>
 
         <div className="mt-8 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
           <div className="w-full bg-[#f3f3f3]">
@@ -335,36 +332,6 @@ export default async function TeamDetailPage({
                   </div>
                 </div>
               ) : null}
-            </div>
-
-            {/* activities */}
-            <div className="mt-10">
-              <div className="text-[18px] font-semibold">TEAM UP Activities</div>
-              <div className="mt-2 text-[14px] text-[#7a7a7a]">Activities created by admin will appear here.</div>
-
-              {activities.length === 0 ? (
-                <div className="mt-6 rounded-xl border border-[#e5e5e5] bg-white p-6 text-[#7a7a7a]">
-                  Activities list will appear here.
-                </div>
-              ) : (
-                <div className="mt-6 grid gap-5">
-                  {activities.map((a) => (
-                    <div key={a.id} className="overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
-                      {(a as any).image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={(a as any).image_url} alt={(a as any).title ?? 'activity'} className="w-full h-auto object-cover" />
-                      ) : null}
-
-                      <div className="p-5">
-                        <div className="text-[20px] font-semibold">{(a as any).title}</div>
-                        {(a as any).description ? (
-                          <div className="mt-2 whitespace-pre-wrap text-[15px] leading-7 text-[#3a3a3a]">{(a as any).description}</div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="mt-10">
