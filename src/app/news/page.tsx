@@ -77,7 +77,7 @@ export default async function NewsPage() {
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[56px] leading-none font-bold">News</h1>
+        <h1 className="text-[30px] leading-none font-bold">News</h1>
         <p className="mt-3 text-[16px] text-[#b4b4b4]">
           Curated parenting research &amp; book notes.
         </p>
@@ -116,10 +116,10 @@ export default async function NewsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 flex-wrap">
                             <CategoryPill label={category} />
-                            <div className="text-[15px] text-[#b4b4b4] font-medium">{date}</div>
+                            <div className="text-[15px] text-[#b4b4b4] font-Light">{date}</div>
                           </div>
 
-                          <h2 className="mt-3 text-[22px] sm:text-[34px] leading-tight font-semibold line-clamp-3">
+                          <h2 className="mt-3 text-[22px] sm:text-[22px] leading-tight font-medium line-clamp-3">
                             {n.title}
                           </h2>
                         </div>
