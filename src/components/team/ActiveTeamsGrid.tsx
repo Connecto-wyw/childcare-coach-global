@@ -1,8 +1,6 @@
-// src/components/team/ActiveTeamsGrid.tsx
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
 
 export type TeamCard = {
   id: string
@@ -12,80 +10,54 @@ export type TeamCard = {
 }
 
 type Props = {
-  title?: string
   teams: TeamCard[]
-  className?: string
+  title?: string
+  showTitle?: boolean // ✅ 기본 false로 해서, 내부 제목이 중복으로 안 뜨게
 }
 
-function TagPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center rounded border border-[#d9d9d9] bg-white px-2 py-[2px] text-[12px] text-[#1e1e1e]">
-      {label}
-    </span>
-  )
-}
-
-export default function ActiveTeamsGrid({ title = 'Ongoing Teams', teams, className="mt-3" }: Props) {
-  const items = useMemo(() => (Array.isArray(teams) ? teams : []), [teams])
-
-  if (items.length === 0) return null
+export default function ActiveTeamsGrid({ teams, title, showTitle = false }: Props) {
+  if (!teams || teams.length === 0) return null
 
   return (
-    <section className={className}>
-      <h3 className="text-[13px] font-medium text-[#0e0e0e] mb-3">{title}</h3>
+    <section>
+      {/* ✅ showTitle=true일 때만 내부 제목 렌더 */}
+      {showTitle && title ? (
+        <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">
+          {title}
+        </div>
+      ) : null}
 
-      {/* ✅ 모바일: 한 줄 2개 */}
-      <div className="grid grid-cols-2 gap-3">
-        {items.map((t) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {teams.map((t) => (
           <Link
             key={t.id}
             href={`/team/${t.id}`}
-            className="block rounded border border-[#d9d9d9] bg-[#f0f7fd] overflow-hidden"
+            className="block overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white hover:opacity-95"
           >
-            {/* 이미지 */}
-            <div className="w-full aspect-square bg-white">
+            <div className="w-full bg-[#f3f3f3]">
               {t.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={t.imageUrl}
-                  alt={t.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const img = e.currentTarget
-                    img.style.display = 'none'
-                    const parent = img.parentElement
-                    if (parent) {
-                      parent.style.display = 'flex'
-                      parent.style.alignItems = 'center'
-                      parent.style.justifyContent = 'center'
-                      parent.style.color = '#b4b4b4'
-                      parent.style.fontSize = '12px'
-                      parent.textContent = 'No image'
-                    }
-                  }}
-                />
+                <img src={t.imageUrl} alt={t.name} className="w-full h-auto object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-[#b4b4b4] text-[12px]">
-                  No image
-                </div>
+                <div className="aspect-[16/9] w-full bg-[#d9d9d9]" />
               )}
             </div>
 
-            {/* 텍스트 */}
-            <div className="p-3">
-              <div className="text-[#0e0e0e] text-[13px] font-semibold leading-snug line-clamp-2">
-                {t.name}
-              </div>
+            <div className="p-4">
+              <div className="text-[18px] font-semibold text-[#0e0e0e]">{t.name}</div>
 
-              {t.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {t.tags.slice(0, 3).map((tag) => (
-                    <TagPill key={`${t.id}-${tag}`} label={tag} />
+              {t.tags?.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {t.tags.map((tag, idx) => (
+                    <span
+                      key={`${t.id}_${idx}`}
+                      className="rounded-md bg-[#EAF6FF] px-3 py-1.5 text-[14px] font-medium text-[#2F8EEA]"
+                    >
+                      {tag}
+                    </span>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           </Link>
         ))}

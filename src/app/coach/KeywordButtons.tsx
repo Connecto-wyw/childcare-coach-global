@@ -120,7 +120,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
               'w-full text-left',
               'bg-[#f0f7fd]',
               'px-4 py-3',
-              'text-[#3497f3] text-[15px] font-medium',
+              'text-[#3497f3] text-[18px] font-medium',
               'transition hover:opacity-90',
             ].join(' ')}
             aria-label={`Select keyword ${kw}`}
