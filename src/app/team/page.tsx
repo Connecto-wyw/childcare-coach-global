@@ -1,4 +1,3 @@
-// src/app/team/page.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -8,23 +7,48 @@ import type { Database } from '@/lib/database.types'
 
 const supabase = createClientComponentClient<Database>()
 
+/**
+ * ✅ RPC(get_teams_with_counts) “원본 결과” 타입
+ * - 스샷 기준 컬럼들(id, name, purpose, tag1, tag2, image_url, created_at)
+ * - participant_count는 RPC에 있을 수도 있고 없을 수도 있어서 optional로 둠
+ */
+type RawTeamRow = {
+  id?: string | null
+  name?: string | null
+  purpose?: string | null
+  participant_count?: number | null
+  tag1?: string | null
+  tag2?: string | null
+  image_url?: string | null
+  created_at?: string | null
+}
+
+/**
+ * ✅ 화면에서 “확실히” 쓰는 정규화 타입
+ * - id는 반드시 string (없으면 렌더링 금지)
+ */
 type TeamCard = {
   id: string
   name: string
   purpose: string | null
-  participant_count: number
-  tag1: string | null
-  tag2: string | null
-  image_url: string | null
+  joined: number
+  tags: string[]
+  imageSrc: string
 }
+
+const FALLBACK_IMG =
+  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=60'
 
 function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
 }
 
-function buildTeamImageUrl(image_url: string | null) {
-  if (!image_url) return null
-  const raw = String(image_url).trim()
+/**
+ * image_url이 이미 전체 URL이면 그대로 사용.
+ * 경로 형태(team/xxx.png)면 supabase public url로 조합.
+ */
+function buildTeamImageUrl(image_url: string | null | undefined) {
+  const raw = (image_url ?? '').trim()
   if (!raw) return null
 
   // 이미 전체 URL이면 그대로
@@ -35,38 +59,62 @@ function buildTeamImageUrl(image_url: string | null) {
   if (!supabaseUrl) return raw
 
   const path = raw.replace(/^\//, '')
+  // ⚠️ 버킷명이 지금 프로젝트에서 team-images 맞는지 확인 필요(기존 코드 그대로 유지)
   return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/team-images/${path}`
 }
 
-const FALLBACK_IMG =
-  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=60'
+/**
+ * ✅ 최종해결 핵심: Raw → Normalized
+ * - id가 없으면 null 반환 → 렌더링(링크 생성) 자체를 막음
+ */
+function normalizeTeamRow(r: RawTeamRow): TeamCard | null {
+  const id = String(r.id ?? '').trim()
+  if (!id) return null
+
+  const name = String(r.name ?? '').trim() || 'Untitled Team'
+  const purpose = r.purpose ? String(r.purpose) : null
+
+  const joinedRaw = Number(r.participant_count ?? 0)
+  const joined = Number.isFinite(joinedRaw) && joinedRaw >= 0 ? joinedRaw : 0
+
+  const tags = [r.tag1, r.tag2]
+    .map((x) => String(x ?? '').trim())
+    .filter(Boolean)
+
+  const imageSrc = buildTeamImageUrl(r.image_url) || FALLBACK_IMG
+
+  return { id, name, purpose, joined, tags, imageSrc }
+}
 
 export default function TeamPage() {
-  const [teams, setTeams] = useState<TeamCard[]>([])
+  const [rows, setRows] = useState<RawTeamRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchTeams = async () => {
+      setLoading(true)
+
       const { data, error } = await supabase.rpc('get_teams_with_counts')
+
       if (error) {
-        console.error(error)
-        setTeams([])
-      } else {
-        setTeams((data ?? []) as TeamCard[])
+        console.error('[get_teams_with_counts] error:', error)
+        setRows([])
+        setLoading(false)
+        return
       }
+
+      // ✅ 여기서 절대 TeamCard로 캐스팅하지 말고 Raw로 둔다
+      setRows((data ?? []) as RawTeamRow[])
       setLoading(false)
     }
+
     fetchTeams()
   }, [])
 
-  const mapped = useMemo(() => {
-    return teams.map((t) => ({
-      ...t,
-      imageSrc: buildTeamImageUrl(t.image_url) || FALLBACK_IMG,
-      tags: [t.tag1, t.tag2].filter((x): x is string => Boolean(x && String(x).trim())),
-      joined: Number.isFinite(t.participant_count) ? t.participant_count : 0,
-    }))
-  }, [teams])
+  const teams = useMemo(() => {
+    // ✅ 정규화 + id 없는 row는 제거
+    return rows.map(normalizeTeamRow).filter((x): x is TeamCard => Boolean(x))
+  }, [rows])
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -78,12 +126,12 @@ export default function TeamPage() {
 
         {loading ? (
           <p className="text-[13px] font-medium text-[#b4b4b4]">Loading…</p>
-        ) : mapped.length === 0 ? (
+        ) : teams.length === 0 ? (
           <p className="text-[13px] font-medium text-[#b4b4b4]">No teams available.</p>
         ) : (
           // ✅ PC: 2개씩 / 모바일: 1개
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {mapped.map((t) => (
+            {teams.map((t) => (
               <Link
                 key={t.id}
                 href={`/team/${t.id}`}
@@ -95,20 +143,15 @@ export default function TeamPage() {
               >
                 {/* 이미지 */}
                 <div className="w-full overflow-hidden">
-                  <img
-                    src={t.imageSrc}
-                    alt={t.name}
-                    className="h-[220px] w-full object-cover md:h-[260px]"
-                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={t.imageSrc} alt={t.name} className="h-[220px] w-full object-cover md:h-[260px]" />
                 </div>
 
                 <div className="p-6">
                   {/* 타이틀 + Joined */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-[28px] font-semibold text-[#0e0e0e]">
-                        {t.name}
-                      </div>
+                      <div className="truncate text-[28px] font-semibold text-[#0e0e0e]">{t.name}</div>
                     </div>
 
                     <div
@@ -130,7 +173,7 @@ export default function TeamPage() {
                     {t.purpose || 'No description yet.'}
                   </div>
 
-                  {/* 태그 (색상 들어간 pill) */}
+                  {/* 태그 */}
                   {t.tags.length > 0 && (
                     <div className="mt-5 flex flex-wrap gap-3">
                       {t.tags.map((tag) => (
@@ -147,15 +190,12 @@ export default function TeamPage() {
                     </div>
                   )}
 
-                  {/* Join now 버튼 */}
+                  {/* Join now 버튼 (디자인용) */}
                   <button
                     type="button"
-                    className={[
-                      'mt-6 w-full h-[72px]',
-                      'bg-[#1e1e1e] text-white',
-                      'text-[28px] font-semibold',
-                      'rounded-none',
-                    ].join(' ')}
+                    className={['mt-6 w-full h-[72px]', 'bg-[#1e1e1e] text-white', 'text-[28px] font-semibold'].join(
+                      ' '
+                    )}
                   >
                     Join now
                   </button>
