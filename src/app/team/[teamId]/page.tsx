@@ -262,7 +262,7 @@ export default async function TeamDetailPage({
                 color: '#0e0e0e',
               }}
             >
-              <div className="text-center text-[28px] font-semibold">Join now</div>
+
 
               <div className="mt-4 text-center">
                 {basePrice > 0 ? (
