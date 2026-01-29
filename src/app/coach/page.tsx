@@ -155,7 +155,7 @@ export default async function CoachPage() {
           <div className="leading-tight">
             <div className="text-[30px] text-[#0e0e0e] font-Light">HELLO</div>
             {/* 오타 수정: #0e0gite0e -> #0e0e0e */}
-            <div className="text-[22px] text-[#0e0e0e] font-bold">I AM YOUR AI PARENTING COACH</div>
+            <div className="text-[22px] text-[#0e0e0e] font-semibold">I AM YOUR AI PARENTING COACH</div>
           </div>
         </section>
 
@@ -172,7 +172,6 @@ export default async function CoachPage() {
         <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">
         Ongoing Teams
         </div>
-        <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
 
 
