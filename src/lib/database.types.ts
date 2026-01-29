@@ -377,6 +377,7 @@ export type Database = {
           created_at: string
           currency: string
           discount_steps: Json
+          min_price: number | null
           team_id: string
           updated_at: string
         }
@@ -385,6 +386,7 @@ export type Database = {
           created_at?: string
           currency?: string
           discount_steps?: Json
+          min_price?: number | null
           team_id: string
           updated_at?: string
         }
@@ -393,6 +395,7 @@ export type Database = {
           created_at?: string
           currency?: string
           discount_steps?: Json
+          min_price?: number | null
           team_id?: string
           updated_at?: string
         }
@@ -417,6 +420,8 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          detail_image_url: string | null
+          detail_markdown: string | null
           id: string
           image_url: string | null
           is_active: boolean
@@ -430,6 +435,8 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          detail_image_url?: string | null
+          detail_markdown?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -443,6 +450,8 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          detail_image_url?: string | null
+          detail_markdown?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean

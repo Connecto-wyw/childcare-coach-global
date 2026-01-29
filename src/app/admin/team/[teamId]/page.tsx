@@ -1,444 +1,523 @@
 // src/app/admin/team/[teamId]/page.tsx
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
-import type { Database } from '@/lib/database.types'
-import { requireAdmin } from '@/lib/adminguard'
+'use client'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { useAuthUser, useSupabase } from '@/app/providers'
+import type { Database } from '@/lib/database.types'
+
+const BUCKET = 'team-images'
+
+type TeamRow = Database['public']['Tables']['teams']['Row']
+type PricingRow = Database['public']['Tables']['team_pricing_rules']['Row']
 
 type DiscountStep = { participants: number; discount_percent: number }
 
-function safeNum(v: any, fallback = 0) {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
+function safeFileExt(name: string) {
+  const parts = name.split('.')
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : 'png'
 }
 
-function parseDiscountSteps(input: string): DiscountStep[] {
-  const raw = (input ?? '').trim()
-  if (!raw) return []
-
-  // 1) JSON 배열 우선
-  try {
-    const arr = JSON.parse(raw)
-    if (Array.isArray(arr)) {
-      return arr
-        .map((x) => ({
-          participants: safeNum((x as any)?.participants, 0),
-          discount_percent: safeNum((x as any)?.discount_percent, 0),
-        }))
-        .filter((s) => s.participants > 0 && s.discount_percent >= 0)
-        .sort((a, b) => a.participants - b.participants)
-    }
-  } catch {
-    // ignore
-  }
-
-  // 2) fallback: "10:5\n30:10" 같은 라인 파싱 (participants:discount)
-  const lines = raw.split('\n').map((s) => s.trim()).filter(Boolean)
-  const steps: DiscountStep[] = []
-  for (const line of lines) {
-    const m = line.match(/^(\d+)\s*[:=,\s]\s*(\d+(\.\d+)?)$/)
-    if (!m) continue
-    steps.push({ participants: Number(m[1]), discount_percent: Number(m[2]) })
-  }
-  return steps.sort((a, b) => a.participants - b.participants)
+function clampNumber(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min
+  return Math.min(max, Math.max(min, n))
 }
 
-function stringifySteps(steps: any): string {
-  try {
-    if (!steps) return '[]'
-    if (typeof steps === 'string') return steps
-    return JSON.stringify(steps, null, 2)
-  } catch {
-    return '[]'
-  }
+function normalizeSteps(steps: DiscountStep[]) {
+  return steps
+    .map((s) => ({
+      participants: Math.max(1, Math.floor(Number(s.participants || 0))),
+      discount_percent: clampNumber(Number(s.discount_percent || 0), 0, 100),
+    }))
+    .filter((s) => s.participants > 0)
+    .sort((a, b) => a.participants - b.participants)
 }
 
-async function createSupabaseServer() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !anon) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY')
+export default function AdminTeamDetailSettingsPage() {
+  const supabase = useSupabase()
+  const { user, loading: authLoading } = useAuthUser()
+  const params = useParams()
+  const router = useRouter()
 
-  const cookieStore = await cookies()
+  const teamId = useMemo(() => String((params as any)?.teamId ?? ''), [params])
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
 
-  return createServerClient<Database>(url, anon, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
-      },
-      set(name: string, value: string, options: any) {
-        try {
-          cookieStore.set({ name, value, ...options })
-        } catch {}
-      },
-      remove(name: string, options: any) {
-        try {
-          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
-        } catch {}
-      },
-    },
-  })
-}
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-async function loadTeamAndPricing(teamId: string) {
-  const supabase = await createSupabaseServer()
+  // teams 기본 필드(기존 유지)
+  const [name, setName] = useState('')
+  const [purpose, setPurpose] = useState('')
+  const [tag1, setTag1] = useState('')
+  const [tag2, setTag2] = useState('')
+  const [thumbUrl, setThumbUrl] = useState<string>('') // teams.image_url
+  const [thumbFile, setThumbFile] = useState<File | null>(null)
 
-  const [{ data: team, error: teamErr }, { data: pricing, error: pricingErr }] = await Promise.all([
-    supabase
-      .from('teams')
-      .select('id,name,purpose,image_url,tag1,tag2,detail_image_url,detail_markdown,created_at')
-      .eq('id', teamId)
-      .maybeSingle(),
-    supabase
-      .from('team_pricing_rules')
-      .select('*')
-      .eq('team_id', teamId)
-      .maybeSingle(),
+  // ✅ 상세설정(A): 상세 이미지 + 상세 텍스트
+  const [detailImageUrl, setDetailImageUrl] = useState<string>('') // teams.detail_image_url
+  const [detailImageFile, setDetailImageFile] = useState<File | null>(null)
+  const [detailMarkdown, setDetailMarkdown] = useState('') // teams.detail_markdown
+
+  // ✅ 가격설정(A): base/min/currency/discount_steps
+  const [basePrice, setBasePrice] = useState<number>(0)
+  const [minPrice, setMinPrice] = useState<number>(0)
+  const [currency, setCurrency] = useState<string>('KRW')
+  const [steps, setSteps] = useState<DiscountStep[]>([
+    { participants: 10, discount_percent: 10 },
+    { participants: 30, discount_percent: 20 },
   ])
 
-  return {
-    team,
-    teamErr,
-    pricing,
-    pricingErr,
+  // ---------- 권한 체크 ----------
+  const loadAdminFlag = async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.error('[profiles.is_admin] error:', error)
+      setIsAdmin(null)
+      return
+    }
+    setIsAdmin(Boolean(data?.is_admin))
   }
-}
 
-export default async function AdminTeamDetailPage({ params }: { params: { teamId: string } }) {
-  // ✅ admin guard
-  const { ok } = await requireAdmin()
-  if (!ok) redirect('/')
+  // ---------- 데이터 로드 ----------
+  const fetchAll = async () => {
+    if (!teamId) return
+    setLoading(true)
 
-  const teamId = String(params?.teamId ?? '').trim()
-  if (!teamId) redirect('/admin/team')
+    const [{ data: team, error: teamErr }, { data: pricing, error: pricingErr }] = await Promise.all([
+      supabase
+        .from('teams')
+        .select('id,name,purpose,tag1,tag2,image_url,detail_image_url,detail_markdown')
+        .eq('id', teamId)
+        .maybeSingle(),
+      supabase
+        .from('team_pricing_rules')
+        .select('team_id,base_price,min_price,currency,discount_steps')
+        .eq('team_id', teamId)
+        .maybeSingle(),
+    ])
 
-  const { team, teamErr, pricing, pricingErr } = await loadTeamAndPricing(teamId)
+    if (teamErr) console.error('[teams] error:', teamErr)
+    if (!team) {
+      setLoading(false)
+      return
+    }
 
-  if (teamErr || !team) {
+    setName(team.name ?? '')
+    setPurpose(team.purpose ?? '')
+    setTag1(team.tag1 ?? '')
+    setTag2(team.tag2 ?? '')
+    setThumbUrl(team.image_url ?? '')
+    setDetailImageUrl((team as any).detail_image_url ?? '')
+    setDetailMarkdown((team as any).detail_markdown ?? '')
+
+    if (pricingErr) {
+      console.error('[team_pricing_rules] error:', pricingErr)
+    }
+
+    if (pricing) {
+      const bp = Number((pricing as any).base_price ?? 0)
+      const mp = Number((pricing as any).min_price ?? 0)
+      setBasePrice(Number.isFinite(bp) ? bp : 0)
+      setMinPrice(Number.isFinite(mp) ? mp : 0)
+      setCurrency(String((pricing as any).currency ?? 'KRW'))
+
+      const rawSteps = (pricing as any).discount_steps
+      if (Array.isArray(rawSteps)) {
+        setSteps(
+          normalizeSteps(
+            rawSteps.map((x: any) => ({
+              participants: Number(x?.participants ?? 0),
+              discount_percent: Number(x?.discount_percent ?? 0),
+            }))
+          )
+        )
+      }
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    if (!user) return
+    loadAdminFlag()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId])
+
+  // ---------- 업로드 ----------
+  const uploadToBucket = async (file: File, kind: 'thumb' | 'detail') => {
+    if (!user) return null
+    setUploading(true)
+
+    const ext = safeFileExt(file.name)
+    const path = `team/${teamId}/${kind}_${Date.now()}.${ext}`
+
+    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || undefined,
+    })
+
+    if (upErr) {
+      console.error(upErr)
+      alert(upErr.message)
+      setUploading(false)
+      return null
+    }
+
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
+    const publicUrl = data?.publicUrl ?? null
+
+    setUploading(false)
+    return publicUrl
+  }
+
+  // ---------- 저장 ----------
+  const save = async () => {
+    if (!user) return
+    if (!name.trim()) {
+      alert('팀 이름은 필수야.')
+      return
+    }
+    if (!teamId) {
+      alert('teamId가 비었어.')
+      return
+    }
+
+    setSaving(true)
+
+    // 1) 이미지 업로드(선택된 경우만)
+    let finalThumb = thumbUrl || null
+    if (thumbFile) {
+      const url = await uploadToBucket(thumbFile, 'thumb')
+      if (!url) {
+        setSaving(false)
+        return
+      }
+      finalThumb = url
+      setThumbUrl(url)
+    }
+
+    let finalDetailImg = detailImageUrl || null
+    if (detailImageFile) {
+      const url = await uploadToBucket(detailImageFile, 'detail')
+      if (!url) {
+        setSaving(false)
+        return
+      }
+      finalDetailImg = url
+      setDetailImageUrl(url)
+    }
+
+    // 2) teams 업데이트 (기존 입력 유지 + 상세 입력 추가)
+    const teamPayload: Partial<TeamRow> & { detail_image_url?: string | null; detail_markdown?: string | null } = {
+      name: name.trim(),
+      purpose: purpose.trim() ? purpose.trim() : null,
+      tag1: tag1.trim() ? tag1.trim() : null,
+      tag2: tag2.trim() ? tag2.trim() : null,
+      image_url: finalThumb,
+      // ✅ A: 상세용
+      detail_image_url: finalDetailImg,
+      detail_markdown: detailMarkdown.trim() ? detailMarkdown.trim() : null,
+    }
+
+    const { error: teamErr } = await supabase.from('teams').update(teamPayload as any).eq('id', teamId)
+    if (teamErr) {
+      console.error(teamErr)
+      alert(teamErr.message)
+      setSaving(false)
+      return
+    }
+
+    // 3) pricing upsert
+    const normalized = normalizeSteps(steps)
+    const bp = Number(basePrice || 0)
+    const mp = Number(minPrice || 0)
+
+    const pricingPayload: Partial<PricingRow> & { discount_steps?: any } = {
+      team_id: teamId,
+      base_price: Number.isFinite(bp) ? bp : 0,
+      min_price: Number.isFinite(mp) ? mp : 0,
+      currency: currency || 'KRW',
+      discount_steps: normalized as any,
+    }
+
+    // upsert는 unique(team_id) 필요
+    const { error: prErr } = await supabase.from('team_pricing_rules').upsert(pricingPayload as any, {
+      onConflict: 'team_id',
+    })
+
+    if (prErr) {
+      console.error(prErr)
+      alert(prErr.message)
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    alert('저장 완료')
+    router.refresh()
+  }
+
+  // ---------- 렌더 ----------
+  if (authLoading) {
     return (
-      <main className="min-h-screen bg-white text-[#111]">
-        <div className="mx-auto max-w-3xl px-4 py-10">
-          <h1 className="text-[22px] font-semibold">Admin · Team not found</h1>
-          <p className="mt-2 text-[13px] text-[#666]">teamId: {teamId}</p>
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center">
+        <p className="text-gray-400">로그인 확인 중…</p>
+      </main>
+    )
+  }
 
-          <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px]">
-{JSON.stringify({ teamErr }, null, 2)}
-          </pre>
-
-          <div className="mt-6 flex gap-3">
-            <Link href="/admin/team" className="text-[#3497f3] text-[14px] font-medium hover:underline">
-              Back to Admin TEAM →
-            </Link>
-          </div>
+  if (!user) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#222] border border-gray-700 rounded-lg p-6">
+          <h1 className="text-2xl font-bold">Admin / Team Detail</h1>
+          <p className="text-gray-300 mt-2">어드민은 로그인 후 사용 가능해.</p>
         </div>
       </main>
     )
   }
 
-  // ------ defaults from DB ------
-  const name = String((team as any).name ?? '')
-  const purpose = String((team as any).purpose ?? '')
-  const image_url = String((team as any).image_url ?? '')
-  const tag1 = String((team as any).tag1 ?? '')
-  const tag2 = String((team as any).tag2 ?? '')
-  const detail_image_url = String((team as any).detail_image_url ?? '')
-  const detail_markdown = String((team as any).detail_markdown ?? '')
+  if (isAdmin === null) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#222] border border-gray-700 rounded-lg p-6">
+          <h1 className="text-2xl font-bold">확인 중</h1>
+          <p className="text-gray-300 mt-2">어드민 권한 확인이 안 됨(profiles/RLS 가능성).</p>
+        </div>
+      </main>
+    )
+  }
 
-  const base_price = safeNum((pricing as any)?.base_price ?? 0, 0)
-  const min_price = safeNum((pricing as any)?.min_price ?? 0, 0)
-  const currency = String((pricing as any)?.currency ?? 'KRW')
-  const discount_steps_raw = (pricing as any)?.discount_steps ?? []
-  const discount_steps_json = stringifySteps(discount_steps_raw)
+  if (isAdmin === false) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#222] border border-gray-700 rounded-lg p-6">
+          <h1 className="text-2xl font-bold">권한 없음</h1>
+          <p className="text-gray-300 mt-2">이 계정은 어드민 권한이 없어.</p>
+        </div>
+      </main>
+    )
+  }
 
-  async function saveAction(formData: FormData) {
-    'use server'
-
-    const { ok, supabase } = await requireAdmin()
-    if (!ok) redirect('/')
-
-    const sb = supabase
-
-    const teamId = String(formData.get('teamId') ?? '').trim()
-    if (!teamId) throw new Error('teamId missing')
-
-    // team fields
-    const name = String(formData.get('name') ?? '').trim()
-    const purpose = String(formData.get('purpose') ?? '').trim()
-    const image_url = String(formData.get('image_url') ?? '').trim()
-    const tag1 = String(formData.get('tag1') ?? '').trim()
-    const tag2 = String(formData.get('tag2') ?? '').trim()
-
-    // detail content
-    const detail_image_url = String(formData.get('detail_image_url') ?? '').trim()
-    const detail_markdown = String(formData.get('detail_markdown') ?? '').trim()
-
-    // pricing fields
-    const currency = String(formData.get('currency') ?? 'KRW').trim() || 'KRW'
-    const base_price = safeNum(formData.get('base_price'), 0)
-    const min_price = safeNum(formData.get('min_price'), 0)
-
-    // discount steps input (JSON textarea)
-    const stepsText = String(formData.get('discount_steps') ?? '').trim()
-    const steps = parseDiscountSteps(stepsText)
-
-    // ✅ 서버에서 최소한의 검증
-    if (!name) throw new Error('name required')
-
-    // (선택) min_price는 base_price보다 클 수 없음
-    if (min_price > 0 && base_price > 0 && min_price > base_price) {
-      throw new Error('min_price cannot be greater than base_price')
-    }
-
-    // 1) update teams
-    const { error: teamErr } = await sb
-      .from('teams')
-      .update({
-        name,
-        purpose: purpose || null,
-        image_url: image_url || null,
-        tag1: tag1 || null,
-        tag2: tag2 || null,
-        // ✅ 아래 2개 컬럼은 SQL로 추가된 상태여야 함
-        detail_image_url: detail_image_url || null,
-        detail_markdown: detail_markdown || null,
-      } as any)
-      .eq('id', teamId)
-
-    if (teamErr) throw new Error(`teams update failed: ${teamErr.message}`)
-
-    // 2) upsert pricing (team_id unique 필요)
-    //    pricing을 아직 안 만들었어도 여기서 생성됨
-    const { error: priceErr } = await sb
-      .from('team_pricing_rules')
-      .upsert(
-        {
-          team_id: teamId,
-          base_price: base_price || 0,
-          min_price: min_price || null,
-          currency,
-          discount_steps: steps,
-        } as any,
-        { onConflict: 'team_id' }
-      )
-
-    if (priceErr) throw new Error(`pricing upsert failed: ${priceErr.message}`)
-
-    redirect(`/admin/team/${teamId}?saved=1`)
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans flex items-center justify-center">
+        <p className="text-gray-400">불러오는 중…</p>
+      </main>
+    )
   }
 
   return (
-    <main className="min-h-screen bg-white text-[#111]">
-      <div className="mx-auto max-w-4xl px-4 py-10">
+    <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
+      <div className="max-w-4xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-[28px] font-semibold">Admin · Team Detail</h1>
-            <p className="mt-1 text-[13px] text-[#666]">teamId: {teamId}</p>
-            {(pricingErr as any)?.message ? (
-              <p className="mt-1 text-[13px] text-[#b91c1c]">pricing load warning: {(pricingErr as any).message}</p>
-            ) : null}
+            <h1 className="text-2xl font-bold">팀 상세 설정</h1>
+            <p className="text-sm text-gray-400 mt-1">Team ID: {teamId}</p>
           </div>
 
           <div className="flex gap-2">
-            <Link
-              href={`/team/${teamId}`}
-              className="rounded-xl border border-[#e5e5e5] px-4 py-2 text-[13px] font-medium hover:bg-[#fafafa]"
-            >
-              View public →
+            <Link href="/admin/team" className="px-4 py-2 bg-gray-700 rounded hover:opacity-90">
+              목록
             </Link>
-            <Link
-              href="/admin/team"
-              className="rounded-xl border border-[#e5e5e5] px-4 py-2 text-[13px] font-medium hover:bg-[#fafafa]"
+            <button
+              onClick={save}
+              disabled={saving || uploading}
+              className="px-4 py-2 bg-[#9F1D23] text-white rounded hover:opacity-90 disabled:opacity-50"
             >
-              Back →
-            </Link>
+              {uploading ? '업로드 중…' : saving ? '저장 중…' : '저장'}
+            </button>
           </div>
         </div>
 
-        {/* saved banner */}
-        {'saved' in (Object.fromEntries([]) as any) ? null : null}
+        {/* 기본 정보(기존 유지) */}
+        <section className="mt-6 bg-[#222] border border-gray-700 rounded-lg p-5">
+          <h2 className="text-lg font-semibold">기본 정보</h2>
 
-        <form action={saveAction} className="mt-8 grid gap-8">
-          <input type="hidden" name="teamId" value={teamId} />
-
-          {/* 1) Team basic */}
-          <section className="rounded-2xl border border-[#e9e9e9] p-6">
-            <h2 className="text-[18px] font-semibold">1) Team Basic</h2>
-
-            <div className="mt-4 grid gap-4">
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Team name</label>
-                <input
-                  name="name"
-                  defaultValue={name}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                  placeholder="Team name"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Purpose (short description)</label>
-                <textarea
-                  name="purpose"
-                  defaultValue={purpose}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px] min-h-[110px]"
-                  placeholder="What is this team for?"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-[13px] font-medium text-[#444]">Thumbnail image_url</label>
-                  <input
-                    name="image_url"
-                    defaultValue={image_url}
-                    className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                    placeholder="https://..."
-                  />
-                  <p className="mt-1 text-[12px] text-[#777]">리스트/카드에 보이는 썸네일</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[13px] font-medium text-[#444]">Tag 1</label>
-                    <input
-                      name="tag1"
-                      defaultValue={tag1}
-                      className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                      placeholder="e.g. Gentle Discipline"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-[#444]">Tag 2</label>
-                    <input
-                      name="tag2"
-                      defaultValue={tag2}
-                      className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                      placeholder="e.g. ADHD"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 2) Detail content */}
-          <section className="rounded-2xl border border-[#e9e9e9] p-6">
-            <h2 className="text-[18px] font-semibold">2) Detail Page Content</h2>
-            <p className="mt-1 text-[13px] text-[#666]">
-              팀 상세(/team/[teamId])에서 “추가 이미지 + 상세 텍스트”로 쓸 데이터
-            </p>
-
-            <div className="mt-4 grid gap-4">
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Detail image_url</label>
-                <input
-                  name="detail_image_url"
-                  defaultValue={detail_image_url}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                  placeholder="https://..."
-                />
-                <p className="mt-1 text-[12px] text-[#777]">상세 상단/중간에 들어갈 이미지(선택)</p>
-              </div>
-
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Detail markdown</label>
-                <textarea
-                  name="detail_markdown"
-                  defaultValue={detail_markdown}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px] min-h-[220px]"
-                  placeholder={`예)\n- 이 팀에서 뭘 하는지\n- 누구에게 추천인지\n- 참여 방법/규칙\n\n마크다운으로 써도 됨`}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* 3) Pricing */}
-          <section className="rounded-2xl border border-[#e9e9e9] p-6">
-            <h2 className="text-[18px] font-semibold">3) Pricing</h2>
-            <p className="mt-1 text-[13px] text-[#666]">
-              base_price(시작가), min_price(최저가), discount_steps(할인 단계)
-            </p>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Currency</label>
-                <input
-                  name="currency"
-                  defaultValue={currency}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                  placeholder="KRW"
-                />
-              </div>
-
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Base price</label>
-                <input
-                  name="base_price"
-                  defaultValue={String(base_price || '')}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                  placeholder="e.g. 39000"
-                  inputMode="numeric"
-                />
-              </div>
-
-              <div>
-                <label className="text-[13px] font-medium text-[#444]">Min price</label>
-                <input
-                  name="min_price"
-                  defaultValue={String(min_price || '')}
-                  className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[14px]"
-                  placeholder="e.g. 19000"
-                  inputMode="numeric"
-                />
-                <p className="mt-1 text-[12px] text-[#777]">최저가는 옵션(없으면 비워도 됨)</p>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <label className="text-[13px] font-medium text-[#444]">Discount steps (JSON)</label>
-              <textarea
-                name="discount_steps"
-                defaultValue={discount_steps_json}
-                className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-[13px] min-h-[200px] font-mono"
+          <div className="mt-4 grid gap-3">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="팀 이름 (필수)"
+              className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+            />
+            <textarea
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              placeholder="팀 목적(설명)"
+              className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-24"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={tag1}
+                onChange={(e) => setTag1(e.target.value)}
+                placeholder="태그 1"
+                className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
               />
-              <p className="mt-2 text-[12px] text-[#777]">
-                포맷: <span className="font-mono">[{"{"}"participants":10,"discount_percent":5{"}"}, ...]</span>
-                <br />
-                또는 라인 입력도 가능: <span className="font-mono">10:5</span> (10명 = 5% 할인)
-              </p>
+              <input
+                value={tag2}
+                onChange={(e) => setTag2(e.target.value)}
+                placeholder="태그 2"
+                className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+              />
             </div>
-          </section>
 
-          {/* Save */}
-          <div className="flex items-center justify-end gap-3">
-            <Link
-              href="/admin/team"
-              className="rounded-xl border border-[#e5e5e5] px-5 py-3 text-[14px] font-medium hover:bg-[#fafafa]"
-            >
-              Cancel
-            </Link>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded bg-[#444] p-2">
+                <div className="text-xs text-gray-300 mb-2">썸네일 이미지</div>
+                <input type="file" accept="image/*" onChange={(e) => setThumbFile(e.target.files?.[0] ?? null)} />
+              </div>
+
+              <div className="rounded bg-[#444] p-2">
+                <div className="text-xs text-gray-300 mb-2">썸네일 미리보기</div>
+                <div className="w-full aspect-[4/3] bg-[#111] rounded overflow-hidden border border-gray-700">
+                  {thumbFile ? (
+                    <img src={URL.createObjectURL(thumbFile)} alt="thumb" className="w-full h-full object-cover" />
+                  ) : thumbUrl ? (
+                    <img src={thumbUrl} alt="thumb" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">이미지 없음</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 상세 페이지용 */}
+        <section className="mt-6 bg-[#222] border border-gray-700 rounded-lg p-5">
+          <h2 className="text-lg font-semibold">상세 페이지 콘텐츠</h2>
+
+          <div className="mt-4 grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded bg-[#444] p-2">
+                <div className="text-xs text-gray-300 mb-2">상세 이미지</div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setDetailImageFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              <div className="rounded bg-[#444] p-2">
+                <div className="text-xs text-gray-300 mb-2">상세 이미지 미리보기</div>
+                <div className="w-full aspect-[4/3] bg-[#111] rounded overflow-hidden border border-gray-700">
+                  {detailImageFile ? (
+                    <img
+                      src={URL.createObjectURL(detailImageFile)}
+                      alt="detail"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : detailImageUrl ? (
+                    <img src={detailImageUrl} alt="detail" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">이미지 없음</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <textarea
+              value={detailMarkdown}
+              onChange={(e) => setDetailMarkdown(e.target.value)}
+              placeholder="상세 텍스트(마크다운). 예: 소개, 일정, 준비물, 안내사항..."
+              className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-48"
+            />
+          </div>
+        </section>
+
+        {/* 가격/할인 */}
+        <section className="mt-6 bg-[#222] border border-gray-700 rounded-lg p-5">
+          <h2 className="text-lg font-semibold">가격 & 할인 규칙</h2>
+
+          <div className="mt-4 grid gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <input
+                type="number"
+                value={basePrice}
+                onChange={(e) => setBasePrice(Number(e.target.value))}
+                placeholder="기본 가격"
+                className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+              />
+              <input
+                type="number"
+                value={minPrice}
+                onChange={(e) => setMinPrice(Number(e.target.value))}
+                placeholder="최소 가격"
+                className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+              />
+              <input
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                placeholder="통화 (KRW)"
+                className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+              />
+            </div>
+
+            <div className="text-sm text-gray-300 mt-2">할인 스텝 (N명 참여 시 N% 할인)</div>
+
+            <div className="space-y-2">
+              {steps.map((s, idx) => (
+                <div key={idx} className="grid grid-cols-5 gap-2 items-center">
+                  <input
+                    type="number"
+                    value={s.participants}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setSteps((prev) => prev.map((x, i) => (i === idx ? { ...x, participants: v } : x)))
+                    }}
+                    className="col-span-2 p-2 rounded bg-[#444] text-white"
+                    placeholder="참여자 수"
+                  />
+                  <input
+                    type="number"
+                    value={s.discount_percent}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setSteps((prev) => prev.map((x, i) => (i === idx ? { ...x, discount_percent: v } : x)))
+                    }}
+                    className="col-span-2 p-2 rounded bg-[#444] text-white"
+                    placeholder="할인율(%)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSteps((prev) => prev.filter((_, i) => i !== idx))}
+                    className="p-2 rounded bg-gray-700 hover:opacity-90"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
 
             <button
-              type="submit"
-              className="rounded-xl bg-[#111] px-6 py-3 text-[14px] font-semibold text-white hover:opacity-90"
+              type="button"
+              onClick={() => setSteps((prev) => [...prev, { participants: 10, discount_percent: 10 }])}
+              className="mt-2 px-4 py-2 rounded bg-gray-700 hover:opacity-90 w-fit"
             >
-              Save
+              + 스텝 추가
             </button>
-          </div>
-        </form>
 
-        {/* debug */}
-        <details className="mt-10 rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4">
-          <summary className="cursor-pointer text-[13px] font-semibold">Debug (loaded data)</summary>
-          <pre className="mt-3 whitespace-pre-wrap text-[12px]">
-{JSON.stringify({ team, pricing }, null, 2)}
-          </pre>
-        </details>
+            <p className="text-xs text-gray-500 mt-3">
+              * 저장 시 스텝은 자동 정렬/정규화됨(참여자 수 오름차순).
+              <br />* base_price/min_price/currency/discount_steps는 team_pricing_rules에 저장됨.
+            </p>
+          </div>
+        </section>
       </div>
     </main>
   )
