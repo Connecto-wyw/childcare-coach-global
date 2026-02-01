@@ -119,8 +119,8 @@ export default function TeamPage() {
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="mb-2 text-[20px] font-medium leading-tight">Team</h1>
-        <p className="mb-8 text-[12px] font-medium text-[#b4b4b4]">
+        <h1 className="mb-2 text-[24px] font-medium leading-tight">Team</h1>
+        <p className="mb-8 text-[14px] font-medium text-[#b4b4b4]">
           Join small challenges and share routines together.
         </p>
 
