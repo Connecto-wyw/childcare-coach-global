@@ -2,96 +2,137 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
-import { usePathname } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
 
-type Menu = 'home' | 'news' | 'team'
-
-function stripTrailingSlash(s: string) {
-  return s.replace(/\/$/, '')
+type NavItem = {
+  label: string
+  href: string
 }
 
-function getSiteOrigin() {
-  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
-  if (envSite) return stripTrailingSlash(envSite)
-  if (typeof window !== 'undefined') return window.location.origin
-  return ''
+function format(n: number) {
+  try {
+    return n.toLocaleString('en-US')
+  } catch {
+    return String(n)
+  }
 }
 
 export default function NavBar() {
-  const { user } = useAuthUser()
   const supabase = useSupabase()
-  const pathname = usePathname()
+  const { user, loading: authLoading } = useAuthUser()
 
-  const active: Menu = useMemo(() => {
-    if (pathname?.startsWith('/team')) return 'team'
-    if (pathname?.startsWith('/news')) return 'news'
-    return 'home'
-  }, [pathname])
+  const [nickname, setNickname] = useState<string>('')
+  const [points, setPoints] = useState<number>(0)
+  const [loadingPoints, setLoadingPoints] = useState(false)
 
-  const loginGoogle = async () => {
-    const base = getSiteOrigin()
-    const redirectTo = `${base}/auth/callback?next=/coach`
-
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo },
-    })
-  }
-
-  const logout = async () => {
-    await supabase.auth.signOut()
-    window.location.reload()
-  }
-
-  const item = (href: string, key: Menu, label: string) => (
-    <Link
-      href={href}
-      className={[
-        'transition',
-        'text-[13px]',
-        active === key
-          ? 'text-[#1e1e1e] font-semibold'
-          : 'text-[#b4b4b4] font-medium hover:text-[#1e1e1e]',
-      ].join(' ')}
-    >
-      {label}
-    </Link>
+  const items: NavItem[] = useMemo(
+    () => [
+      { label: 'COACH', href: '/coach' },
+      { label: 'NEWS', href: '/news' },
+      { label: 'TEAM', href: '/team' },
+      { label: 'REWARD', href: '/reward' },
+    ],
+    []
   )
 
-  return (
-    <nav className="w-full bg-white border-b border-[#eeeeee]">
-      <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
-        <div className="flex gap-6">
-          {item('/', 'home', 'HOME')}
-          {item('/news', 'news', 'NEWS')}
-          {item('/team', 'team', 'TEAM')}
-        </div>
+  const loadProfile = useCallback(async () => {
+    if (!user) {
+      setNickname('')
+      return
+    }
 
-        <div className="flex items-center gap-3">
-          {user ? (
+    const { data, error } = await supabase.from('profiles').select('nickname').eq('id', user.id).maybeSingle()
+
+    if (error) {
+      console.error('[profiles.nickname] error:', error)
+      setNickname('')
+      return
+    }
+
+    setNickname(String((data as any)?.nickname ?? ''))
+  }, [supabase, user])
+
+  const loadPoints = useCallback(async () => {
+    if (!user) {
+      setPoints(0)
+      return
+    }
+
+    setLoadingPoints(true)
+    const { data, error } = await supabase.from('profiles').select('points').eq('id', user.id).maybeSingle()
+    setLoadingPoints(false)
+
+    if (error) {
+      console.error('[profiles.points] error:', error)
+      return
+    }
+
+    setPoints(Number((data as any)?.points ?? 0))
+  }, [supabase, user])
+
+  // ✅ 로그인/로그아웃 변화 시 닉네임/포인트 로드
+  useEffect(() => {
+    if (!user) {
+      setNickname('')
+      setPoints(0)
+      return
+    }
+    void loadProfile()
+    void loadPoints()
+  }, [user?.id, loadProfile, loadPoints])
+
+  // ✅ 포인트 갱신 이벤트(RewardClient, ChatBox 등에서 dispatchEvent('points:refresh') 하면 NavBar 갱신)
+  useEffect(() => {
+    const handler = () => {
+      if (!user) return
+      void loadPoints()
+    }
+    window.addEventListener('points:refresh', handler)
+    return () => window.removeEventListener('points:refresh', handler)
+  }, [user, loadPoints])
+
+  const greeting = useMemo(() => {
+    if (!user) return ''
+    const name = nickname?.trim() ? nickname.trim() : 'there'
+    return `${name}님 반가워요!`
+  }, [user, nickname])
+
+  return (
+    <header className="w-full bg-white border-b border-[#eeeeee]">
+      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        {/* Left: menu */}
+        <nav className="flex items-center gap-4">
+          {items.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              className="text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70"
+            >
+              {it.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Right: user info */}
+        <div className="flex items-center gap-3 min-w-0">
+          {authLoading ? (
+            <span className="text-[12px] text-gray-500">Loading…</span>
+          ) : user ? (
             <>
-              <span className="truncate max-w-[180px] text-[15px] font-medium text-[#b4b4b4]">
-                {user.user_metadata?.full_name || user.user_metadata?.name || user.email}
+              {/* ✅ 닉네임 왼쪽: 보유 포인트 */}
+              <span className="text-[12px] text-gray-700 whitespace-nowrap">
+                보유 포인트 : {loadingPoints ? '…' : format(points)}
               </span>
-              <button
-                onClick={logout}
-                className="px-4 h-8 bg-[#1e1e1e] text-white text-[15px] font-semibold"
-              >
-                Sign out
-              </button>
+
+              {/* ✅ 로그인 시: “OOO님 반가워요!” */}
+              <span className="text-[12px] font-semibold text-[#1e1e1e] truncate">{greeting}</span>
             </>
           ) : (
-            <button
-              onClick={loginGoogle}
-              className="px-4 h-8 bg-[#1e1e1e] text-white text-[15px] font-semibold"
-            >
-              Sign in
-            </button>
+            <span className="text-[12px] text-gray-500">Not signed in</span>
           )}
         </div>
       </div>
-    </nav>
+    </header>
   )
 }
