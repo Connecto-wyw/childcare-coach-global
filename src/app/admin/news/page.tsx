@@ -2,7 +2,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Tables } from '@/lib/database.types'
 
@@ -39,11 +38,9 @@ function extFromFileName(name: string) {
 }
 
 export default function AdminNewsPage() {
-  const router = useRouter()
   const supabase = useSupabase()
-  const { user } = useAuthUser()
+  const { user, loading } = useAuthUser() as any // loading이 없으면 undefined로 동작
 
-  // ✅ 로그인 여부에 따라 작성/수정/삭제 모두 막을 거라서 편하게 플래그로 씀
   const authed = !!user
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -76,15 +73,6 @@ export default function AdminNewsPage() {
   useEffect(() => {
     if (!slugTouched) setSlug(autoSlug)
   }, [autoSlug, slugTouched])
-
-  // ✅ (선택) 아예 로그인 안 하면 다른 페이지로 보내고 싶으면 이거 유지
-  //    만약 "읽기"만이라도 보여주고 싶으면 아래 useEffect는 빼고, 아래 UI 게이트만 쓰면 됨.
-  useEffect(() => {
-    if (!authed) {
-      // 너네 프로젝트에서 로그인/홈 경로에 맞게 바꿔
-      router.replace('/')
-    }
-  }, [authed, router])
 
   const fetchNews = async () => {
     const { data, error } = await supabase
@@ -249,7 +237,6 @@ export default function AdminNewsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    // ✅ 로그인 안 했으면 삭제 불가
     if (!authed) {
       setErr('You must be logged in to delete posts.')
       return
@@ -289,7 +276,18 @@ export default function AdminNewsPage() {
 
   const canInteract = authed && !saving
 
-  // ✅ 로그인 안했을 때 UI를 숨기고 메시지만 보여주고 싶으면 이 블록 유지
+  // ✅ 핵심: (1번 해결) 절대 router.replace로 튕기지 않게 함
+  // - loading이 있다면 로딩 중엔 안내만 표시
+  // - loading이 없다면 authed=false면 그냥 안내만 표시
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <h1 className="text-2xl font-bold mb-3">🛠️ News Admin</h1>
+        <div className="p-4 rounded bg-gray-800 text-gray-200">Checking login…</div>
+      </div>
+    )
+  }
+
   if (!authed) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
