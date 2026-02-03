@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Tables } from '@/lib/database.types'
 
@@ -38,8 +39,12 @@ function extFromFileName(name: string) {
 }
 
 export default function AdminNewsPage() {
+  const router = useRouter()
   const supabase = useSupabase()
   const { user } = useAuthUser()
+
+  // ✅ 로그인 여부에 따라 작성/수정/삭제 모두 막을 거라서 편하게 플래그로 씀
+  const authed = !!user
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -53,7 +58,7 @@ export default function AdminNewsPage() {
   const [slugTouched, setSlugTouched] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  // ✅ DB에 저장될 cover_image_url (이제는 "public URL" 저장)
+  // ✅ DB에 저장될 cover_image_url (public URL 저장)
   const [coverUrl, setCoverUrl] = useState<string | null>(null)
 
   // ✅ 새로 선택한 파일(업로드는 Save/Create 때)
@@ -67,9 +72,19 @@ export default function AdminNewsPage() {
   const [err, setErr] = useState('')
 
   const autoSlug = useMemo(() => slugify(title), [title])
+
   useEffect(() => {
     if (!slugTouched) setSlug(autoSlug)
   }, [autoSlug, slugTouched])
+
+  // ✅ (선택) 아예 로그인 안 하면 다른 페이지로 보내고 싶으면 이거 유지
+  //    만약 "읽기"만이라도 보여주고 싶으면 아래 useEffect는 빼고, 아래 UI 게이트만 쓰면 됨.
+  useEffect(() => {
+    if (!authed) {
+      // 너네 프로젝트에서 로그인/홈 경로에 맞게 바꿔
+      router.replace('/')
+    }
+  }, [authed, router])
 
   const fetchNews = async () => {
     const { data, error } = await supabase
@@ -135,7 +150,7 @@ export default function AdminNewsPage() {
     clearFileInputValue()
   }
 
-  // ✅ 업로드 후 "public URL" 반환
+  // ✅ 업로드 후 public URL 반환
   const uploadCoverIfNeeded = async (finalSlug: string) => {
     if (!coverFile) return coverUrl
 
@@ -156,6 +171,12 @@ export default function AdminNewsPage() {
   }
 
   const handleSubmit = async () => {
+    // ✅ 로그인 안 했으면 업로드/작성/수정 절대 불가
+    if (!authed) {
+      setErr('You must be logged in to create or edit posts.')
+      return
+    }
+
     const t = title.trim()
     const c = content.trim()
     const s = (slugTouched ? slug : autoSlug).trim() || slugify(title || 'news')
@@ -205,6 +226,11 @@ export default function AdminNewsPage() {
   }
 
   const handleEdit = (post: NewsPost) => {
+    if (!authed) {
+      setErr('You must be logged in to edit posts.')
+      return
+    }
+
     setEditingId(post.id)
     setTitle(post.title ?? '')
     setContent(post.content ?? '')
@@ -223,6 +249,12 @@ export default function AdminNewsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    // ✅ 로그인 안 했으면 삭제 불가
+    if (!authed) {
+      setErr('You must be logged in to delete posts.')
+      return
+    }
+
     const ok = confirm('Delete this post?')
     if (!ok) return
 
@@ -247,6 +279,28 @@ export default function AdminNewsPage() {
     setCoverPreviewUrl(url)
   }
 
+  const openFilePicker = () => {
+    if (!authed) {
+      setErr('You must be logged in to upload images.')
+      return
+    }
+    fileInputRef.current?.click()
+  }
+
+  const canInteract = authed && !saving
+
+  // ✅ 로그인 안했을 때 UI를 숨기고 메시지만 보여주고 싶으면 이 블록 유지
+  if (!authed) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <h1 className="text-2xl font-bold mb-3">🛠️ News Admin</h1>
+        <div className="p-4 rounded bg-gray-800 text-gray-200">
+          로그인해야 뉴스 작성/수정/삭제 가능함.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold mb-6">🛠️ News Admin</h1>
@@ -258,14 +312,16 @@ export default function AdminNewsPage() {
           placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full mb-2 p-2 bg-gray-800 text-white rounded"
+          disabled={!canInteract}
+          className="w-full mb-2 p-2 bg-gray-800 text-white rounded disabled:opacity-60"
         />
 
         <textarea
           placeholder="Content (Markdown or plain text)"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="w-full mb-3 p-2 h-40 bg-gray-800 text-white rounded"
+          disabled={!canInteract}
+          className="w-full mb-3 p-2 h-40 bg-gray-800 text-white rounded disabled:opacity-60"
         />
 
         <div className="mb-4">
@@ -282,23 +338,41 @@ export default function AdminNewsPage() {
             </div>
 
             <div className="flex-1">
+              {/* ✅ 실제 file input은 숨김 */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={(e) => onPickCoverFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-sm text-gray-300"
+                className="hidden"
+                disabled={!canInteract}
               />
 
+              {/* ✅ 버튼형 파일 선택 */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openFilePicker}
+                  disabled={!canInteract}
+                  className="px-3 py-2 bg-gray-700 text-white rounded hover:opacity-80 disabled:opacity-60 text-sm"
+                >
+                  {coverFile ? 'Change image' : 'Select image'}
+                </button>
+
+                <div className="text-xs text-gray-300 truncate">
+                  {coverFile ? coverFile.name : coverUrl ? 'Using saved image' : 'No file selected'}
+                </div>
+              </div>
+
               <div className="mt-2 text-xs text-gray-400">
-                업로드는 <b>Create/Save</b> 버튼을 누를 때 DB에 저장됩니다.
+                업로드는 <b>Create/Save</b> 버튼을 누를 때 DB에 저장됨.
               </div>
 
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={clearCoverSelection}
-                  disabled={saving}
+                  disabled={!canInteract}
                   className="px-3 py-2 bg-gray-700 text-white rounded hover:opacity-80 disabled:opacity-60 text-sm"
                 >
                   Clear file selection
@@ -307,7 +381,7 @@ export default function AdminNewsPage() {
                 <button
                   type="button"
                   onClick={removeCover}
-                  disabled={saving}
+                  disabled={!canInteract}
                   className="px-3 py-2 bg-gray-600 text-white rounded hover:opacity-80 disabled:opacity-60 text-sm"
                 >
                   Remove cover (set empty)
@@ -338,7 +412,8 @@ export default function AdminNewsPage() {
                 setSlugTouched(true)
                 setSlug(e.target.value)
               }}
-              className="w-full p-2 bg-gray-800 text-white rounded"
+              disabled={!canInteract}
+              className="w-full p-2 bg-gray-800 text-white rounded disabled:opacity-60"
             />
             <p className="mt-1 text-xs text-gray-400">Leave empty to auto-generate from the title.</p>
           </div>
@@ -349,7 +424,7 @@ export default function AdminNewsPage() {
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={!canInteract}
             className="px-4 py-2 bg-[#9F1D23] text-white rounded hover:opacity-80 disabled:opacity-60"
           >
             {saving ? (editingId ? 'Saving…' : 'Creating…') : editingId ? 'Save' : 'Create'}
@@ -358,7 +433,7 @@ export default function AdminNewsPage() {
           {editingId && (
             <button
               onClick={clearForm}
-              disabled={saving}
+              disabled={!canInteract}
               className="px-4 py-2 bg-gray-600 text-white rounded hover:opacity-80 disabled:opacity-60"
             >
               Cancel
@@ -395,10 +470,18 @@ export default function AdminNewsPage() {
                   </div>
 
                   <div className="flex gap-3 text-sm shrink-0">
-                    <button onClick={() => handleEdit(post)} className="text-blue-400 hover:underline">
+                    <button
+                      onClick={() => handleEdit(post)}
+                      disabled={!canInteract}
+                      className="text-blue-400 hover:underline disabled:opacity-60"
+                    >
                       Edit
                     </button>
-                    <button onClick={() => handleDelete(post.id)} className="text-red-400 hover:underline">
+                    <button
+                      onClick={() => handleDelete(post.id)}
+                      disabled={!canInteract}
+                      className="text-red-400 hover:underline disabled:opacity-60"
+                    >
                       Delete
                     </button>
                   </div>
