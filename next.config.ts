@@ -1,4 +1,4 @@
-// next.config.js
+// next.config.ts
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -10,10 +10,8 @@ const nextConfig = {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
   async redirects() {
-    // 루트만 /coach로 보냄. 정적 파일(/favicon.ico 등)은 영향 없음.
-    return [
-      { source: '/', destination: '/coach', permanent: true },
-    ]
+    // ✅ 루트(/)만 /coach로 보냄 (영구 리다이렉트 금지)
+    return [{ source: '/', destination: '/coach', permanent: false }]
   },
 }
 
