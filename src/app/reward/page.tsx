@@ -1,5 +1,5 @@
 // src/app/reward/page.tsx (Server Component)
-import RewardClient from './RewardClient'
+import RewardClientView from './RewardClientView'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -71,7 +71,7 @@ export default function RewardPage() {
         </section>
 
         <section className="mt-10">
-          <RewardClient />
+          <RewardClientView />
         </section>
       </div>
     </main>
