@@ -1,5 +1,5 @@
-// src/app/reward/page.tsx (Server Component)
-import RewardClient from './RewardClient'
+// src/app/reward/page.tsx
+// import RewardClient from './RewardClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,7 +12,7 @@ function pointsForDay(day: number) {
   return 0
 }
 
-export default async function RewardPage() {
+export default function RewardPage() {
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="max-w-4xl mx-auto px-4 py-10">
@@ -23,38 +23,15 @@ export default async function RewardPage() {
           </a>
         </div>
 
-        {/* ✅ Public section: visible to everyone */}
         <section className="mt-6 bg-[#f0f7fd] p-5">
           <div className="text-[15px] font-medium">Daily Check-in</div>
           <p className="mt-2 text-[14px] text-gray-700 leading-relaxed">
-            Ask one question on Coach each day to earn points.
+            Ask 1 question on Coach each day to earn points.
             <br />
-            Complete 14 consecutive days to finish a cycle. The streak then restarts from Day 1.
+            Complete 14 days to finish the cycle, then it restarts from Day 1.
           </p>
-
-          <div className="mt-4 grid grid-cols-2 gap-3 text-[13px] text-gray-700">
-            <div className="border border-[#dcdcdc] bg-white p-3">
-              <div className="font-semibold">Rewards</div>
-              <div className="mt-2 leading-relaxed">
-                Day 1–6: 100 points per day<br />
-                Day 7: 300 points<br />
-                Day 8–13: 100 points per day<br />
-                Day 14: 600 points
-              </div>
-            </div>
-
-            <div className="border border-[#dcdcdc] bg-white p-3">
-              <div className="font-semibold">Rules</div>
-              <div className="mt-2 leading-relaxed">
-                One claim per day.<br />
-                Missing a day resets your streak to Day 1.<br />
-                Earned points are added to your balance.
-              </div>
-            </div>
-          </div>
         </section>
 
-        {/* ✅ 14-day stamp board (public) */}
         <section className="mt-8">
           <div className="text-[15px] font-medium mb-3">14-Day Stamp Board</div>
           <div className="grid grid-cols-7 gap-3">
@@ -65,17 +42,14 @@ export default async function RewardPage() {
                 <div key={day} className="border border-gray-200 bg-[#fafafa] p-3 text-center">
                   <div className="text-[12px] text-gray-600">Day {day}</div>
                   <div className="mt-2 text-[18px]">⬜️</div>
-                  <div className="mt-2 text-[12px] text-gray-600">{reward} pts</div>
+                  <div className="mt-2 text-[12px] text-gray-600">{reward}p</div>
                 </div>
               )
             })}
           </div>
         </section>
 
-        {/* ✅ Interaction area: login, claim, history */}
-        <section className="mt-10">
-          <RewardClient />
-        </section>
+        {/* <section className="mt-10"><RewardClient /></section> */}
       </div>
     </main>
   )
