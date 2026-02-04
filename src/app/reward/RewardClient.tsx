@@ -1,4 +1,6 @@
 // src/app/reward/page.tsx (Server Component)
+'use client'
+
 import RewardClient from './RewardClient'
 
 export const dynamic = 'force-dynamic'

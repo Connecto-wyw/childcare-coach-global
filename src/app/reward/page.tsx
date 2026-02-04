@@ -1,5 +1,5 @@
-// src/app/reward/page.tsx
-// import RewardClient from './RewardClient'
+// src/app/reward/page.tsx (Server Component)
+import RewardClient from './RewardClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -30,6 +30,27 @@ export default function RewardPage() {
             <br />
             Complete 14 days to finish the cycle, then it restarts from Day 1.
           </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 text-[13px] text-gray-700">
+            <div className="border border-[#dcdcdc] bg-white p-3">
+              <div className="font-semibold">Rewards</div>
+              <div className="mt-2 leading-relaxed">
+                Day 1–6: 100p/day<br />
+                Day 7: 300p<br />
+                Day 8–13: 100p/day<br />
+                Day 14: 600p
+              </div>
+            </div>
+
+            <div className="border border-[#dcdcdc] bg-white p-3">
+              <div className="font-semibold">Rule</div>
+              <div className="mt-2 leading-relaxed">
+                One claim per day.<br />
+                Missing a day resets streak to Day 1.<br />
+                Points are added to your balance.
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="mt-8">
@@ -49,7 +70,9 @@ export default function RewardPage() {
           </div>
         </section>
 
-        {/* <section className="mt-10"><RewardClient /></section> */}
+        <section className="mt-10">
+          <RewardClient />
+        </section>
       </div>
     </main>
   )
