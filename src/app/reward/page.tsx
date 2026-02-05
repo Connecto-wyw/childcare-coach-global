@@ -18,23 +18,73 @@ type ClaimRes =
   | { ok: true; points_awarded?: number; claim_date?: string }
   | { ok: false; reason: string; error?: string }
 
-const MSG_NO_QUESTION = 'Please ask at least one question to the AI Parenting Coach.'
-const MSG_ALREADY = 'You already claimed today’s reward.'
+type StatusRes =
+  | { ok: true; today: string; claimed_today: boolean; streak: number; board: boolean[] }
+  | { ok: false; reason: string; error?: string }
+
+const MSG_SUCCESS = "Today's reward has been granted."
+const MSG_NO_QUESTION = 'Please ask at least one question in the AI Parenting Coach and then claim.'
+const MSG_ALREADY = "You've already claimed today's reward."
 const MSG_NEED_SIGNIN = 'Please sign in to claim today’s reward.'
 const MSG_UNKNOWN = 'Something went wrong. Please try again.'
+
+const REWARDS = [
+  100, 100, 100, 100, 100, 100, // Day1-6
+  300, // Day7
+  100, 100, 100, 100, 100, 100, // Day8-13
+  600, // Day14
+]
+
+function Modal({
+  open,
+  title,
+  message,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  message: string
+  onClose: () => void
+}) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm bg-white border border-[#dcdcdc] p-5">
+        <div className="text-[14px] font-extrabold text-[#1e1e1e]">{title}</div>
+        <div className="mt-2 text-[13px] text-gray-700 whitespace-pre-wrap">{message}</div>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={onClose}
+            className="h-9 px-4 rounded-md bg-[#1e1e1e] text-white text-[13px] font-semibold"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function RewardPage() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
 
   const [loadingClaim, setLoadingClaim] = useState(false)
-  const [toast, setToast] = useState('')
 
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(''), 2500)
-    return () => clearTimeout(t)
-  }, [toast])
+  // 상태(도장판/claimed 여부)
+  const [status, setStatus] = useState<StatusRes | null>(null)
+  const [loadingStatus, setLoadingStatus] = useState(false)
+
+  // 팝업
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMsg, setModalMsg] = useState('')
+  const [modalTitle, setModalTitle] = useState('')
+
+  const openModal = useCallback((title: string, message: string) => {
+    setModalTitle(title)
+    setModalMsg(message)
+    setModalOpen(true)
+  }, [])
 
   const loginGoogle = useCallback(async () => {
     const base = getSiteOrigin()
@@ -45,10 +95,30 @@ export default function RewardPage() {
     })
   }, [supabase])
 
+  const loadStatus = useCallback(async () => {
+    if (!user) {
+      setStatus(null)
+      return
+    }
+    setLoadingStatus(true)
+    try {
+      const res = await fetch('/api/rewards/status', { method: 'GET' })
+      const json = (await res.json()) as StatusRes
+      setStatus(json)
+    } catch (e) {
+      setStatus({ ok: false, reason: 'client_error', error: String(e) } as any)
+    } finally {
+      setLoadingStatus(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    void loadStatus()
+  }, [loadStatus])
+
   const handleClaim = useCallback(async () => {
     if (!user) {
-      const go = confirm(`${MSG_NEED_SIGNIN}\n\nSign in with Google now?`)
-      if (go) await loginGoogle()
+      openModal('Sign in required', MSG_NEED_SIGNIN)
       return
     }
 
@@ -59,30 +129,38 @@ export default function RewardPage() {
 
       if (!json?.ok) {
         if (json.reason === 'no_question_today') {
-          alert(MSG_NO_QUESTION)
+          openModal('Action required', MSG_NO_QUESTION)
           return
         }
         if (json.reason === 'already_claimed') {
-          alert(MSG_ALREADY)
+          openModal('Already claimed', MSG_ALREADY)
           return
         }
         if (json.reason === 'not_authenticated') {
-          alert(MSG_NEED_SIGNIN)
+          openModal('Sign in required', MSG_NEED_SIGNIN)
           return
         }
-        alert(MSG_UNKNOWN)
+        openModal('Error', MSG_UNKNOWN)
         return
       }
 
-      const add = Number(json.points_awarded ?? 0)
-      setToast(add > 0 ? `✅ +${add} points` : '✅ Reward claimed')
+      // ✅ 성공 팝업 (요구한 문구 고정)
+      openModal('Success', MSG_SUCCESS)
 
-      // ✅ NavBar 포인트 갱신
+      // ✅ NavBar 포인트 갱신 + 도장판 상태 갱신
       window.dispatchEvent(new Event('points:refresh'))
+      await loadStatus()
+    } catch (e) {
+      // 네트워크/JSON 파싱/404 같은 케이스도 여기서 잡힘 → “아무 반응 없음” 방지
+      openModal('Error', MSG_UNKNOWN)
     } finally {
       setLoadingClaim(false)
     }
-  }, [user, loginGoogle])
+  }, [user, openModal, loadStatus])
+
+  const claimedToday = status?.ok ? status.claimed_today : false
+  const board = status?.ok ? status.board : Array.from({ length: 14 }, () => false)
+  const streak = status?.ok ? status.streak : 0
 
   const claimButton = useMemo(() => {
     if (authLoading) {
@@ -117,14 +195,7 @@ export default function RewardPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* 토스트 */}
-      {toast ? (
-        <div className="sticky top-2 z-40 flex justify-center">
-          <div className="px-3 py-2 bg-white border border-[#dcdcdc] text-[13px] font-semibold text-[#0e0e0e] shadow-sm">
-            {toast}
-          </div>
-        </div>
-      ) : null}
+      <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
 
       <h1 className="text-xl font-extrabold text-[#1e1e1e]">REWARD</h1>
 
@@ -152,6 +223,52 @@ export default function RewardPage() {
               Missing a day resets streak to Day 1.<br />
               Points are added to your balance.
             </div>
+          </div>
+        </div>
+
+        {/* ✅ 14-day stamp board (요구사항) */}
+        <div className="mt-6 border-t border-[#eeeeee] pt-5">
+          <div className="flex items-center justify-between">
+            <div className="text-[14px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
+            {user && status?.ok ? (
+              <div className="text-[12px] text-gray-600">
+                Streak: <span className="font-semibold text-[#1e1e1e]">{streak}</span>
+                {loadingStatus ? <span className="ml-2">Loading…</span> : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+            {Array.from({ length: 14 }).map((_, i) => {
+              const day = i + 1
+              const filled = board[i]
+              const todayBox = claimedToday && status?.ok && day === Math.min((status.board.filter(Boolean).length || 1), 14)
+
+              return (
+                <div key={day} className="border border-[#eeeeee] p-3 text-center bg-white">
+                  <div className="text-[12px] font-semibold text-[#1e1e1e]">Day {day}</div>
+
+                  <div className="mt-2 flex items-center justify-center">
+                    <div
+                      className={[
+                        'w-6 h-6 rounded',
+                        filled ? 'bg-[#CFF3D9] border border-[#7BD69A]' : 'bg-[#f3f3f3] border border-[#e5e5e5]',
+                      ].join(' ')}
+                      title={filled ? 'Checked' : 'Not yet'}
+                    />
+                  </div>
+
+                  <div className="mt-2 text-[12px] text-gray-700">{REWARDS[i]}p</div>
+
+                  {/* ✅ 오늘 보상 지급 받았으면 "CLEAR" 같은 도장 표시 */}
+                  {claimedToday && filled && day === board.filter(Boolean).length ? (
+                    <div className="mt-2 inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#1e1e1e] text-white text-[11px] font-semibold">
+                      CLEAR
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
         </div>
 
