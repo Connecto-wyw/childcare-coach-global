@@ -19,6 +19,7 @@ type NewsPostRow = {
   title: string
   slug: string
   created_at: string | null
+  cover_image_url: string | null // ✅ 추가
 }
 
 type TeamRow = Pick<
@@ -49,6 +50,20 @@ function buildTeamImageUrl(image_url: string | null) {
 
   const path = raw.replace(/^\//, '')
   return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/team-images/${path}`
+}
+
+// ✅ NEWS 썸네일 URL 빌더 (bucket: news-images)
+function buildNewsImageUrl(cover_image_url: string | null) {
+  if (!cover_image_url) return null
+  const raw = String(cover_image_url).trim()
+  if (!raw) return null
+  if (/^https?:\/\//i.test(raw)) return raw
+
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
+  if (!supabaseUrl) return raw
+
+  const path = raw.replace(/^\//, '')
+  return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/news-images/${path}`
 }
 
 function mapTeamRowToCard(row: TeamRow): TeamCard {
@@ -131,9 +146,10 @@ export default async function CoachPage() {
   const kw = await getPopularKeywords()
   const keywords = kw && kw.length > 0 ? kw : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
 
+  // ✅ cover_image_url 추가로 가져오기
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
-    .select('id, title, slug, created_at')
+    .select('id, title, slug, created_at, cover_image_url')
     .order('created_at', { ascending: false })
     .limit(3)
 
@@ -142,7 +158,6 @@ export default async function CoachPage() {
   const ongoingTeams = await getOngoingTeams(supabase)
 
   return (
-    // ✅ 하단 입력창 때문에 "충분히 큰" 안전 여백 확보
     <main className="min-h-screen bg-white text-[#0e0e0e] pb-[160px]">
       <ScrollToTop />
 
@@ -154,7 +169,6 @@ export default async function CoachPage() {
         <section className="text-center mb-16">
           <div className="leading-tight">
             <div className="text-[30px] text-[#0e0e0e] font-Light">HELLO</div>
-            {/* 오타 수정: #0e0gite0e -> #0e0e0e */}
             <div className="text-[22px] text-[#0e0e0e] font-semibold">I AM YOUR AI PARENTING COACH</div>
           </div>
         </section>
@@ -169,12 +183,9 @@ export default async function CoachPage() {
         </section>
 
         <section className="mb-8">
-        <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">
-        Ongoing Teams
-        </div>
-        <ActiveTeamsGrid teams={ongoingTeams} />
+          <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">Ongoing Teams</div>
+          <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
-
 
         <section>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -193,17 +204,36 @@ export default async function CoachPage() {
                   <p className="text-[15px] font-medium text-[#b4b4b4]">No news available.</p>
                 ) : (
                   <ul className="space-y-3">
-                    {news.map((n) => (
-                      <li key={n.id}>
-                        <Link
-                          href={`/news/${n.slug}`}
-                          className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
-                          title={n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined}
-                        >
-                          {n.title}
-                        </Link>
-                      </li>
-                    ))}
+                    {news.map((n) => {
+                      const thumb = buildNewsImageUrl(n.cover_image_url)
+                      return (
+                        <li key={n.id} className="flex items-center gap-3">
+                          {/* ✅ 썸네일 */}
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="w-[56px] h-[56px] rounded-md object-cover bg-white border border-[#e6eef7] flex-shrink-0"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-[56px] h-[56px] rounded-md bg-white/70 border border-[#e6eef7] flex-shrink-0" />
+                          )}
+
+                          {/* ✅ 타이틀 */}
+                          <div className="min-w-0">
+                            <Link
+                              href={`/news/${n.slug}`}
+                              className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
+                              title={n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined}
+                            >
+                              <span className="line-clamp-2">{n.title}</span>
+                            </Link>
+                          </div>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
@@ -211,8 +241,6 @@ export default async function CoachPage() {
           </div>
         </section>
 
-        {/* ✅ 핵심: 맨 아래에 "흰색 safe area"를 명시적으로 만들어서
-            입력창 뒤로 어떤 컨텐츠도 비치지 않게 함 */}
         <div aria-hidden className="h-[160px] bg-white" />
       </div>
     </main>

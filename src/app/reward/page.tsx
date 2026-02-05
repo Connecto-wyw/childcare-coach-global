@@ -35,6 +35,10 @@ const REWARDS = [
 const INDIANBOB_RED = '#9F1D23'
 const ACCENT_BLUE = '#3EB6F1'
 
+// ✅ 말풍선 문구(여기만 바꾸면 됨)
+const BUBBLE_TITLE = 'Event is live'
+const BUBBLE_BODY = 'Ask 1 question on Coach, then claim your daily points. Complete 14 days to finish the cycle.'
+
 function IconWrap({
   children,
   bg,
@@ -55,18 +59,8 @@ function IconWrap({
 function SvgGift({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M20 7H4v5h16V7Z"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 7v14"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M20 7H4v5h16V7Z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M12 7v14" stroke={color} strokeWidth="2" strokeLinecap="round" />
       <path
         d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"
         stroke={color}
@@ -95,12 +89,7 @@ function SvgList({ color }: { color: string }) {
       <path d="M8 6h13" stroke={color} strokeWidth="2" strokeLinecap="round" />
       <path d="M8 12h13" stroke={color} strokeWidth="2" strokeLinecap="round" />
       <path d="M8 18h13" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M3 6h.01M3 12h.01M3 18h.01"
-        stroke={color}
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
+      <path d="M3 6h.01M3 12h.01M3 18h.01" stroke={color} strokeWidth="3" strokeLinecap="round" />
     </svg>
   )
 }
@@ -108,18 +97,8 @@ function SvgList({ color }: { color: string }) {
 function SvgCalendar({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M7 3v3M17 3v3"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M4 8h16"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M7 3v3M17 3v3" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 8h16" stroke={color} strokeWidth="2" strokeLinecap="round" />
       <path
         d="M6 5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
         stroke={color}
@@ -133,19 +112,8 @@ function SvgCalendar({ color }: { color: string }) {
 function SvgReset({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M21 12a9 9 0 1 1-3.2-6.9"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M21 3v6h-6"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M21 12a9 9 0 1 1-3.2-6.9" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M21 3v6h-6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -153,21 +121,9 @@ function SvgReset({ color }: { color: string }) {
 function SvgCoins({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 4c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3Z"
-        stroke={color}
-        strokeWidth="2"
-      />
-      <path
-        d="M4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7"
-        stroke={color}
-        strokeWidth="2"
-      />
-      <path
-        d="M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5"
-        stroke={color}
-        strokeWidth="2"
-      />
+      <path d="M12 4c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3Z" stroke={color} strokeWidth="2" />
+      <path d="M4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7" stroke={color} strokeWidth="2" />
+      <path d="M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5" stroke={color} strokeWidth="2" />
     </svg>
   )
 }
@@ -175,18 +131,8 @@ function SvgCoins({ color }: { color: string }) {
 function SvgAlert({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 9v5"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 17h.01"
-        stroke={color}
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
+      <path d="M12 9v5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 17h.01" stroke={color} strokeWidth="3" strokeLinecap="round" />
       <path
         d="M10.3 3.6 2.7 18a2 2 0 0 0 1.8 3h15a2 2 0 0 0 1.8-3L13.7 3.6a2 2 0 0 0-3.4 0Z"
         stroke={color}
@@ -291,12 +237,6 @@ export default function RewardPage() {
     void loadStatus()
   }, [loadStatus])
 
-  /**
-   * ✅ Claim 응답 표준화
-   * - (1) { ok: true/false, reason } 형태
-   * - (2) { claimed: true/false, reason } 형태
-   * - (3) 이상한 형태 => raw로 디버깅
-   */
   function normalizeClaimResponse(json: any): { ok: boolean; reason?: string } {
     if (!json || typeof json !== 'object') return { ok: false, reason: 'bad_json' }
 
@@ -403,20 +343,64 @@ export default function RewardPage() {
     )
   }, [authLoading, user, loadingClaim, loginGoogle, handleClaim])
 
+  // ✅ 말풍선이 "Daily Check-in" 위에 뜨게: 여기서 계산
+  const bubbleMessage = useMemo(() => {
+    // 로그인 안했으면 안내 문구를 조금 바꿔줌(원하면 삭제 가능)
+    if (!user) return 'Sign in to start the 14-day check-in and claim points.'
+    // 상태 로딩 중
+    if (loadingStatus) return 'Checking today’s claim status…'
+    // 상태 에러
+    if (status && !status.ok) return 'Reward status is temporarily unavailable. Please try again.'
+    // 정상 상태
+    if (status?.ok) {
+      if (status.claimed_today) return 'You already claimed today. Come back tomorrow for the next stamp.'
+      return BUBBLE_BODY
+    }
+    // 기본
+    return BUBBLE_BODY
+  }, [user, loadingStatus, status])
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
 
-      {/* ✅ 타이틀도 coach쪽처럼 큼직하게 */}
       <h1 className="text-2xl md:text-[28px] font-extrabold text-[#1e1e1e]">REWARD</h1>
 
       <div className="mt-6 border border-[#eeeeee] bg-white p-6 md:p-7">
+        {/* ✅ 말풍선: Daily Check-in 위 */}
+        <div className="mb-5">
+          <div className="relative inline-block max-w-[720px]">
+            <div
+              className="rounded-2xl px-4 py-3 border"
+              style={{
+                borderColor: 'rgba(159,29,35,0.25)',
+                backgroundColor: 'rgba(159,29,35,0.06)',
+              }}
+            >
+              <div className="text-[14px] md:text-[15px] font-extrabold" style={{ color: INDIANBOB_RED }}>
+                {BUBBLE_TITLE}
+              </div>
+              <div className="mt-1 text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                {bubbleMessage}
+              </div>
+            </div>
+
+            {/* 꼬리 */}
+            <div
+              className="absolute left-7 -bottom-2 w-4 h-4 rotate-45 border"
+              style={{
+                backgroundColor: 'rgba(159,29,35,0.06)',
+                borderColor: 'rgba(159,29,35,0.25)',
+              }}
+            />
+          </div>
+        </div>
+
         <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
         <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
           Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
         </div>
 
-        {/* ✅ Rewards / Rule: 폰트 키우고, 아이콘 + 인디언밥 컬러 */}
         <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Rewards */}
           <div className="border border-[#eeeeee] p-5">
@@ -577,10 +561,7 @@ export default function RewardPage() {
 
                   <div className="mt-3 flex items-center justify-center">
                     <div
-                      className={[
-                        'w-7 h-7 rounded',
-                        filled ? 'border' : 'border',
-                      ].join(' ')}
+                      className="w-7 h-7 rounded border"
                       style={
                         filled
                           ? { backgroundColor: 'rgba(62,182,241,0.18)', borderColor: 'rgba(62,182,241,0.65)' }
