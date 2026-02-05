@@ -52,6 +52,39 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
   )
 }
 
+/**
+ * ✅ Indianbob mini badge (HOT / EVENT)
+ * - 아주 작게(text-[9px]) / 네비게이션 메뉴 우측 상단에 붙는 형태
+ * - 필요 없으면 null 반환
+ */
+function NavMiniBadge({ text }: { text: 'HOT' | 'EVENT' }) {
+  const isHot = text === 'HOT'
+  const bg = isHot ? '#9F1D23' : '#3EB6F1' // Indianbob Red / Accent Blue
+
+  return (
+    <span
+      className={[
+        'absolute',
+        '-top-1',
+        '-right-4',
+        'rounded-full',
+        'px-1.5',
+        'py-[1px]',
+        'text-[9px]',
+        'font-extrabold',
+        'leading-none',
+        'text-white',
+        'select-none',
+        'pointer-events-none',
+      ].join(' ')}
+      style={{ backgroundColor: bg }}
+      aria-label={text}
+    >
+      {text}
+    </span>
+  )
+}
+
 export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
@@ -63,6 +96,13 @@ export default function NavBar() {
   // 드롭다운(계정 메뉴)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+
+  /**
+   * ✅ 여기서 뱃지 켜/끄기
+   * - 지금은 REWARD에 HOT 표시
+   * - 필요하면 'EVENT'로 바꾸거나 null로 끄면 됨
+   */
+  const rewardBadge: 'HOT' | 'EVENT' | null = 'HOT'
 
   const items: NavItem[] = useMemo(
     () => [
@@ -170,11 +210,24 @@ export default function NavBar() {
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         {/* Left: menu */}
         <nav className="flex items-center gap-4">
-          {items.map((it) => (
-            <Link key={it.href} href={it.href} className="text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70">
-              {it.label}
-            </Link>
-          ))}
+          {items.map((it) => {
+            const isReward = it.href === '/reward'
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                className={[
+                  'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
+                  // ✅ 뱃지 배치를 위해 REWARD만 relative
+                  isReward ? 'relative inline-flex items-center' : '',
+                ].join(' ')}
+              >
+                <span>{it.label}</span>
+                {/* ✅ REWARD 옆 미니 뱃지 */}
+                {isReward && rewardBadge ? <NavMiniBadge text={rewardBadge} /> : null}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Right */}
@@ -222,10 +275,7 @@ export default function NavBar() {
               </div>
             </>
           ) : (
-            <button
-              onClick={loginGoogle}
-              className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
-            >
+            <button onClick={loginGoogle} className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold">
               Sign in with Google
             </button>
           )}
