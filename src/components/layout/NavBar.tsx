@@ -18,16 +18,37 @@ function format(n: number) {
   }
 }
 
-function safeName(input: string) {
-  const s = (input ?? '').trim()
-  return s
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
+}
+
+function getSiteOrigin() {
+  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+  if (envSite) return stripTrailingSlash(envSite)
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
+}
+
+function safeText(v: unknown) {
+  return String(v ?? '').trim()
+}
+
+function CoinIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        d="M12 3c-4.97 0-9 1.79-9 4v10c0 2.21 4.03 4 9 4s9-1.79 9-4V7c0-2.21-4.03-4-9-4Zm0 2c4.42 0 7 .98 7 2s-2.58 2-7 2-7-.98-7-2 2.58-2 7-2Zm0 14c-4.42 0-7-.98-7-2v-2.1C6.58 16.02 9.1 16.5 12 16.5s5.42-.48 7-1.6V17c0 1.02-2.58 2-7 2Zm0-4.5c-4.42 0-7-.98-7-2v-2.1C6.58 11.52 9.1 12 12 12s5.42-.48 7-1.6V12.5c0 1.02-2.58 2-7 2Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
 }
 
 export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
 
-  const [nickname, setNickname] = useState<string>('')
+  const [nickname, setNickname] = useState<string>('') // profiles.nickname (fallback)
   const [points, setPoints] = useState<number>(0)
   const [loadingPoints, setLoadingPoints] = useState(false)
 
@@ -50,9 +71,20 @@ export default function NavBar() {
     }
   }, [user])
 
-  const loadProfile = useCallback(async () => {
-    if (!user) return
+  // ✅ 구글 계정 이름(닉네임) 가져오기: user_metadata 기반
+  const googleName = useMemo(() => {
+    if (!user) return ''
+    const meta: any = user.user_metadata ?? {}
+    return safeText(meta.full_name) || safeText(meta.name) || safeText(meta.email) || safeText(user.email)
+  }, [user])
 
+  // ✅ 화면에 표시할 이름 우선순위: GoogleName > profiles.nickname
+  const displayName = useMemo(() => {
+    return safeText(googleName) || safeText(nickname)
+  }, [googleName, nickname])
+
+  const loadProfileNickname = useCallback(async () => {
+    if (!user) return
     const { data, error } = await supabase.from('profiles').select('nickname').eq('id', user.id).maybeSingle()
 
     if (error) {
@@ -60,8 +92,7 @@ export default function NavBar() {
       setNickname('')
       return
     }
-
-    setNickname(String((data as any)?.nickname ?? ''))
+    setNickname(safeText((data as any)?.nickname))
   }, [supabase, user])
 
   const loadPoints = useCallback(async () => {
@@ -76,16 +107,15 @@ export default function NavBar() {
       setPoints(0)
       return
     }
-
     setPoints(Number((data as any)?.points ?? 0))
   }, [supabase, user])
 
   // ✅ 로그인 시에만 닉네임/포인트 로드
   useEffect(() => {
     if (!user) return
-    void loadProfile()
+    void loadProfileNickname()
     void loadPoints()
-  }, [user?.id, loadProfile, loadPoints])
+  }, [user?.id, loadProfileNickname, loadPoints])
 
   // ✅ 포인트 갱신 이벤트: 로그인 상태에서만 동작
   useEffect(() => {
@@ -97,17 +127,14 @@ export default function NavBar() {
     return () => window.removeEventListener('points:refresh', handler)
   }, [user, loadPoints])
 
-  /**
-   * ✅ 핵심 수정:
-   * - 비로그인 상태에서는 greeting 자체를 만들지 않음(절대 there fallback 노출 X)
-   * - 로그인 상태에서도 nickname이 비었으면 "there" 같은 fallback 금지 -> 그냥 인사 문구 숨김
-   */
-  const greeting = useMemo(() => {
-    if (!user) return ''
-    const name = safeName(nickname)
-    if (!name) return ''
-    return `${name}님 반가워요!`
-  }, [user, nickname])
+  const loginGoogle = useCallback(async () => {
+    const base = getSiteOrigin()
+    const redirectTo = `${base}/auth/callback?next=/coach`
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+  }, [supabase])
 
   return (
     <header className="w-full bg-white border-b border-[#eeeeee]">
@@ -121,24 +148,33 @@ export default function NavBar() {
           ))}
         </nav>
 
-        {/* Right: user info */}
+        {/* Right: points + name OR google login */}
         <div className="flex items-center gap-3 min-w-0">
           {authLoading ? (
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
-              {/* ✅ 로그인 시에만 포인트 표시 */}
-              <span className="text-[12px] text-gray-700 whitespace-nowrap">
-                보유 포인트 : {loadingPoints ? '…' : format(points)}
+              {/* ✅ Points (English) + icon */}
+              <span className="flex items-center gap-1 text-[12px] text-gray-700 whitespace-nowrap">
+                <CoinIcon className="w-4 h-4 text-gray-700" />
+                <span className="font-semibold">Points:</span>
+                <span>{loadingPoints ? '…' : format(points)}</span>
               </span>
 
-              {/* ✅ 닉네임이 있을 때만 “OOO님 반가워요!” 표시 (there 같은 기본값 금지) */}
-              {greeting ? (
-                <span className="text-[12px] font-semibold text-[#1e1e1e] truncate">{greeting}</span>
+              {/* ✅ Google nickname (or fallback) */}
+              {displayName ? (
+                <span className="text-[12px] font-semibold text-[#1e1e1e] truncate max-w-[180px]">
+                  {displayName}
+                </span>
               ) : null}
             </>
           ) : (
-            <span className="text-[12px] text-gray-500">Not signed in</span>
+            <button
+              onClick={loginGoogle}
+              className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
+            >
+              Sign in with Google
+            </button>
           )}
         </div>
       </div>
