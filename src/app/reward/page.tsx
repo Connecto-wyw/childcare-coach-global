@@ -31,6 +31,206 @@ const REWARDS = [
   600, // Day14
 ]
 
+// Indianbob colors
+const INDIANBOB_RED = '#9F1D23'
+const INDIANBOB_BLUE = '#3EB6F1'
+
+function Icon({
+  kind,
+  size = 16,
+  color = '#1e1e1e',
+}: {
+  kind: 'gift' | 'rule' | 'calendar' | 'refresh' | 'plus' | 'alert' | 'coin'
+  size?: number
+  color?: string
+}) {
+  // lightweight inline SVGs (no external deps)
+  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none' as const }
+  switch (kind) {
+    case 'gift':
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M22 7H2v5h20V7Z"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 22V7"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7Z"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'rule':
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M8 6h13M8 12h13M8 18h13 extraction"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M3 6h.01M3 12h.01M3 18h.01"
+            stroke={color}
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+      )
+    case 'calendar':
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M8 2v3M16 2v3"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M3 8h18"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M5 5h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'refresh':
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M21 12a9 9 0 0 1-15.3 6.36"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M3 12a9 9 0 0 1 15.3-6.36"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6 20l-1.5-3.5L1 18"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M18 4l1.5 3.5L23 6"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'plus':
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M12 5v14M5 12h14"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'alert':
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M12 9v4"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 17h.01"
+            stroke={color}
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'coin':
+    default:
+      return (
+        <svg {...common} aria-hidden>
+          <path
+            d="M12 2c4.42 0 8 1.79 8 4s-3.58 4-8 4-8-1.79-8-4 3.58-4 8-4Z"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M4 6v6c0 2.21 3.58 4 8 4s8-1.79 8-4V6"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M4 12v6c0 2.21 3.58 4 8 4s8-1.79 8-4v-6"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+  }
+}
+
 function Modal({
   open,
   title,
@@ -254,24 +454,125 @@ export default function RewardPage() {
           Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
         </div>
 
+        {/* ✅ Rewards / Rule with icons + better readability */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Rewards */}
           <div className="border border-[#eeeeee] p-4">
-            <div className="text-[13px] font-semibold">Rewards</div>
-            <div className="mt-2 text-[13px] text-gray-700 leading-6">
-              Day 1–6: 100p/day<br />
-              Day 7: 300p<br />
-              Day 8–13: 100p/day<br />
-              Day 14: 600p
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md"
+                style={{ backgroundColor: `${INDIANBOB_RED}14` }}
+              >
+                <Icon kind="gift" color={INDIANBOB_RED} />
+              </span>
+              <div className="text-[13px] font-extrabold text-[#1e1e1e]">Rewards</div>
             </div>
+
+            <ul className="mt-3 space-y-2 text-[13px] text-gray-700">
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="calendar" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  <span className="font-semibold text-[#1e1e1e]">Day 1–6</span>:{' '}
+                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+                    100p/day
+                  </span>
+                </span>
+              </li>
+
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="plus" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  <span className="font-semibold text-[#1e1e1e]">Day 7</span>:{' '}
+                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+                    300p
+                  </span>
+                </span>
+              </li>
+
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="calendar" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  <span className="font-semibold text-[#1e1e1e]">Day 8–13</span>:{' '}
+                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+                    100p/day
+                  </span>
+                </span>
+              </li>
+
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="gift" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  <span className="font-semibold text-[#1e1e1e]">Day 14</span>:{' '}
+                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+                    600p
+                  </span>
+                  <span className="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                    style={{ backgroundColor: `${INDIANBOB_RED}14`, color: INDIANBOB_RED }}
+                  >
+                    Bonus
+                  </span>
+                </span>
+              </li>
+            </ul>
           </div>
 
+          {/* Rule */}
           <div className="border border-[#eeeeee] p-4">
-            <div className="text-[13px] font-semibold">Rule</div>
-            <div className="mt-2 text-[13px] text-gray-700 leading-6">
-              One claim per day.<br />
-              Missing a day resets streak to Day 1.<br />
-              Points are added to your balance.
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md"
+                style={{ backgroundColor: `${INDIANBOB_BLUE}14` }}
+              >
+                <Icon kind="rule" color={INDIANBOB_BLUE} />
+              </span>
+              <div className="text-[13px] font-extrabold text-[#1e1e1e]">Rule</div>
             </div>
+
+            <ul className="mt-3 space-y-2 text-[13px] text-gray-700">
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="calendar" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  <span className="font-semibold text-[#1e1e1e]">One claim</span> per day.
+                </span>
+              </li>
+
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="refresh" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  Missing a day <span className="font-semibold" style={{ color: INDIANBOB_RED }}>resets</span> streak to Day 1.
+                </span>
+              </li>
+
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="coin" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  Points are added to your <span className="font-semibold text-[#1e1e1e]">balance</span>.
+                </span>
+              </li>
+
+              <li className="flex items-start gap-2">
+                <span className="mt-[2px]">
+                  <Icon kind="alert" color={INDIANBOB_BLUE} />
+                </span>
+                <span>
+                  If you don’t ask a question on Coach, you can’t claim for that day.
+                </span>
+              </li>
+            </ul>
           </div>
         </div>
 
