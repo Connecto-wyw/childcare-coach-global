@@ -31,204 +31,170 @@ const REWARDS = [
   600, // Day14
 ]
 
-// Indianbob colors
+// ✅ Indianbob colors
 const INDIANBOB_RED = '#9F1D23'
-const INDIANBOB_BLUE = '#3EB6F1'
+const ACCENT_BLUE = '#3EB6F1'
 
-function Icon({
-  kind,
-  size = 16,
-  color = '#1e1e1e',
+function IconWrap({
+  children,
+  bg,
 }: {
-  kind: 'gift' | 'rule' | 'calendar' | 'refresh' | 'plus' | 'alert' | 'coin'
-  size?: number
-  color?: string
+  children: React.ReactNode
+  bg: string
 }) {
-  // lightweight inline SVGs (no external deps)
-  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none' as const }
-  switch (kind) {
-    case 'gift':
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M22 7H2v5h20V7Z"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M12 22V7"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7Z"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )
-    case 'rule':
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M8 6h13M8 12h13M8 18h13 extraction"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M3 6h.01M3 12h.01M3 18h.01"
-            stroke={color}
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-        </svg>
-      )
-    case 'calendar':
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M8 2v3M16 2v3"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M3 8h18"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M5 5h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )
-    case 'refresh':
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M21 12a9 9 0 0 1-15.3 6.36"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M3 12a9 9 0 0 1 15.3-6.36"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M6 20l-1.5-3.5L1 18"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M18 4l1.5 3.5L23 6"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )
-    case 'plus':
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M12 5v14M5 12h14"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )
-    case 'alert':
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M12 9v4"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M12 17h.01"
-            stroke={color}
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-          <path
-            d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )
-    case 'coin':
-    default:
-      return (
-        <svg {...common} aria-hidden>
-          <path
-            d="M12 2c4.42 0 8 1.79 8 4s-3.58 4-8 4-8-1.79-8-4 3.58-4 8-4Z"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M4 6v6c0 2.21 3.58 4 8 4s8-1.79 8-4V6"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M4 12v6c0 2.21 3.58 4 8 4s8-1.79 8-4v-6"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )
-  }
+  return (
+    <div
+      className="w-10 h-10 rounded-xl flex items-center justify-center border"
+      style={{ backgroundColor: bg, borderColor: 'rgba(0,0,0,0.06)' }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function SvgGift({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M20 7H4v5h16V7Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 7v14"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 7H8.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 7h3.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function SvgList({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M8 6h13" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 12h13" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 18h13" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M3 6h.01M3 12h.01M3 18h.01"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function SvgCalendar({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 3v3M17 3v3"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 8h16"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6 5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function SvgReset({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M21 12a9 9 0 1 1-3.2-6.9"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M21 3v6h-6"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function SvgCoins({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 4c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3Z"
+        stroke={color}
+        strokeWidth="2"
+      />
+      <path
+        d="M4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7"
+        stroke={color}
+        strokeWidth="2"
+      />
+      <path
+        d="M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5"
+        stroke={color}
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
+function SvgAlert({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 9v5"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 17h.01"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10.3 3.6 2.7 18a2 2 0 0 0 1.8 3h15a2 2 0 0 0 1.8-3L13.7 3.6a2 2 0 0 0-3.4 0Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
 function Modal({
@@ -245,13 +211,13 @@ function Modal({
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm bg-white border border-[#dcdcdc] p-5">
-        <div className="text-[14px] font-extrabold text-[#1e1e1e]">{title}</div>
-        <div className="mt-2 text-[13px] text-gray-700 whitespace-pre-wrap">{message}</div>
-        <div className="mt-4 flex justify-end">
+      <div className="w-full max-w-sm bg-white border border-[#dcdcdc] p-6">
+        <div className="text-[16px] font-extrabold text-[#1e1e1e]">{title}</div>
+        <div className="mt-2 text-[14px] text-gray-700 whitespace-pre-wrap leading-relaxed">{message}</div>
+        <div className="mt-5 flex justify-end">
           <button
             onClick={onClose}
-            className="h-9 px-4 rounded-md bg-[#1e1e1e] text-white text-[13px] font-semibold"
+            className="h-10 px-5 rounded-md bg-[#1e1e1e] text-white text-[14px] font-semibold"
           >
             OK
           </button>
@@ -300,6 +266,7 @@ export default function RewardPage() {
     try {
       const res = await fetch('/api/rewards/status', { method: 'GET' })
       const raw = await res.text()
+
       let json: any = {}
       try {
         json = raw ? JSON.parse(raw) : {}
@@ -333,21 +300,17 @@ export default function RewardPage() {
   function normalizeClaimResponse(json: any): { ok: boolean; reason?: string } {
     if (!json || typeof json !== 'object') return { ok: false, reason: 'bad_json' }
 
-    // A) ok 기반
     if (typeof json.ok === 'boolean') {
       if (json.ok) return { ok: true }
       return { ok: false, reason: String(json.reason ?? 'unknown') }
     }
 
-    // B) claimed 기반
     if (typeof json.claimed === 'boolean') {
       if (json.claimed) return { ok: true }
       const r = String(json.reason ?? '')
-      // reason이 없으면 이미 받은 케이스로 처리
       return { ok: false, reason: r || 'already_claimed' }
     }
 
-    // C) 완전 예외
     return { ok: false, reason: 'unknown_payload' }
   }
 
@@ -369,7 +332,6 @@ export default function RewardPage() {
         json = {}
       }
 
-      // ✅ HTTP 에러면 무조건 raw를 보여줘야 원인 잡힘
       if (!res.ok) {
         openModal('Error', `${MSG_UNKNOWN}\n\nHTTP ${res.status}\n${raw.slice(0, 800)}`)
         return
@@ -384,7 +346,6 @@ export default function RewardPage() {
         return
       }
 
-      // 실패 reason 매핑
       if (norm.reason === 'no_question_today') {
         openModal('Action required', MSG_NO_QUESTION)
         return
@@ -398,7 +359,6 @@ export default function RewardPage() {
         return
       }
 
-      // ✅ 여기 오면 reason이 이상한 케이스 -> raw 포함해서 노출
       openModal('Error', `${MSG_UNKNOWN}\n\nreason=${norm.reason}\n${raw.slice(0, 800)}`)
     } catch (e) {
       openModal('Error', `${MSG_UNKNOWN}\n\n${String(e)}`)
@@ -414,7 +374,7 @@ export default function RewardPage() {
   const claimButton = useMemo(() => {
     if (authLoading) {
       return (
-        <button disabled className="rounded-md bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-500">
+        <button disabled className="rounded-md bg-gray-200 px-5 py-3 text-[15px] font-semibold text-gray-500">
           Loading…
         </button>
       )
@@ -424,7 +384,7 @@ export default function RewardPage() {
       return (
         <button
           onClick={loginGoogle}
-          className="rounded-md bg-[#1e1e1e] px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-md bg-[#1e1e1e] px-5 py-3 text-[15px] font-semibold text-white"
         >
           Sign in with Google
         </button>
@@ -435,7 +395,8 @@ export default function RewardPage() {
       <button
         onClick={handleClaim}
         disabled={loadingClaim}
-        className="rounded-md bg-[#DA3632] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        className="rounded-md px-5 py-3 text-[15px] font-semibold text-white disabled:opacity-60"
+        style={{ backgroundColor: INDIANBOB_RED }}
       >
         {loadingClaim ? 'Claiming…' : 'Claim today'}
       </button>
@@ -446,146 +407,149 @@ export default function RewardPage() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
 
-      <h1 className="text-xl font-extrabold text-[#1e1e1e]">REWARD</h1>
+      {/* ✅ 타이틀도 coach쪽처럼 큼직하게 */}
+      <h1 className="text-2xl md:text-[28px] font-extrabold text-[#1e1e1e]">REWARD</h1>
 
-      <div className="mt-6 border border-[#eeeeee] bg-white p-5">
-        <div className="text-[14px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
-        <div className="mt-2 text-[13px] text-gray-700">
+      <div className="mt-6 border border-[#eeeeee] bg-white p-6 md:p-7">
+        <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
+        <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
           Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
         </div>
 
-        {/* ✅ Rewards / Rule with icons + better readability */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* ✅ Rewards / Rule: 폰트 키우고, 아이콘 + 인디언밥 컬러 */}
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Rewards */}
-          <div className="border border-[#eeeeee] p-4">
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-flex items-center justify-center w-7 h-7 rounded-md"
-                style={{ backgroundColor: `${INDIANBOB_RED}14` }}
-              >
-                <Icon kind="gift" color={INDIANBOB_RED} />
-              </span>
-              <div className="text-[13px] font-extrabold text-[#1e1e1e]">Rewards</div>
+          <div className="border border-[#eeeeee] p-5">
+            <div className="flex items-center gap-3">
+              <IconWrap bg="rgba(159,29,35,0.08)">
+                <SvgGift color={INDIANBOB_RED} />
+              </IconWrap>
+              <div className="text-[16px] md:text-[17px] font-extrabold text-[#1e1e1e]">Rewards</div>
             </div>
 
-            <ul className="mt-3 space-y-2 text-[13px] text-gray-700">
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="calendar" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  <span className="font-semibold text-[#1e1e1e]">Day 1–6</span>:{' '}
-                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <SvgCalendar color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  <span className="font-semibold">Day 1–6:</span>{' '}
+                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
                     100p/day
                   </span>
-                </span>
-              </li>
+                </div>
+              </div>
 
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="plus" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  <span className="font-semibold text-[#1e1e1e]">Day 7</span>:{' '}
-                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 5v14" stroke={ACCENT_BLUE} strokeWidth="2" strokeLinecap="round" />
+                    <path d="M5 12h14" stroke={ACCENT_BLUE} strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  <span className="font-semibold">Day 7:</span>{' '}
+                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
                     300p
                   </span>
-                </span>
-              </li>
+                </div>
+              </div>
 
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="calendar" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  <span className="font-semibold text-[#1e1e1e]">Day 8–13</span>:{' '}
-                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <SvgCalendar color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  <span className="font-semibold">Day 8–13:</span>{' '}
+                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
                     100p/day
                   </span>
-                </span>
-              </li>
+                </div>
+              </div>
 
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="gift" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  <span className="font-semibold text-[#1e1e1e]">Day 14</span>:{' '}
-                  <span className="font-semibold" style={{ color: INDIANBOB_RED }}>
+              <div className="flex items-center gap-3">
+                <div className="mt-0.5">
+                  <SvgGift color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  <span className="font-semibold">Day 14:</span>{' '}
+                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
                     600p
                   </span>
-                  <span className="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                    style={{ backgroundColor: `${INDIANBOB_RED}14`, color: INDIANBOB_RED }}
+                  <span
+                    className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[12px] font-extrabold"
+                    style={{ backgroundColor: 'rgba(159,29,35,0.10)', color: INDIANBOB_RED }}
                   >
                     Bonus
                   </span>
-                </span>
-              </li>
-            </ul>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Rule */}
-          <div className="border border-[#eeeeee] p-4">
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-flex items-center justify-center w-7 h-7 rounded-md"
-                style={{ backgroundColor: `${INDIANBOB_BLUE}14` }}
-              >
-                <Icon kind="rule" color={INDIANBOB_BLUE} />
-              </span>
-              <div className="text-[13px] font-extrabold text-[#1e1e1e]">Rule</div>
+          <div className="border border-[#eeeeee] p-5">
+            <div className="flex items-center gap-3">
+              <IconWrap bg="rgba(62,182,241,0.10)">
+                <SvgList color={ACCENT_BLUE} />
+              </IconWrap>
+              <div className="text-[16px] md:text-[17px] font-extrabold text-[#1e1e1e]">Rule</div>
             </div>
 
-            <ul className="mt-3 space-y-2 text-[13px] text-gray-700">
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="calendar" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  <span className="font-semibold text-[#1e1e1e]">One claim</span> per day.
-                </span>
-              </li>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <SvgCalendar color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  <span className="font-semibold">One claim</span> per day.
+                </div>
+              </div>
 
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="refresh" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  Missing a day <span className="font-semibold" style={{ color: INDIANBOB_RED }}>resets</span> streak to Day 1.
-                </span>
-              </li>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <SvgReset color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  Missing a day{' '}
+                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
+                    resets
+                  </span>{' '}
+                  streak to Day 1.
+                </div>
+              </div>
 
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="coin" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
-                  Points are added to your <span className="font-semibold text-[#1e1e1e]">balance</span>.
-                </span>
-              </li>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <SvgCoins color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                  Points are added to your <span className="font-extrabold">balance</span>.
+                </div>
+              </div>
 
-              <li className="flex items-start gap-2">
-                <span className="mt-[2px]">
-                  <Icon kind="alert" color={INDIANBOB_BLUE} />
-                </span>
-                <span>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <SvgAlert color={ACCENT_BLUE} />
+                </div>
+                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
                   If you don’t ask a question on Coach, you can’t claim for that day.
-                </span>
-              </li>
-            </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* ✅ 14-day stamp board */}
-        <div className="mt-6 border-t border-[#eeeeee] pt-5">
+        <div className="mt-7 border-t border-[#eeeeee] pt-6">
           <div className="flex items-center justify-between">
-            <div className="text-[14px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
+            <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
 
             {user ? (
-              <div className="text-[12px] text-gray-600">
+              <div className="text-[13px] md:text-[14px] text-gray-600">
                 {status?.ok ? (
                   <>
-                    Streak: <span className="font-semibold text-[#1e1e1e]">{streak}</span>
+                    Streak: <span className="font-extrabold text-[#1e1e1e]">{streak}</span>
                     {loadingStatus ? <span className="ml-2">Loading…</span> : null}
                   </>
                 ) : (
@@ -593,9 +557,7 @@ export default function RewardPage() {
                     {loadingStatus ? (
                       <span>Loading…</span>
                     ) : (
-                      <span className="text-red-600">
-                        Status error: {status?.reason}
-                      </span>
+                      <span className="text-red-600">Status error: {status?.reason}</span>
                     )}
                   </>
                 )}
@@ -603,31 +565,40 @@ export default function RewardPage() {
             ) : null}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-4">
             {Array.from({ length: 14 }).map((_, i) => {
               const day = i + 1
               const filled = board[i]
               const filledCount = board.filter(Boolean).length
 
               return (
-                <div key={day} className="border border-[#eeeeee] p-3 text-center bg-white">
-                  <div className="text-[12px] font-semibold text-[#1e1e1e]">Day {day}</div>
+                <div key={day} className="border border-[#eeeeee] p-4 text-center bg-white">
+                  <div className="text-[13px] md:text-[14px] font-semibold text-[#1e1e1e]">Day {day}</div>
 
-                  <div className="mt-2 flex items-center justify-center">
+                  <div className="mt-3 flex items-center justify-center">
                     <div
                       className={[
-                        'w-6 h-6 rounded',
-                        filled ? 'bg-[#CFF3D9] border border-[#7BD69A]' : 'bg-[#f3f3f3] border border-[#e5e5e5]',
+                        'w-7 h-7 rounded',
+                        filled ? 'border' : 'border',
                       ].join(' ')}
+                      style={
+                        filled
+                          ? { backgroundColor: 'rgba(62,182,241,0.18)', borderColor: 'rgba(62,182,241,0.65)' }
+                          : { backgroundColor: '#f3f3f3', borderColor: '#e5e5e5' }
+                      }
                       title={filled ? 'Checked' : 'Not yet'}
                     />
                   </div>
 
-                  <div className="mt-2 text-[12px] text-gray-700">{REWARDS[i]}p</div>
+                  <div className="mt-3 text-[13px] md:text-[14px] text-gray-700 font-semibold">
+                    {REWARDS[i]}p
+                  </div>
 
-                  {/* ✅ 오늘 보상 지급 받았으면 CLEAR */}
                   {claimedToday && filled && day === filledCount ? (
-                    <div className="mt-2 inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#1e1e1e] text-white text-[11px] font-semibold">
+                    <div
+                      className="mt-3 inline-flex items-center justify-center px-2.5 py-1 rounded text-[12px] font-extrabold text-white"
+                      style={{ backgroundColor: '#1e1e1e' }}
+                    >
                       CLEAR
                     </div>
                   ) : null}
@@ -637,9 +608,9 @@ export default function RewardPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-4">
-          <div className="text-[13px] text-gray-700">
-            <div className="font-semibold text-[#1e1e1e]">My Reward</div>
+        <div className="mt-7 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-5">
+          <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
+            <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
             <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
           </div>
 
