@@ -19,7 +19,7 @@ type NewsPostRow = {
   title: string
   slug: string
   created_at: string | null
-  cover_image_url: string | null // ✅ 추가
+  cover_image_url?: string | null
 }
 
 type TeamRow = Pick<
@@ -50,20 +50,6 @@ function buildTeamImageUrl(image_url: string | null) {
 
   const path = raw.replace(/^\//, '')
   return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/team-images/${path}`
-}
-
-// ✅ NEWS 썸네일 URL 빌더 (bucket: news-images)
-function buildNewsImageUrl(cover_image_url: string | null) {
-  if (!cover_image_url) return null
-  const raw = String(cover_image_url).trim()
-  if (!raw) return null
-  if (/^https?:\/\//i.test(raw)) return raw
-
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
-  if (!supabaseUrl) return raw
-
-  const path = raw.replace(/^\//, '')
-  return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/news-images/${path}`
 }
 
 function mapTeamRowToCard(row: TeamRow): TeamCard {
@@ -146,9 +132,9 @@ export default async function CoachPage() {
   const kw = await getPopularKeywords()
   const keywords = kw && kw.length > 0 ? kw : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
 
-  // ✅ cover_image_url 추가로 가져오기
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
+    // ✅ cover_image_url 컬럼이 있으면 같이 가져오고, 없으면 DB 타입에 따라 빼도 됨
     .select('id, title, slug, created_at, cover_image_url')
     .order('created_at', { ascending: false })
     .limit(3)
@@ -187,15 +173,13 @@ export default async function CoachPage() {
           <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
 
+        {/* ✅ 여기만 “완전히” 위치 바꿈:
+            기존: Tips(왼쪽) / News(오른쪽)
+            변경: News(왼쪽) / Tips(오른쪽)
+        */}
         <section>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div>
-              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
-              <div className="bg-[#f0f7fd] p-4">
-                <TipSection />
-              </div>
-            </div>
-
+            {/* (1) K-Parenting News -> 왼쪽 */}
             <div>
               <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">K-Parenting News</h3>
 
@@ -204,38 +188,39 @@ export default async function CoachPage() {
                   <p className="text-[15px] font-medium text-[#b4b4b4]">No news available.</p>
                 ) : (
                   <ul className="space-y-3">
-                    {news.map((n) => {
-                      const thumb = buildNewsImageUrl(n.cover_image_url)
-                      return (
-                        <li key={n.id} className="flex items-center gap-3">
-                          {/* ✅ 썸네일 */}
-                          {thumb ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={thumb}
-                              alt=""
-                              className="w-[56px] h-[56px] rounded-md object-cover bg-white border border-[#e6eef7] flex-shrink-0"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-[56px] h-[56px] rounded-md bg-white/70 border border-[#e6eef7] flex-shrink-0" />
-                          )}
+                    {news.map((n) => (
+                      <li key={n.id} className="flex items-start gap-3">
+                        {/* ✅ 썸네일(있으면) */}
+                        {n.cover_image_url ? (
+                          <img
+                            src={String(n.cover_image_url)}
+                            alt=""
+                            className="mt-0.5 w-10 h-10 rounded object-cover border border-[#e6eef7]"
+                            loading="lazy"
+                          />
+                        ) : null}
 
-                          {/* ✅ 타이틀 */}
-                          <div className="min-w-0">
-                            <Link
-                              href={`/news/${n.slug}`}
-                              className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
-                              title={n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined}
-                            >
-                              <span className="line-clamp-2">{n.title}</span>
-                            </Link>
-                          </div>
-                        </li>
-                      )
-                    })}
+                        <div className="min-w-0">
+                          <Link
+                            href={`/news/${n.slug}`}
+                            className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
+                            title={n.created_at ? new Date(n.created_at).toLocaleDateString('en-US') : undefined}
+                          >
+                            {n.title}
+                          </Link>
+                        </div>
+                      </li>
+                    ))}
                   </ul>
                 )}
+              </div>
+            </div>
+
+            {/* (2) Today’s Parenting Tips -> 오른쪽 */}
+            <div>
+              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
+              <div className="bg-[#f0f7fd] p-4">
+                <TipSection />
               </div>
             </div>
           </div>
