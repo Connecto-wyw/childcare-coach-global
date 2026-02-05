@@ -14,10 +14,6 @@ function getSiteOrigin() {
   return ''
 }
 
-type ClaimRes =
-  | { ok: true; points_awarded?: number; claim_date?: string }
-  | { ok: false; reason: string; error?: string }
-
 type StatusRes =
   | { ok: true; today: string; claimed_today: boolean; streak: number; board: boolean[] }
   | { ok: false; reason: string; error?: string }
@@ -103,8 +99,20 @@ export default function RewardPage() {
     setLoadingStatus(true)
     try {
       const res = await fetch('/api/rewards/status', { method: 'GET' })
-      const json = (await res.json()) as StatusRes
-      setStatus(json)
+      const raw = await res.text()
+      let json: any = {}
+      try {
+        json = raw ? JSON.parse(raw) : {}
+      } catch {
+        json = {}
+      }
+
+      if (!res.ok) {
+        setStatus({ ok: false, reason: 'http_error', error: `HTTP ${res.status}\n${raw.slice(0, 800)}` })
+        return
+      }
+
+      setStatus(json as StatusRes)
     } catch (e) {
       setStatus({ ok: false, reason: 'client_error', error: String(e) } as any)
     } finally {
@@ -116,6 +124,33 @@ export default function RewardPage() {
     void loadStatus()
   }, [loadStatus])
 
+  /**
+   * ✅ Claim 응답 표준화
+   * - (1) { ok: true/false, reason } 형태
+   * - (2) { claimed: true/false, reason } 형태
+   * - (3) 이상한 형태 => raw로 디버깅
+   */
+  function normalizeClaimResponse(json: any): { ok: boolean; reason?: string } {
+    if (!json || typeof json !== 'object') return { ok: false, reason: 'bad_json' }
+
+    // A) ok 기반
+    if (typeof json.ok === 'boolean') {
+      if (json.ok) return { ok: true }
+      return { ok: false, reason: String(json.reason ?? 'unknown') }
+    }
+
+    // B) claimed 기반
+    if (typeof json.claimed === 'boolean') {
+      if (json.claimed) return { ok: true }
+      const r = String(json.reason ?? '')
+      // reason이 없으면 이미 받은 케이스로 처리
+      return { ok: false, reason: r || 'already_claimed' }
+    }
+
+    // C) 완전 예외
+    return { ok: false, reason: 'unknown_payload' }
+  }
+
   const handleClaim = useCallback(async () => {
     if (!user) {
       openModal('Sign in required', MSG_NEED_SIGNIN)
@@ -125,34 +160,48 @@ export default function RewardPage() {
     setLoadingClaim(true)
     try {
       const res = await fetch('/api/rewards/claim', { method: 'POST' })
-      const json = (await res.json()) as ClaimRes
+      const raw = await res.text()
 
-      if (!json?.ok) {
-        if (json.reason === 'no_question_today') {
-          openModal('Action required', MSG_NO_QUESTION)
-          return
-        }
-        if (json.reason === 'already_claimed') {
-          openModal('Already claimed', MSG_ALREADY)
-          return
-        }
-        if (json.reason === 'not_authenticated') {
-          openModal('Sign in required', MSG_NEED_SIGNIN)
-          return
-        }
-        openModal('Error', MSG_UNKNOWN)
+      let json: any = {}
+      try {
+        json = raw ? JSON.parse(raw) : {}
+      } catch {
+        json = {}
+      }
+
+      // ✅ HTTP 에러면 무조건 raw를 보여줘야 원인 잡힘
+      if (!res.ok) {
+        openModal('Error', `${MSG_UNKNOWN}\n\nHTTP ${res.status}\n${raw.slice(0, 800)}`)
         return
       }
 
-      // ✅ 성공 팝업 (요구한 문구 고정)
-      openModal('Success', MSG_SUCCESS)
+      const norm = normalizeClaimResponse(json)
 
-      // ✅ NavBar 포인트 갱신 + 도장판 상태 갱신
-      window.dispatchEvent(new Event('points:refresh'))
-      await loadStatus()
+      if (norm.ok) {
+        openModal('Success', MSG_SUCCESS)
+        window.dispatchEvent(new Event('points:refresh'))
+        await loadStatus()
+        return
+      }
+
+      // 실패 reason 매핑
+      if (norm.reason === 'no_question_today') {
+        openModal('Action required', MSG_NO_QUESTION)
+        return
+      }
+      if (norm.reason === 'already_claimed') {
+        openModal('Already claimed', MSG_ALREADY)
+        return
+      }
+      if (norm.reason === 'not_authenticated') {
+        openModal('Sign in required', MSG_NEED_SIGNIN)
+        return
+      }
+
+      // ✅ 여기 오면 reason이 이상한 케이스 -> raw 포함해서 노출
+      openModal('Error', `${MSG_UNKNOWN}\n\nreason=${norm.reason}\n${raw.slice(0, 800)}`)
     } catch (e) {
-      // 네트워크/JSON 파싱/404 같은 케이스도 여기서 잡힘 → “아무 반응 없음” 방지
-      openModal('Error', MSG_UNKNOWN)
+      openModal('Error', `${MSG_UNKNOWN}\n\n${String(e)}`)
     } finally {
       setLoadingClaim(false)
     }
@@ -226,14 +275,29 @@ export default function RewardPage() {
           </div>
         </div>
 
-        {/* ✅ 14-day stamp board (요구사항) */}
+        {/* ✅ 14-day stamp board */}
         <div className="mt-6 border-t border-[#eeeeee] pt-5">
           <div className="flex items-center justify-between">
             <div className="text-[14px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
-            {user && status?.ok ? (
+
+            {user ? (
               <div className="text-[12px] text-gray-600">
-                Streak: <span className="font-semibold text-[#1e1e1e]">{streak}</span>
-                {loadingStatus ? <span className="ml-2">Loading…</span> : null}
+                {status?.ok ? (
+                  <>
+                    Streak: <span className="font-semibold text-[#1e1e1e]">{streak}</span>
+                    {loadingStatus ? <span className="ml-2">Loading…</span> : null}
+                  </>
+                ) : (
+                  <>
+                    {loadingStatus ? (
+                      <span>Loading…</span>
+                    ) : (
+                      <span className="text-red-600">
+                        Status error: {status?.reason}
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
             ) : null}
           </div>
@@ -242,7 +306,7 @@ export default function RewardPage() {
             {Array.from({ length: 14 }).map((_, i) => {
               const day = i + 1
               const filled = board[i]
-              const todayBox = claimedToday && status?.ok && day === Math.min((status.board.filter(Boolean).length || 1), 14)
+              const filledCount = board.filter(Boolean).length
 
               return (
                 <div key={day} className="border border-[#eeeeee] p-3 text-center bg-white">
@@ -260,8 +324,8 @@ export default function RewardPage() {
 
                   <div className="mt-2 text-[12px] text-gray-700">{REWARDS[i]}p</div>
 
-                  {/* ✅ 오늘 보상 지급 받았으면 "CLEAR" 같은 도장 표시 */}
-                  {claimedToday && filled && day === board.filter(Boolean).length ? (
+                  {/* ✅ 오늘 보상 지급 받았으면 CLEAR */}
+                  {claimedToday && filled && day === filledCount ? (
                     <div className="mt-2 inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#1e1e1e] text-white text-[11px] font-semibold">
                       CLEAR
                     </div>
@@ -275,9 +339,7 @@ export default function RewardPage() {
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-4">
           <div className="text-[13px] text-gray-700">
             <div className="font-semibold text-[#1e1e1e]">My Reward</div>
-            <div className="mt-1">
-              * Claim today is available after you ask at least 1 question on the Coach.
-            </div>
+            <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
           </div>
 
           {claimButton}
