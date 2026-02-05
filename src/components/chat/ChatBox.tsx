@@ -32,14 +32,6 @@ function getSiteOrigin() {
   return ''
 }
 
-type ClaimDailyRewardResult = {
-  claimed?: boolean
-  today?: string
-  streak?: number
-  awarded_points?: number
-  total_points?: number
-}
-
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const { user } = useAuthUser()
   const supabase = useSupabase()
@@ -52,9 +44,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [error, setError] = useState('')
   const [debug, setDebug] = useState('')
   const [showLoginModal, setShowLoginModal] = useState(false)
-
-  // ✅ 오늘 보상 지급 결과(간단 토스트용)
-  const [rewardToast, setRewardToast] = useState<string>('')
 
   const endRef = useRef<HTMLDivElement | null>(null)
 
@@ -77,13 +66,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     const id = setInterval(() => setDots((d) => (d + 1) % 4), 400)
     return () => clearInterval(id)
   }, [loading])
-
-  // ✅ 토스트 자동 제거
-  useEffect(() => {
-    if (!rewardToast) return
-    const t = setTimeout(() => setRewardToast(''), 2500)
-    return () => clearTimeout(t)
-  }, [rewardToast])
 
   // ✅ 고정 입력창 높이를 CSS 변수로 저장: --chatbar-h
   useEffect(() => {
@@ -145,38 +127,35 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     setMessages((prev) => [...prev, { id: uuid(), role, content, createdAt: Date.now() }])
   }, [])
 
-  // ✅ 핵심: 질문 1개 성공하면 오늘 보상 지급 시도
-  const claimRewardIfPossible = useCallback(async () => {
-    try {
-      const { data, error } = await supabase.rpc('claim_daily_reward')
+  /**
+   * ✅ 핵심 추가: 질문/답변을 chat_logs에 저장
+   * - reward RPC는 Reward 페이지에서 Claim today 누를 때 처리하므로 여기서는 저장만 한다.
+   * - RLS 정책이 있어야 insert가 성공한다. (auth.uid() = user_id)
+   */
+  const saveChatLog = useCallback(
+    async (question: string, answer: string) => {
+      if (!user) return
+
+      // 모델/언어는 너 테이블 컬럼에 맞게 적당히 채우기
+      const model = 'gpt' // 필요하면 /api/ask 응답에 model 내려서 넣어도 됨
+      const lang = 'en' // 글로벌 버전이면 en, 한국이면 ko 등으로 바꿔도 됨
+
+      const { error } = await supabase.from('chat_logs').insert({
+        user_id: user.id,
+        question,
+        answer,
+        model,
+        lang,
+      })
+
       if (error) {
-        console.error('[claim_daily_reward] error:', error)
-        return
+        // RLS 정책 없거나, insert 권한 막혀있으면 여기로 떨어짐
+        console.error('[chat_logs insert] error:', error)
+        setDebug(`[chat_logs insert] ${error.message}`)
       }
-
-      const payload = (data ?? {}) as ClaimDailyRewardResult
-
-      // 이미 오늘 받았으면 claimed=false로 내려오게 설계했음
-      if (payload?.claimed) {
-        // NavBar 포인트 갱신
-        window.dispatchEvent(new Event('points:refresh'))
-
-        const add = Number(payload.awarded_points ?? 0)
-        const streak = Number(payload.streak ?? 0)
-        if (add > 0) {
-          setRewardToast(`✅ +${add}p (${streak}일차)`)
-        } else {
-          setRewardToast('✅ 오늘 체크 완료')
-        }
-      } else {
-        // 오늘 이미 받았거나(또는 서버가 claimed=false로 반환)
-        // 여기선 조용히 처리하거나, 원하는 경우 토스트만 띄워도 됨
-        // setRewardToast('오늘 보상은 이미 받았어')
-      }
-    } catch (e) {
-      console.error('[claimRewardIfPossible] error:', e)
-    }
-  }, [supabase])
+    },
+    [supabase, user]
+  )
 
   const ask = useCallback(
     async (override?: string) => {
@@ -222,9 +201,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         if (answer) {
           push('assistant', answer)
 
-          // ✅ "질문 1개 하고 오면" → 성공 응답 받은 시점에 보상 지급 시도
-          // (오늘 이미 받았으면 아무 일도 안 일어남)
-          await claimRewardIfPossible()
+          // ✅ 여기서 DB 저장 (이게 있어야 "오늘 질문 했는지" 판별 가능)
+          await saveChatLog(q, answer)
         }
       } catch (e) {
         const msg = 'The response is delayed. Please try again.'
@@ -235,7 +213,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         setLoading(false)
       }
     },
-    [input, user, push, systemPrompt, claimRewardIfPossible]
+    [input, user, push, systemPrompt, saveChatLog]
   )
 
   useEffect(() => {
@@ -261,15 +239,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   return (
     <div className="w-full">
-      {/* ✅ 포인트 토스트 (상단 고정) */}
-      {rewardToast && (
-        <div className="sticky top-2 z-40 flex justify-center">
-          <div className="px-3 py-2 bg-white border border-[#dcdcdc] text-[13px] font-semibold text-[#0e0e0e] shadow-sm">
-            {rewardToast}
-          </div>
-        </div>
-      )}
-
       {/* ✅ 메시지는 페이지에 그대로 쌓이되, 하단은 "플로팅 입력창 높이"만큼 자동 확보 */}
       <div className="space-y-3 pb-[calc(var(--chatbar-h,96px)+16px)]">
         {messages.map((m) => (
