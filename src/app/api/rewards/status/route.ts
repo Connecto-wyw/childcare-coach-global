@@ -1,40 +1,67 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type OkRes = {
-  ok: true
-  today: string
-  claimed_today: boolean
-  streak: number
-  board: boolean[]
+const DEPLOY_MARK = 'status-v4-next-cookies-async'
+
+function getEnv(name: string) {
+  const v = process.env[name]
+  if (!v) throw new Error(`Missing env: ${name}`)
+  return v
 }
-type ErrRes = { ok: false; reason: string; error?: string }
+
+async function getSupabaseRouteClient() {
+  const cookieStore = await cookies() // ✅ 핵심: await
+
+  const url = getEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const anonKey = getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+  return createServerClient<Database>(url, anonKey, {
+    cookies: {
+      get(name) {
+        return cookieStore.get(name)?.value
+      },
+      set(name, value, options) {
+        cookieStore.set({ name, value, ...options })
+      },
+      remove(name, options) {
+        cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+      },
+    },
+  })
+}
 
 function utcDateString(d = new Date()) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-    .toISOString()
-    .slice(0, 10)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10)
 }
 
 export async function GET() {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
-
   try {
+    const supabase = await getSupabaseRouteClient()
+
     const {
       data: { user },
-      error: authErr,
+      error: userErr,
     } = await supabase.auth.getUser()
 
-    if (authErr) return NextResponse.json({ ok: false, reason: 'auth_error', error: authErr.message } satisfies ErrRes, { status: 200 })
-    if (!user) return NextResponse.json({ ok: false, reason: 'not_authenticated' } satisfies ErrRes, { status: 200 })
+    if (userErr) {
+      return NextResponse.json(
+        { ok: false, reason: 'auth_error', error: userErr.message, deploy: DEPLOY_MARK },
+        { status: 200 }
+      )
+    }
+
+    if (!user) {
+      return NextResponse.json({ ok: false, reason: 'not_authenticated', deploy: DEPLOY_MARK }, { status: 200 })
+    }
 
     const today = utcDateString()
+
     const { data, error } = await supabase
       .from('reward_claims')
       .select('claim_date')
@@ -42,7 +69,12 @@ export async function GET() {
       .order('claim_date', { ascending: false })
       .limit(60)
 
-    if (error) return NextResponse.json({ ok: false, reason: 'db_error', error: error.message } satisfies ErrRes, { status: 200 })
+    if (error) {
+      return NextResponse.json(
+        { ok: false, reason: 'db_error', error: error.message, deploy: DEPLOY_MARK },
+        { status: 200 }
+      )
+    }
 
     const dates = (data ?? [])
       .map((r: any) => String(r.claim_date ?? '').slice(0, 10))
@@ -51,7 +83,7 @@ export async function GET() {
     const set = new Set(dates)
     const claimed_today = set.has(today)
 
-    // consecutive days from today backward
+    // ✅ 오늘 기준 연속 일수 계산
     let consecutive = 0
     const base = new Date(today + 'T00:00:00Z')
     for (let i = 0; i < 365; i++) {
@@ -62,13 +94,18 @@ export async function GET() {
       else break
     }
 
+    // ✅ 14일 보드: streak(1~14), board[0..13] true/false
     const streak = consecutive > 0 ? ((consecutive - 1) % 14) + 1 : 0
     const board = Array.from({ length: 14 }, (_, i) => i < streak)
 
-    const out: OkRes = { ok: true, today, claimed_today, streak, board }
-    return NextResponse.json(out, { status: 200 })
+    return NextResponse.json(
+      { ok: true, today, claimed_today, streak, board, deploy: DEPLOY_MARK },
+      { status: 200 }
+    )
   } catch (e: any) {
-    const out: ErrRes = { ok: false, reason: 'server_error', error: String(e?.message ?? e) }
-    return NextResponse.json(out, { status: 200 })
+    return NextResponse.json(
+      { ok: false, reason: 'server_error', error: String(e?.message ?? e), deploy: DEPLOY_MARK },
+      { status: 200 }
+    )
   }
 }
