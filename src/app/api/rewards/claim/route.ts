@@ -7,61 +7,41 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+type OkRes = { ok: true; points_awarded?: number; claim_date?: string }
+type ErrRes = { ok: false; reason: string; error?: string }
+
 export async function POST() {
   const supabase = createRouteHandlerClient<Database>({ cookies })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    const {
+      data: { user },
+      error: authErr,
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
-  }
-
-  const { data, error } = await supabase.rpc('claim_daily_reward')
-
-  if (error) {
-    return NextResponse.json(
-      { ok: false, reason: 'server_error', error: error.message },
-      { status: 500 }
-    )
-  }
-
-  // ✅ RPC가 어떤 형태로 오든 여기서 표준화
-  const payload: any = data ?? {}
-
-  // (A) 우리가 기대한 ok/reason 형태로 이미 오면 그대로
-  if (typeof payload.ok === 'boolean') {
-    return NextResponse.json(payload, { status: 200 })
-  }
-
-  // (B) claimed 기반 형태면 변환
-  if (typeof payload.claimed === 'boolean') {
-    if (payload.claimed === true) {
-      return NextResponse.json(
-        {
-          ok: true,
-          points_awarded: Number(payload.awarded_points ?? payload.points_awarded ?? 0),
-          claim_date: payload.today ?? payload.claim_date ?? null,
-        },
-        { status: 200 }
-      )
+    if (authErr) {
+      const out: ErrRes = { ok: false, reason: 'auth_error', error: authErr.message }
+      return NextResponse.json(out, { status: 200 })
     }
 
-    // claimed=false인 경우: 이유가 내려오는지 보고 매핑
-    const reason = String(payload.reason ?? '').trim()
-
-    if (reason === 'no_question_today') {
-      return NextResponse.json({ ok: false, reason: 'no_question_today' }, { status: 200 })
+    if (!user) {
+      const out: ErrRes = { ok: false, reason: 'not_authenticated' }
+      return NextResponse.json(out, { status: 200 })
     }
 
-    // reason이 없거나 다른 값이면 "이미 받음"으로 처리
-    return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
-  }
+    // ✅ RPC 호출 (DB에서 ok/reason 내려옴)
+    const { data, error } = await supabase.rpc('claim_daily_reward')
 
-  // (C) 완전 예상 밖이면 디버그용으로 payload 포함
-  return NextResponse.json(
-    { ok: false, reason: 'bad_payload', payload },
-    { status: 200 }
-  )
+    if (error) {
+      const out: ErrRes = { ok: false, reason: 'rpc_error', error: error.message }
+      return NextResponse.json(out, { status: 200 })
+    }
+
+    // claim_daily_reward() 가 json 반환하므로 그대로 전달
+    // (ok/reason/points_awarded/claim_date 포함)
+    return NextResponse.json(data as any, { status: 200 })
+  } catch (e: any) {
+    const out: ErrRes = { ok: false, reason: 'server_error', error: String(e?.message ?? e) }
+    return NextResponse.json(out, { status: 200 })
+  }
 }
