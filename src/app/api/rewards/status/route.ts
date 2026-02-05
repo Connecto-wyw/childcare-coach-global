@@ -7,64 +7,98 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function toUtcDateString(d = new Date()) {
+type OkRes = {
+  ok: true
+  today: string
+  claimed_today: boolean
+  streak: number
+  board: boolean[]
+}
+
+type ErrRes = { ok: false; reason: string; error?: string }
+
+function utcDateString(d = new Date()) {
   // YYYY-MM-DD (UTC)
-  const yyyy = d.getUTCFullYear()
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const dd = String(d.getUTCDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+    .toISOString()
+    .slice(0, 10)
 }
 
 export async function GET() {
   const supabase = createRouteHandlerClient<Database>({ cookies })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    const {
+      data: { user },
+      error: authErr,
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
+    if (authErr) {
+      const out: ErrRes = { ok: false, reason: 'auth_error', error: authErr.message }
+      return NextResponse.json(out, { status: 200 })
+    }
+
+    if (!user) {
+      const out: ErrRes = { ok: false, reason: 'not_authenticated' }
+      return NextResponse.json(out, { status: 200 })
+    }
+
+    // ✅ UTC 기준 today
+    const today = utcDateString()
+
+    // ✅ reward_claims에서 내 것만 (RLS 정책 있어야 함)
+    const { data, error } = await supabase
+      .from('reward_claims')
+      .select('claim_date')
+      .eq('user_id', user.id)
+      .order('claim_date', { ascending: false })
+      .limit(60)
+
+    if (error) {
+      const out: ErrRes = { ok: false, reason: 'db_error', error: error.message }
+      return NextResponse.json(out, { status: 200 })
+    }
+
+    const dates = (data ?? [])
+      .map((r: any) => String(r.claim_date ?? '').slice(0, 10))
+      .filter(Boolean)
+
+    const set = new Set(dates)
+
+    const claimedToday = set.has(today)
+
+    // ✅ 연속 streak 계산 (UTC 기준)
+    // 연속이면: today, today-1, today-2... 끊길 때까지
+    let consecutive = 0
+    {
+      const base = new Date(today + 'T00:00:00Z')
+      for (let i = 0; i < 365; i++) {
+        const d = new Date(base)
+        d.setUTCDate(base.getUTCDate() - i)
+        const key = utcDateString(d)
+        if (set.has(key)) consecutive++
+        else break
+      }
+    }
+
+    // ✅ “14일 사이클”이니까 보드는 streak를 1~14로 순환
+    // 예: 15연속이면 (15-1)%14+1 = 1
+    const streak = consecutive > 0 ? ((consecutive - 1) % 14) + 1 : 0
+
+    // ✅ 도장판: 1~streak 만큼 true
+    const board = Array.from({ length: 14 }, (_, i) => i < streak)
+
+    const out: OkRes = {
+      ok: true,
+      today,
+      claimed_today: claimedToday,
+      streak,
+      board,
+    }
+    return NextResponse.json(out, { status: 200 })
+  } catch (e: any) {
+    // ✅ 절대 500 던지지 말고 이유를 내려줌
+    const out: ErrRes = { ok: false, reason: 'server_error', error: String(e?.message ?? e) }
+    return NextResponse.json(out, { status: 200 })
   }
-
-  const today = toUtcDateString(new Date())
-
-  // 최근 30개 정도만 가져와서 streak 계산 (충분)
-  const { data: claims, error } = await supabase
-    .from('reward_claims')
-    .select('claim_date, points')
-    .eq('user_id', user.id)
-    .order('claim_date', { ascending: false })
-    .limit(30)
-
-  if (error) {
-    return NextResponse.json({ ok: false, reason: 'server_error', error: error.message }, { status: 500 })
-  }
-
-  const set = new Set((claims ?? []).map((r: any) => String(r.claim_date)))
-  const claimed_today = set.has(today)
-
-  // streak: 오늘부터(클레임 했으면 오늘, 아니면 어제부터) 연속 claim_date 계산
-  const base = new Date(today + 'T00:00:00Z')
-  if (!claimed_today) base.setUTCDate(base.getUTCDate() - 1)
-
-  let streak = 0
-  const cursor = new Date(base)
-  for (let i = 0; i < 365; i++) {
-    const ds = toUtcDateString(cursor)
-    if (!set.has(ds)) break
-    streak += 1
-    cursor.setUTCDate(cursor.getUTCDate() - 1)
-  }
-
-  // 14-day board: 현재 streak 기준으로 Day1~Day14 중 찍힌 개수(최대14)
-  const boardCount = Math.min(streak + (claimed_today ? 1 : 0), 14) // today 포함 시각화용
-  const board = Array.from({ length: 14 }, (_, i) => i < boardCount)
-
-  return NextResponse.json({
-    ok: true,
-    today,
-    claimed_today,
-    streak,
-    board,
-  })
 }
