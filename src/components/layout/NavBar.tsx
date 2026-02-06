@@ -55,12 +55,11 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ EVENT Badge with blink/pulse
- * - 방식: CSS keyframes를 컴포넌트 내부 <style jsx> 로 주입
- * - "깜빡임"은 눈에 거슬리면 싫어질 수 있어서:
- *   1) opacity + scale을 아주 작게만 흔들고
- *   2) 1.2초 간격으로 자연스럽게 pulse
- * - 사용자가 OS에서 "Reduce Motion" 켜두면 자동으로 애니메이션 꺼짐
+ * ✅ EVENT Badge (NO overlap)
+ * - 핵심: absolute를 버리고 "inline-flex"로 라벨 옆에 붙임
+ * - 2px 간격: ml-[2px]
+ * - nav 영역 조금 키움: header padding y 증가
+ * - blink/pulse 유지 (Reduce motion 대응)
  */
 function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   return (
@@ -68,9 +67,10 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
       <span
         className={[
           'nav-badge',
-          'absolute',
-          '-top-[6px]',
-          '-right-[14px]',
+          'inline-flex',
+          'items-center',
+          'justify-center',
+          'ml-[2px]', // ✅ REWARD와 2px 띄움
           'rounded-full',
           'px-[4px]',
           'py-[1px]',
@@ -80,13 +80,14 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
           'text-white',
           'select-none',
           'pointer-events-none',
+          'whitespace-nowrap',
+          'align-top',
         ].join(' ')}
         style={{ backgroundColor: INDIANBOB_RED }}
       >
         {text}
       </span>
 
-      {/* ✅ Blink / Pulse animation */}
       <style jsx>{`
         .nav-badge {
           animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
@@ -100,8 +101,8 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.35);
           }
           50% {
-            opacity: 0.55;
-            transform: scale(1.04);
+            opacity: 0.6;
+            transform: scale(1.05);
             box-shadow: 0 0 0 6px rgba(159, 29, 35, 0);
           }
           100% {
@@ -111,7 +112,6 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
           }
         }
 
-        /* ✅ 접근성: Reduce Motion이면 애니메이션 OFF */
         @media (prefers-reduced-motion: reduce) {
           .nav-badge {
             animation: none !important;
@@ -133,8 +133,7 @@ export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  // ✅ 여기서 뱃지 ON/OFF 및 텍스트 관리 가능
-  // - 나중에 이벤트 기간 로직 붙일 때도 이 값만 바꾸면 됨
+  // ✅ 뱃지 ON/OFF 및 텍스트
   const rewardBadgeText = 'EVENT'
   const showRewardBadge = true
 
@@ -157,6 +156,7 @@ export default function NavBar() {
     }
   }, [user])
 
+  // 바깥 클릭 시 메뉴 닫기
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (!menuOpen) return
@@ -239,7 +239,8 @@ export default function NavBar() {
 
   return (
     <header className="w-full bg-white border-b border-[#eeeeee]">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      {/* ✅ nav 영역 약간 키움: py-3 -> py-4 */}
+      <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         {/* Left: menu */}
         <nav className="flex items-center gap-4">
           {items.map((it) => {
@@ -250,12 +251,13 @@ export default function NavBar() {
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  isReward ? 'relative inline-flex items-center' : '',
+                  // ✅ inline-flex로 라벨+뱃지를 같은 줄에서 정렬 (absolute 필요 없음)
+                  isReward ? 'inline-flex items-center' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
 
-                {/* ✅ REWARD 옆 EVENT 뱃지 */}
+                {/* ✅ REWARD 옆 EVENT 뱃지 (겹침 방지) */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
