@@ -56,12 +56,11 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ EVENT badge (blink/pulse)
- * 요구사항:
- * - "REWARD" 글자와 겹치지 않게 오른쪽에 배치
- * - REWARD 글자와 3px 여백
- * - 위치는 "REWARD의 A(=뒤쪽) 높이 라인" 근처에서 시작 (너무 위로 뜨지 않게)
- * - 네비 영역 조금 키워도 OK
+ * ✅ EVENT Badge with blink/pulse
+ * - REWARD 글자 위(A 근처)에 뜨게:
+ *   left를 퍼센트로 잡고 translateX(-50%)로 가운데 맞춤
+ * - 텍스트와 약 3px 여백: top 값으로 컨트롤
+ * - Reduce Motion이면 애니메이션 OFF
  */
 function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   return (
@@ -69,13 +68,7 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
       <span
         className={[
           'nav-badge',
-          // ✅ REWARD 텍스트 오른쪽에 붙여서 배치
           'absolute',
-          'left-full',
-          // ✅ REWARD 글자와 3px 여백
-          'ml-[3px]',
-          // ✅ 너무 위로 뜨지 않게(겹침 방지 + A라인 근처)
-          'top-[-4px]',
           'rounded-full',
           'px-[5px]',
           'py-[1px]',
@@ -94,24 +87,31 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
 
       <style jsx>{`
         .nav-badge {
-          animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
+          /* ✅ "A 위" 근처: 60~66% 사이에서 미세 조정 가능 */
+          left: 62%;
+          /* ✅ REWARD 글자 위, 약 3px 띄움 느낌 */
+          top: -11px;
+          transform: translateX(-50%);
           transform-origin: center;
+
+          animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
+          box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.25);
         }
 
         @keyframes indianbob-badge-pulse {
           0% {
             opacity: 1;
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.35);
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.28);
           }
           50% {
             opacity: 0.6;
-            transform: scale(1.05);
+            transform: translateX(-50%) scale(1.06);
             box-shadow: 0 0 0 6px rgba(159, 29, 35, 0);
           }
           100% {
             opacity: 1;
-            transform: scale(1);
+            transform: translateX(-50%) scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0);
           }
         }
@@ -137,10 +137,6 @@ export default function NavBar() {
   // 드롭다운(계정 메뉴)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
-
-  // ✅ 여기서 뱃지 ON/OFF 및 텍스트 관리 가능
-  const rewardBadgeText = 'EVENT'
-  const showRewardBadge = true
 
   const items: NavItem[] = useMemo(
     () => [
@@ -243,9 +239,13 @@ export default function NavBar() {
     } catch {}
   }, [supabase])
 
+  // ✅ 여기서 뱃지 ON/OFF 및 텍스트 관리 가능
+  const rewardBadgeText = 'EVENT'
+  const showRewardBadge = true
+
   return (
     <header className="w-full bg-white border-b border-[#eeeeee]">
-      {/* ✅ 네비 영역 살짝 키워서 뱃지와 겹침/잘림 방지 */}
+      {/* ✅ 뱃지가 위로 올라가도 안 잘리게 NavBar 높이 약간 증가 */}
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         {/* Left: menu */}
         <nav className="flex items-center gap-4">
@@ -257,11 +257,12 @@ export default function NavBar() {
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  // ✅ badge를 absolute로 놓기 위해 relative + inline-flex
-                  isReward ? 'relative inline-flex items-center pr-6' : '',
+                  isReward ? 'relative inline-flex items-center' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
+
+                {/* ✅ REWARD 위(=A 위 근처) EVENT 뱃지 */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
@@ -274,7 +275,7 @@ export default function NavBar() {
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
-              {/* ✅ Points: 배지 느낌으로 강조 */}
+              {/* ✅ Points: 배지 느낌으로 강조 (색상 변경) */}
               <span
                 className={[
                   'flex items-center gap-1 whitespace-nowrap',
@@ -313,7 +314,10 @@ export default function NavBar() {
               </div>
             </>
           ) : (
-            <button onClick={loginGoogle} className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold">
+            <button
+              onClick={loginGoogle}
+              className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
+            >
               Sign in with Google
             </button>
           )}
