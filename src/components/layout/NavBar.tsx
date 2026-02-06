@@ -1,3 +1,4 @@
+// src/components/layout/NavBar.tsx
 'use client'
 
 import Link from 'next/link'
@@ -36,7 +37,7 @@ function CoinIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <path
-        d="M12 3c-4.97 0-9 1.79-9 4v10c0 2.21 4.03 4 9 4s9-1.79 9-4V7c0-2.21-4.03-4-9-4Z"
+        d="M12 3c-4.97 0-9 1.79-9 4v10c0 2.21 4.03 4 9 4s9-1.79 9-4V7c0-2.21-4.03-4-9-4Zm0 2c4.42 0 7 .98 7 2s-2.58 2-7 2-7-.98-7-2 2.58-2 7-2Zm0 14c-4.42 0-7-.98-7-2v-2.1C6.58 16.02 9.1 16.5 12 16.5s5.42-.48 7-1.6V17c0 1.02-2.58 2-7 2Zm0-4.5c-4.42 0-7-.98-7-2v-2.1C6.58 11.52 9.1 12 12 12s5.42-.48 7-1.6V12.5c0 1.02-2.58 2-7 2Z"
         fill="currentColor"
       />
     </svg>
@@ -55,11 +56,12 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ EVENT Badge (NO overlap)
- * - 핵심: absolute를 버리고 "inline-flex"로 라벨 옆에 붙임
- * - 2px 간격: ml-[2px]
- * - nav 영역 조금 키움: header padding y 증가
- * - blink/pulse 유지 (Reduce motion 대응)
+ * ✅ EVENT badge (blink/pulse)
+ * 요구사항:
+ * - "REWARD" 글자와 겹치지 않게 오른쪽에 배치
+ * - REWARD 글자와 3px 여백
+ * - 위치는 "REWARD의 A(=뒤쪽) 높이 라인" 근처에서 시작 (너무 위로 뜨지 않게)
+ * - 네비 영역 조금 키워도 OK
  */
 function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   return (
@@ -67,12 +69,15 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
       <span
         className={[
           'nav-badge',
-          'inline-flex',
-          'items-center',
-          'justify-center',
-          'ml-[2px]', // ✅ REWARD와 2px 띄움
+          // ✅ REWARD 텍스트 오른쪽에 붙여서 배치
+          'absolute',
+          'left-full',
+          // ✅ REWARD 글자와 3px 여백
+          'ml-[3px]',
+          // ✅ 너무 위로 뜨지 않게(겹침 방지 + A라인 근처)
+          'top-[-4px]',
           'rounded-full',
-          'px-[4px]',
+          'px-[5px]',
           'py-[1px]',
           'text-[9px]',
           'font-extrabold',
@@ -81,7 +86,6 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
           'select-none',
           'pointer-events-none',
           'whitespace-nowrap',
-          'align-top',
         ].join(' ')}
         style={{ backgroundColor: INDIANBOB_RED }}
       >
@@ -126,14 +130,15 @@ export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
 
-  const [nickname, setNickname] = useState<string>('')
+  const [nickname, setNickname] = useState<string>('') // profiles.nickname (fallback)
   const [points, setPoints] = useState<number>(0)
   const [loadingPoints, setLoadingPoints] = useState(false)
 
+  // 드롭다운(계정 메뉴)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  // ✅ 뱃지 ON/OFF 및 텍스트
+  // ✅ 여기서 뱃지 ON/OFF 및 텍스트 관리 가능
   const rewardBadgeText = 'EVENT'
   const showRewardBadge = true
 
@@ -232,6 +237,7 @@ export default function NavBar() {
   const signOut = useCallback(async () => {
     setMenuOpen(false)
     await supabase.auth.signOut()
+    // 로그아웃 후 UI 깨끗하게
     try {
       window.location.href = '/coach'
     } catch {}
@@ -239,7 +245,7 @@ export default function NavBar() {
 
   return (
     <header className="w-full bg-white border-b border-[#eeeeee]">
-      {/* ✅ nav 영역 약간 키움: py-3 -> py-4 */}
+      {/* ✅ 네비 영역 살짝 키워서 뱃지와 겹침/잘림 방지 */}
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         {/* Left: menu */}
         <nav className="flex items-center gap-4">
@@ -251,13 +257,11 @@ export default function NavBar() {
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  // ✅ inline-flex로 라벨+뱃지를 같은 줄에서 정렬 (absolute 필요 없음)
-                  isReward ? 'inline-flex items-center' : '',
+                  // ✅ badge를 absolute로 놓기 위해 relative + inline-flex
+                  isReward ? 'relative inline-flex items-center pr-6' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
-
-                {/* ✅ REWARD 옆 EVENT 뱃지 (겹침 방지) */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
@@ -270,6 +274,7 @@ export default function NavBar() {
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
+              {/* ✅ Points: 배지 느낌으로 강조 */}
               <span
                 className={[
                   'flex items-center gap-1 whitespace-nowrap',
@@ -283,6 +288,7 @@ export default function NavBar() {
                 <span>{loadingPoints ? '…' : format(points)}</span>
               </span>
 
+              {/* ✅ 계정 닉네임 클릭 → 로그아웃 메뉴 */}
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
