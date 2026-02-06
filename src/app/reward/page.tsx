@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { useAuthUser, useSupabase } from '@/app/providers'
 
 function stripTrailingSlash(s: string) {
@@ -35,17 +36,11 @@ const REWARDS = [
 const INDIANBOB_RED = '#9F1D23'
 const ACCENT_BLUE = '#3EB6F1'
 
-// ✅ 말풍선 문구(여기만 바꾸면 됨)
-const BUBBLE_TITLE = 'Event is live'
-const BUBBLE_BODY = 'Ask 1 question on Coach, then claim your daily points. Complete 14 days to finish the cycle.'
+// ✅ Stamp icons (put these files under /public/reward/)
+const STAMP_BEFORE_SRC = '/reward/stamp-before.png'
+const STAMP_AFTER_SRC = '/reward/stamp-after.png'
 
-function IconWrap({
-  children,
-  bg,
-}: {
-  children: React.ReactNode
-  bg: string
-}) {
+function IconWrap({ children, bg }: { children: React.ReactNode; bg: string }) {
   return (
     <div
       className="w-10 h-10 rounded-xl flex items-center justify-center border"
@@ -161,10 +156,7 @@ function Modal({
         <div className="text-[16px] font-extrabold text-[#1e1e1e]">{title}</div>
         <div className="mt-2 text-[14px] text-gray-700 whitespace-pre-wrap leading-relaxed">{message}</div>
         <div className="mt-5 flex justify-end">
-          <button
-            onClick={onClose}
-            className="h-10 px-5 rounded-md bg-[#1e1e1e] text-white text-[14px] font-semibold"
-          >
+          <button onClick={onClose} className="h-10 px-5 rounded-md bg-[#1e1e1e] text-white text-[14px] font-semibold">
             OK
           </button>
         </div>
@@ -178,12 +170,9 @@ export default function RewardPage() {
   const { user, loading: authLoading } = useAuthUser()
 
   const [loadingClaim, setLoadingClaim] = useState(false)
-
-  // 상태(도장판/claimed 여부)
   const [status, setStatus] = useState<StatusRes | null>(null)
   const [loadingStatus, setLoadingStatus] = useState(false)
 
-  // 팝업
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMsg, setModalMsg] = useState('')
   const [modalTitle, setModalTitle] = useState('')
@@ -322,10 +311,7 @@ export default function RewardPage() {
 
     if (!user) {
       return (
-        <button
-          onClick={loginGoogle}
-          className="rounded-md bg-[#1e1e1e] px-5 py-3 text-[15px] font-semibold text-white"
-        >
+        <button onClick={loginGoogle} className="rounded-md bg-[#1e1e1e] px-5 py-3 text-[15px] font-semibold text-white">
           Sign in with Google
         </button>
       )
@@ -343,23 +329,6 @@ export default function RewardPage() {
     )
   }, [authLoading, user, loadingClaim, loginGoogle, handleClaim])
 
-  // ✅ 말풍선이 "Daily Check-in" 위에 뜨게: 여기서 계산
-  const bubbleMessage = useMemo(() => {
-    // 로그인 안했으면 안내 문구를 조금 바꿔줌(원하면 삭제 가능)
-    if (!user) return 'Sign in to start the 14-day check-in and claim points.'
-    // 상태 로딩 중
-    if (loadingStatus) return 'Checking today’s claim status…'
-    // 상태 에러
-    if (status && !status.ok) return 'Reward status is temporarily unavailable. Please try again.'
-    // 정상 상태
-    if (status?.ok) {
-      if (status.claimed_today) return 'You already claimed today. Come back tomorrow for the next stamp.'
-      return BUBBLE_BODY
-    }
-    // 기본
-    return BUBBLE_BODY
-  }, [user, loadingStatus, status])
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
@@ -367,34 +336,7 @@ export default function RewardPage() {
       <h1 className="text-2xl md:text-[28px] font-extrabold text-[#1e1e1e]">REWARD</h1>
 
       <div className="mt-6 border border-[#eeeeee] bg-white p-6 md:p-7">
-        {/* ✅ 말풍선: Daily Check-in 위 */}
-        <div className="mb-5">
-          <div className="relative inline-block max-w-[720px]">
-            <div
-              className="rounded-2xl px-4 py-3 border"
-              style={{
-                borderColor: 'rgba(159,29,35,0.25)',
-                backgroundColor: 'rgba(159,29,35,0.06)',
-              }}
-            >
-              <div className="text-[14px] md:text-[15px] font-extrabold" style={{ color: INDIANBOB_RED }}>
-                {BUBBLE_TITLE}
-              </div>
-              <div className="mt-1 text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                {bubbleMessage}
-              </div>
-            </div>
-
-            {/* 꼬리 */}
-            <div
-              className="absolute left-7 -bottom-2 w-4 h-4 rotate-45 border"
-              style={{
-                backgroundColor: 'rgba(159,29,35,0.06)',
-                borderColor: 'rgba(159,29,35,0.25)',
-              }}
-            />
-          </div>
-        </div>
+        {/* ✅ (요청) Daily Check-in 위 말풍선/배너 영역 제거됨 */}
 
         <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
         <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
@@ -538,11 +480,7 @@ export default function RewardPage() {
                   </>
                 ) : (
                   <>
-                    {loadingStatus ? (
-                      <span>Loading…</span>
-                    ) : (
-                      <span className="text-red-600">Status error: {status?.reason}</span>
-                    )}
+                    {loadingStatus ? <span>Loading…</span> : <span className="text-red-600">Status error: {status?.reason}</span>}
                   </>
                 )}
               </div>
@@ -559,27 +497,28 @@ export default function RewardPage() {
                 <div key={day} className="border border-[#eeeeee] p-4 text-center bg-white">
                   <div className="text-[13px] md:text-[14px] font-semibold text-[#1e1e1e]">Day {day}</div>
 
+                  {/* ✅ (요청) 미션 전/완료 아이콘 교체 */}
                   <div className="mt-3 flex items-center justify-center">
-                    <div
-                      className="w-7 h-7 rounded border"
-                      style={
-                        filled
-                          ? { backgroundColor: 'rgba(62,182,241,0.18)', borderColor: 'rgba(62,182,241,0.65)' }
-                          : { backgroundColor: '#f3f3f3', borderColor: '#e5e5e5' }
-                      }
-                      title={filled ? 'Checked' : 'Not yet'}
-                    />
+                    <div className="relative w-8 h-8">
+                      <Image
+                        src={filled ? STAMP_AFTER_SRC : STAMP_BEFORE_SRC}
+                        alt={filled ? 'Mission completed' : 'Mission not started'}
+                        fill
+                        sizes="32px"
+                        className={[
+                          'object-contain',
+                          // 로그인 전에는 살짝 흐리게 (원하면 제거 가능)
+                          !user ? 'opacity-70' : 'opacity-100',
+                        ].join(' ')}
+                        priority={false}
+                      />
+                    </div>
                   </div>
 
-                  <div className="mt-3 text-[13px] md:text-[14px] text-gray-700 font-semibold">
-                    {REWARDS[i]}p
-                  </div>
+                  <div className="mt-3 text-[13px] md:text-[14px] text-gray-700 font-semibold">{REWARDS[i]}p</div>
 
                   {claimedToday && filled && day === filledCount ? (
-                    <div
-                      className="mt-3 inline-flex items-center justify-center px-2.5 py-1 rounded text-[12px] font-extrabold text-white"
-                      style={{ backgroundColor: '#1e1e1e' }}
-                    >
+                    <div className="mt-3 inline-flex items-center justify-center px-2.5 py-1 rounded text-[12px] font-extrabold text-white" style={{ backgroundColor: '#1e1e1e' }}>
                       CLEAR
                     </div>
                   ) : null}
