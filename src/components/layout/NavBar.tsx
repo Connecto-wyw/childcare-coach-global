@@ -1,4 +1,3 @@
-// src/components/layout/NavBar.tsx
 'use client'
 
 import Link from 'next/link'
@@ -37,7 +36,7 @@ function CoinIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <path
-        d="M12 3c-4.97 0-9 1.79-9 4v10c0 2.21 4.03 4 9 4s9-1.79 9-4V7c0-2.21-4.03-4-9-4Zm0 2c4.42 0 7 .98 7 2s-2.58 2-7 2-7-.98-7-2 2.58-2 7-2Zm0 14c-4.42 0-7-.98-7-2v-2.1C6.58 16.02 9.1 16.5 12 16.5s5.42-.48 7-1.6V17c0 1.02-2.58 2-7 2Zm0-4.5c-4.42 0-7-.98-7-2v-2.1C6.58 11.52 9.1 12 12 12s5.42-.48 7-1.6V12.5c0 1.02-2.58 2-7 2Z"
+        d="M12 3c-4.97 0-9 1.79-9 4v10c0 2.21 4.03 4 9 4s9-1.79 9-4V7c0-2.21-4.03-4-9-4Z"
         fill="currentColor"
       />
     </svg>
@@ -52,36 +51,74 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
   )
 }
 
-/**
- * ✅ Indianbob mini badge (HOT / EVENT)
- * - 아주 작게(text-[9px]) / 네비게이션 메뉴 우측 상단에 붙는 형태
- * - 필요 없으면 null 반환
- */
-function NavMiniBadge({ text }: { text: 'HOT' | 'EVENT' }) {
-  const isHot = text === 'HOT'
-  const bg = isHot ? '#9F1D23' : '#3EB6F1' // Indianbob Red / Accent Blue
+// ✅ Indianbob main color
+const INDIANBOB_RED = '#9F1D23'
 
+/**
+ * ✅ EVENT Badge with blink/pulse
+ * - 방식: CSS keyframes를 컴포넌트 내부 <style jsx> 로 주입
+ * - "깜빡임"은 눈에 거슬리면 싫어질 수 있어서:
+ *   1) opacity + scale을 아주 작게만 흔들고
+ *   2) 1.2초 간격으로 자연스럽게 pulse
+ * - 사용자가 OS에서 "Reduce Motion" 켜두면 자동으로 애니메이션 꺼짐
+ */
+function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   return (
-    <span
-      className={[
-        'absolute',
-        '-top-1',
-        '-right-4',
-        'rounded-full',
-        'px-1.5',
-        'py-[1px]',
-        'text-[9px]',
-        'font-extrabold',
-        'leading-none',
-        'text-white',
-        'select-none',
-        'pointer-events-none',
-      ].join(' ')}
-      style={{ backgroundColor: bg }}
-      aria-label={text}
-    >
-      {text}
-    </span>
+    <>
+      <span
+        className={[
+          'nav-badge',
+          'absolute',
+          '-top-[6px]',
+          '-right-[14px]',
+          'rounded-full',
+          'px-[4px]',
+          'py-[1px]',
+          'text-[9px]',
+          'font-extrabold',
+          'leading-none',
+          'text-white',
+          'select-none',
+          'pointer-events-none',
+        ].join(' ')}
+        style={{ backgroundColor: INDIANBOB_RED }}
+      >
+        {text}
+      </span>
+
+      {/* ✅ Blink / Pulse animation */}
+      <style jsx>{`
+        .nav-badge {
+          animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
+          transform-origin: center;
+        }
+
+        @keyframes indianbob-badge-pulse {
+          0% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.35);
+          }
+          50% {
+            opacity: 0.55;
+            transform: scale(1.04);
+            box-shadow: 0 0 0 6px rgba(159, 29, 35, 0);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(159, 29, 35, 0);
+          }
+        }
+
+        /* ✅ 접근성: Reduce Motion이면 애니메이션 OFF */
+        @media (prefers-reduced-motion: reduce) {
+          .nav-badge {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </>
   )
 }
 
@@ -89,20 +126,17 @@ export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
 
-  const [nickname, setNickname] = useState<string>('') // profiles.nickname (fallback)
+  const [nickname, setNickname] = useState<string>('')
   const [points, setPoints] = useState<number>(0)
   const [loadingPoints, setLoadingPoints] = useState(false)
 
-  // 드롭다운(계정 메뉴)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  /**
-   * ✅ 여기서 뱃지 켜/끄기
-   * - 지금은 REWARD에 HOT 표시
-   * - 필요하면 'EVENT'로 바꾸거나 null로 끄면 됨
-   */
-  const rewardBadge: 'HOT' | 'EVENT' | null = 'HOT'
+  // ✅ 여기서 뱃지 ON/OFF 및 텍스트 관리 가능
+  // - 나중에 이벤트 기간 로직 붙일 때도 이 값만 바꾸면 됨
+  const rewardBadgeText = 'EVENT'
+  const showRewardBadge = true
 
   const items: NavItem[] = useMemo(
     () => [
@@ -123,7 +157,6 @@ export default function NavBar() {
     }
   }, [user])
 
-  // 바깥 클릭 시 메뉴 닫기
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (!menuOpen) return
@@ -199,7 +232,6 @@ export default function NavBar() {
   const signOut = useCallback(async () => {
     setMenuOpen(false)
     await supabase.auth.signOut()
-    // 로그아웃 후 UI 깨끗하게
     try {
       window.location.href = '/coach'
     } catch {}
@@ -218,13 +250,13 @@ export default function NavBar() {
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  // ✅ 뱃지 배치를 위해 REWARD만 relative
                   isReward ? 'relative inline-flex items-center' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
-                {/* ✅ REWARD 옆 미니 뱃지 */}
-                {isReward && rewardBadge ? <NavMiniBadge text={rewardBadge} /> : null}
+
+                {/* ✅ REWARD 옆 EVENT 뱃지 */}
+                {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
           })}
@@ -236,7 +268,6 @@ export default function NavBar() {
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
-              {/* ✅ Points: 배지 느낌으로 강조 (색상 변경) */}
               <span
                 className={[
                   'flex items-center gap-1 whitespace-nowrap',
@@ -250,7 +281,6 @@ export default function NavBar() {
                 <span>{loadingPoints ? '…' : format(points)}</span>
               </span>
 
-              {/* ✅ 계정 닉네임 클릭 → 로그아웃 메뉴 */}
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
