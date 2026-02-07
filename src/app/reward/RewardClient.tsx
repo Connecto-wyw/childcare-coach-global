@@ -1,17 +1,35 @@
 // src/app/reward/RewardClient.tsx
 'use client'
 
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
 
-type ClaimDailyRewardResult = {
-  claimed?: boolean
-  today?: string
-  streak?: number
-  awarded_points?: number
-  total_points?: number
-}
+type ClaimApiResponse =
+  | {
+      ok: true
+      points_added: number
+      cycle_pos: number
+      streak_total: number
+    }
+  | {
+      ok: false
+      reason:
+        | 'not_authenticated'
+        | 'no_question_today'
+        | 'already_claimed'
+        | 'db_error'
+        | 'unknown'
+      error?: string
+    }
+
+type ClaimState =
+  | { type: 'idle' }
+  | { type: 'ok'; pointsAdded: number; cyclePos: number; streakTotal: number }
+  | { type: 'already_claimed' }
+  | { type: 'no_question_today' }
+  | { type: 'not_authenticated' }
+  | { type: 'http_error'; status: number; message: string }
+  | { type: 'network_error'; message: string }
 
 function format(n: number) {
   try {
@@ -32,6 +50,15 @@ function getSiteOrigin() {
   return ''
 }
 
+async function safeJson(res: Response) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { raw: text }
+  }
+}
+
 export default function RewardClient() {
   const { user } = useAuthUser()
   const supabase = useSupabase()
@@ -40,9 +67,19 @@ export default function RewardClient() {
   const [toast, setToast] = useState('')
   const [showLoginModal, setShowLoginModal] = useState(false)
 
-  // (선택) 로그인 상태에서만 내 포인트/스트릭을 가볍게 보여주고 싶으면
+  // 상태 표시(빨간 Status error 등)
+  const [claimState, setClaimState] = useState<ClaimState>({ type: 'idle' })
+
+  // 내 포인트/스트릭 표시
   const [myPoints, setMyPoints] = useState<number | null>(null)
   const [myStreak, setMyStreak] = useState<number | null>(null)
+
+  // 안내 모달(너 스샷의 Action required 같은거)
+  const [modal, setModal] = useState<{ open: boolean; title: string; body: string }>({
+    open: false,
+    title: '',
+    body: '',
+  })
 
   useEffect(() => {
     if (!toast) return
@@ -94,44 +131,126 @@ export default function RewardClient() {
   }, [loadMySummary])
 
   const onClaim = useCallback(async () => {
-    // ✅ 액션할 때만 로그인 요구 (영어 팝업)
+    // ✅ 액션할 때만 로그인 요구
     if (!user) {
       setShowLoginModal(true)
       return
     }
 
+    setClaimState({ type: 'idle' }) // ✅ 이전 http_error 등 초기화
     setLoading(true)
-    try {
-      // 타입 갱신이 되어있으면 supabase.rpc('claim_daily_reward')로 바꿔도 됨.
-      const { data, error } = await (supabase as any).rpc('claim_daily_reward')
 
-      if (error) {
-        console.error('[claim_daily_reward] error:', error)
-        setToast('Something went wrong. Please try again.')
+    try {
+      const res = await fetch('/api/rewards/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      })
+
+      const json = (await safeJson(res)) as any
+
+      // ✅ 진짜 HTTP 에러(401/500)만 에러로 표시
+      if (!res.ok) {
+        const reason = String(json?.reason ?? '')
+        if (res.status === 401 || reason === 'not_authenticated') {
+          setClaimState({ type: 'not_authenticated' })
+          setModal({
+            open: true,
+            title: 'Login required',
+            body: 'Please login and try again.',
+          })
+          return
+        }
+
+        setClaimState({
+          type: 'http_error',
+          status: res.status,
+          message: String(json?.error ?? json?.reason ?? 'http_error'),
+        })
+        setModal({
+          open: true,
+          title: 'Error',
+          body: 'Something went wrong. Please try again.',
+        })
         return
       }
 
-      const payload = (data ?? {}) as ClaimDailyRewardResult
+      // ✅ 여기부터는 HTTP 200
+      const payload = json as ClaimApiResponse
 
-      if (payload.claimed) {
-        const add = Number(payload.awarded_points ?? 0)
-        const streak = Number(payload.streak ?? 0)
-        const total = Number(payload.total_points ?? 0)
+      if (payload?.ok === true) {
+        const add = Number(payload.points_added ?? 0)
+        const streakTotal = Number(payload.streak_total ?? 0)
 
-        setMyStreak(streak)
-        setMyPoints(total)
+        setClaimState({
+          type: 'ok',
+          pointsAdded: add,
+          cyclePos: Number(payload.cycle_pos ?? 1),
+          streakTotal,
+        })
 
-        // NavBar 포인트 갱신 이벤트(이미 구현해둔 구조라면)
+        // UI 즉시 반영
+        setMyStreak(streakTotal)
+        setMyPoints((prev) => (prev ?? 0) + add)
+
+        // NavBar 포인트 갱신 이벤트(이미 쓰는 구조면 유지)
         window.dispatchEvent(new Event('points:refresh'))
 
-        setToast(add > 0 ? `✅ +${add}p (Day ${streak})` : '✅ Checked in')
-      } else {
-        setToast('You have already claimed today.')
+        setToast(add > 0 ? `✅ +${add}p (Streak ${streakTotal})` : '✅ Checked in')
+        return
       }
+
+      // ✅ ok:false는 "안내" (에러 텍스트 찍지 말 것)
+      const reason = String((payload as any)?.reason ?? '')
+
+      if (reason === 'already_claimed') {
+        setClaimState({ type: 'already_claimed' })
+        setModal({
+          open: true,
+          title: 'Already claimed',
+          body: 'You already claimed today.',
+        })
+        return
+      }
+
+      if (reason === 'no_question_today') {
+        setClaimState({ type: 'no_question_today' })
+        setModal({
+          open: true,
+          title: 'Action required',
+          body: 'Please ask at least one question in the AI Parenting Coach and then claim.',
+        })
+        return
+      }
+
+      if (reason === 'not_authenticated') {
+        setClaimState({ type: 'not_authenticated' })
+        setModal({
+          open: true,
+          title: 'Login required',
+          body: 'Please login and try again.',
+        })
+        return
+      }
+
+      // 그 외 예외
+      setClaimState({ type: 'http_error', status: 200, message: reason || 'unknown' })
+      setModal({
+        open: true,
+        title: 'Error',
+        body: 'Something went wrong. Please try again.',
+      })
+    } catch (e: any) {
+      setClaimState({ type: 'network_error', message: String(e?.message ?? e) })
+      setModal({
+        open: true,
+        title: 'Error',
+        body: 'Network error. Please try again.',
+      })
     } finally {
       setLoading(false)
     }
-  }, [supabase, user])
+  }, [user, supabase])
 
   const summaryText = useMemo(() => {
     if (!user) return null
@@ -147,6 +266,16 @@ export default function RewardClient() {
           <div className="px-3 py-2 bg-white border border-[#dcdcdc] text-[13px] font-semibold text-[#0e0e0e] shadow-sm">
             {toast}
           </div>
+        </div>
+      )}
+
+      {/* ✅ 빨간 Status error는 진짜 에러일 때만 */}
+      {(claimState.type === 'http_error' || claimState.type === 'network_error') && (
+        <div className="mb-2 text-right text-[13px] text-red-600">
+          Status error:{' '}
+          {claimState.type === 'http_error'
+            ? `http_error (${claimState.status})`
+            : 'network_error'}
         </div>
       )}
 
@@ -180,7 +309,26 @@ export default function RewardClient() {
         </p>
       </div>
 
-      {/* ✅ 로그인 요구 팝업 (영어) */}
+      {/* ✅ 안내/에러 모달 */}
+      {modal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm bg-white p-6 text-[#0e0e0e] border border-[#dcdcdc]">
+            <h3 className="text-[14px] font-semibold">{modal.title}</h3>
+            <p className="mt-2 text-[13px] text-gray-700 whitespace-pre-line">{modal.body}</p>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => setModal({ open: false, title: '', body: '' })}
+                className="h-9 px-4 bg-[#1e1e1e] text-white text-[13px] font-semibold"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 로그인 요구 팝업 */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm bg-white p-6 text-center text-[#0e0e0e] border border-[#dcdcdc]">
