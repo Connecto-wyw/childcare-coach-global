@@ -8,14 +8,16 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// ✅ Intl(timeZone) 없이 KST yyyy-mm-dd 생성 (서버 환경 이슈 방지)
 function ymdInKST(d = new Date()) {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  return fmt.format(d) // YYYY-MM-DD
+  // KST = UTC+9
+  const utc = d.getTime() + d.getTimezoneOffset() * 60_000
+  const kst = new Date(utc + 9 * 60 * 60_000)
+
+  const y = kst.getFullYear()
+  const m = String(kst.getMonth() + 1).padStart(2, '0')
+  const day = String(kst.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function addDays(ymd: string, delta: number) {
@@ -37,7 +39,7 @@ export async function GET() {
 
     const today = ymdInKST(new Date())
 
-    // 로그인 안 해도 200으로 내려서 UI가 깨지지 않게
+    // ✅ 로그인 안 해도 UI가 깨지지 않게 200 + 기본값
     if (uErr || !user) {
       return NextResponse.json({
         ok: false,
@@ -49,32 +51,35 @@ export async function GET() {
       })
     }
 
-    // 여기서부터 DB 조회
     const { data, error } = await supabase
       .from('reward_claims')
       .select('day')
       .eq('user_id', user.id)
       .order('day', { ascending: false })
-      .limit(80)
+      .limit(120)
 
+    // ✅ DB 에러도 200으로 내려서 http_error/server_error 문구가 계속 뜨는 걸 막고,
+    // debug로 원인 노출
     if (error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          reason: 'db_error',
-          today,
-          debug: {
-            code: (error as any).code ?? null,
-            message: error.message ?? String(error),
-            details: (error as any).details ?? null,
-            hint: (error as any).hint ?? null,
-          },
+      return NextResponse.json({
+        ok: false,
+        reason: 'db_error',
+        today,
+        claimed_today: false,
+        streak: 0,
+        board: Array.from({ length: 14 }, () => false),
+        debug: {
+          code: (error as any).code ?? null,
+          message: error.message ?? String(error),
+          details: (error as any).details ?? null,
+          hint: (error as any).hint ?? null,
         },
-        { status: 200 } // ✅ 일부러 200. UI에서 http_error 안 뜨게
-      )
+      })
     }
 
-    const days = (data ?? []).map((r: any) => String(r.day)).filter(Boolean)
+    const days = (data ?? [])
+      .map((r: any) => String(r.day ?? '').trim())
+      .filter(Boolean)
 
     if (days.length === 0) {
       return NextResponse.json({
@@ -121,14 +126,15 @@ export async function GET() {
       board,
     })
   } catch (e: any) {
-    // ✅ 절대 HTML 에러로 죽지 말고 JSON으로 내려라
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: 'server_error',
-        debug: { message: String(e?.message ?? e) },
-      },
-      { status: 200 } // ✅ UI http_error 방지
-    )
+    // ✅ 어떤 예외든 UI 깨지지 않게 JSON으로
+    return NextResponse.json({
+      ok: false,
+      reason: 'server_error',
+      today: ymdInKST(new Date()),
+      claimed_today: false,
+      streak: 0,
+      board: Array.from({ length: 14 }, () => false),
+      debug: { message: String(e?.message ?? e) },
+    })
   }
 }
