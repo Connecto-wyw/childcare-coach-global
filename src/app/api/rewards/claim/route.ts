@@ -101,8 +101,9 @@ export async function POST() {
     error: userErr,
   } = await supabase.auth.getUser()
 
+  // ✅ 401 금지: 프론트가 http_error로 찍으니 200으로 내려서 UI가 처리하게
   if (userErr || !user) {
-    return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
+    return NextResponse.json({ ok: false, reason: 'not_authenticated' })
   }
 
   const today = ymdInKST(new Date())
@@ -111,7 +112,7 @@ export async function POST() {
   // 1) 오늘 질문 했는지
   const okQuestion = await hasQuestionToday(supabase, user.id, today)
   if (!okQuestion) {
-    return NextResponse.json({ ok: false, reason: 'no_question_today' }, { status: 200 })
+    return NextResponse.json({ ok: false, reason: 'no_question_today' })
   }
 
   // 2) profiles에서 streak 기준 데이터 가져오기
@@ -137,7 +138,7 @@ export async function POST() {
 
   // 3) 이미 오늘 받았으면 종료
   if (lastDate === today) {
-    return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
+    return NextResponse.json({ ok: false, reason: 'already_claimed' })
   }
 
   // 4) reward_claims 중복 방지
@@ -156,7 +157,7 @@ export async function POST() {
   }
 
   if (claimedRow) {
-    return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
+    return NextResponse.json({ ok: false, reason: 'already_claimed' })
   }
 
   // 5) 연속 streak 계산
