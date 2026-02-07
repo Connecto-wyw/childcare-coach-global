@@ -19,20 +19,33 @@ type ProviderValue = {
 
 const Ctx = createContext<ProviderValue | null>(null)
 
-function mustEnv(name: string) {
+function getEnv(name: string) {
   const v = (process.env[name] || '').trim()
-  if (!v) throw new Error(`Missing env: ${name}`)
-  return v
+  return v || null
 }
 
-// ✅ named export도 같이 제공 (admin/layout.tsx에서 { Providers }로 써도 됨)
 export function Providers({ children }: PropsWithChildren) {
-  // ✅ SupabaseClient<Database> 로 고정
-  const supabase = useMemo(() => {
-    const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
-    const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
-    return createBrowserClient<Database>(url, anon)
-  }, [])
+  const url = getEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const anon = getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+  // ✅ env 누락 시: throw 하지 말고 UI로 종료 (앱 전체 크래시 방지)
+  if (!url || !anon) {
+    const missing = !url ? 'NEXT_PUBLIC_SUPABASE_URL' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6">
+        <div className="max-w-lg w-full bg-[#f0f7fd] p-4">
+          <div className="text-[15px] font-semibold text-[#0e0e0e]">Configuration error</div>
+          <div className="mt-2 text-[13px] text-[#0e0e0e]">Missing env: {missing}</div>
+          <div className="mt-2 text-[13px] text-[#b4b4b4]">
+            Set this in Vercel Environment Variables (Production/Preview) and redeploy.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ 여기부터는 url/anon이 확정이라 supabase는 절대 null이 아님
+  const supabase = useMemo(() => createBrowserClient<Database>(url, anon), [url, anon])
 
   const [auth, setAuth] = useState<AuthUserState>({ user: null, loading: true })
 
@@ -69,7 +82,6 @@ export function Providers({ children }: PropsWithChildren) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
-// ✅ 기존 default export 유지 (import Providers from '../providers' 도 가능)
 export default Providers
 
 export function useSupabase() {
