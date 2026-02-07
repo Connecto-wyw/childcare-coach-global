@@ -19,18 +19,14 @@ type ProviderValue = {
 
 const Ctx = createContext<ProviderValue | null>(null)
 
-function getEnv(name: string) {
-  const v = (process.env[name] || '').trim()
-  return v || null
-}
+// ✅ 핵심: client에서는 env를 "직접" 접근해야 Next가 치환함
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
 
 export function Providers({ children }: PropsWithChildren) {
-  const url = getEnv('NEXT_PUBLIC_SUPABASE_URL')
-  const anon = getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
-
-  // ✅ env 누락 시: throw 하지 말고 UI로 종료 (앱 전체 크래시 방지)
-  if (!url || !anon) {
-    const missing = !url ? 'NEXT_PUBLIC_SUPABASE_URL' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  // ✅ env 누락 시 throw 금지 (앱 전체 크래시 방지)
+  if (!SUPABASE_URL || !SUPABASE_ANON) {
+    const missing = !SUPABASE_URL ? 'NEXT_PUBLIC_SUPABASE_URL' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-6">
         <div className="max-w-lg w-full bg-[#f0f7fd] p-4">
@@ -44,8 +40,9 @@ export function Providers({ children }: PropsWithChildren) {
     )
   }
 
-  // ✅ 여기부터는 url/anon이 확정이라 supabase는 절대 null이 아님
-  const supabase = useMemo(() => createBrowserClient<Database>(url, anon), [url, anon])
+  const supabase = useMemo(() => {
+    return createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON)
+  }, [])
 
   const [auth, setAuth] = useState<AuthUserState>({ user: null, loading: true })
 
