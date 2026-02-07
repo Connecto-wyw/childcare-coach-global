@@ -1,3 +1,4 @@
+// src/app/providers.tsx
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
@@ -24,8 +25,9 @@ function mustEnv(name: string) {
   return v
 }
 
-export default function Providers({ children }: PropsWithChildren) {
-  // ✅ 핵심: SupabaseClient<Database> 로 고정
+// ✅ named export도 같이 제공 (admin/layout.tsx에서 { Providers }로 써도 됨)
+export function Providers({ children }: PropsWithChildren) {
+  // ✅ SupabaseClient<Database> 로 고정
   const supabase = useMemo(() => {
     const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
     const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
@@ -66,6 +68,9 @@ export default function Providers({ children }: PropsWithChildren) {
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
+
+// ✅ 기존 default export 유지 (import Providers from '../providers' 도 가능)
+export default Providers
 
 export function useSupabase() {
   const v = useContext(Ctx)
