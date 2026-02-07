@@ -215,20 +215,6 @@ const DEFAULT_TIPS: Tip[] = [
   },
 ]
 
-function CheckIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0">
-      <path
-        d="M20 6L9 17l-5-5"
-        stroke="#1e1e1e"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function pickTwoRandom(tips: Tip[]) {
   const arr = tips.slice()
   for (let i = arr.length - 1; i > 0; i--) {
@@ -244,28 +230,26 @@ export default function TipSection({ tips = DEFAULT_TIPS }: { tips?: Tip[] }) {
     return pickTwoRandom(source)
   }, [tips])
 
+  // ✅ Coach 페이지에서 이미 bg/p-4 박스로 감싸고 있으므로
+  // TipSection 내부에서는 “추가 카드(bg/padding)”를 없애서
+  // K-Parenting News와 동일한 여백/박스 느낌으로 맞춘다.
   return (
-    // ✅ 각각 “하늘색 카드”로 분리 (회색 줄 X)
-    <div className="space-y-4">
-      {items.map((tip, idx) => (
-        <div key={`${tip.title}-${idx}`} className="bg-[#f0f7fd] px-4 py-4">
-          {/* ✅ 본문이 “체크 아이콘 아래 시작”하도록 grid */}
-          <div className="grid grid-cols-[20px_1fr] gap-x-3">
-            <div className="pt-[2px]">
-              <CheckIcon />
-            </div>
-
-            <div className="min-w-0">
-              <div className="text-[#3497f3] text-[15px] font-medium leading-snug">{tip.title}</div>
-            </div>
-
-            {/* ✅ body는 col-span 2로 내려서 “아이콘 시작점”에 맞춤 */}
-            <div className="col-span-2 mt-2 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">
-              {tip.body}
-            </div>
-          </div>
-        </div>
-      ))}
+    <div>
+      {items.length === 0 ? (
+        <p className="text-[15px] font-medium text-[#b4b4b4]">No tips available.</p>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((tip, idx) => (
+            <li key={`${tip.title}-${idx}`} className="flex items-start gap-3">
+              {/* ✅ v 체크 표시(아이콘) 제거 */}
+              <div className="min-w-0">
+                <div className="text-[#3497f3] text-[15px] font-medium leading-snug">{tip.title}</div>
+                <div className="mt-1 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">{tip.body}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
