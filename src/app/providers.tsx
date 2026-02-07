@@ -1,80 +1,59 @@
-// src/app/providers.tsx
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import type { User, Session } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import type { PropsWithChildren } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient, User, Session } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
-type SupabaseClient = ReturnType<typeof createBrowserClient<Database>>
-
-type Ctx = {
-  supabase: SupabaseClient
+type AuthUserState = {
   user: User | null
-  session: Session | null
   loading: boolean
 }
 
-const SupabaseCtx = createContext<Ctx | null>(null)
-
-export function useSupabase() {
-  const ctx = useContext(SupabaseCtx)
-  if (!ctx) throw new Error('useSupabase must be used within Providers')
-  return ctx.supabase
+type ProviderValue = {
+  supabase: SupabaseClient<Database>
+  auth: AuthUserState
 }
 
-export function useAuthUser() {
-  const ctx = useContext(SupabaseCtx)
-  if (!ctx) throw new Error('useAuthUser must be used within Providers')
-  return { user: ctx.user, session: ctx.session, loading: ctx.loading }
+const Ctx = createContext<ProviderValue | null>(null)
+
+function mustEnv(name: string) {
+  const v = (process.env[name] || '').trim()
+  if (!v) throw new Error(`Missing env: ${name}`)
+  return v
 }
 
-function stripTrailingSlash(s: string) {
-  return s.replace(/\/$/, '')
-}
+export default function Providers({ children }: PropsWithChildren) {
+  // ✅ 핵심: SupabaseClient<Database> 로 고정
+  const supabase = useMemo(() => {
+    const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
+    const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    return createBrowserClient<Database>(url, anon)
+  }, [])
 
-function getSiteOrigin() {
-  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
-  if (envSite) return stripTrailingSlash(envSite)
-  if (typeof window !== 'undefined') return window.location.origin
-  return ''
-}
-
-export function Providers({ children }: { children: React.ReactNode }) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-  }
-
-  // ✅ 단일 인스턴스 (중요)
-  const [supabase] = useState(() =>
-    createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
-  )
-
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [auth, setAuth] = useState<AuthUserState>({ user: null, loading: true })
 
   useEffect(() => {
     let mounted = true
 
-    ;(async () => {
-      const { data, error } = await supabase.auth.getSession()
+    async function init() {
+      try {
+        const { data } = await supabase.auth.getSession()
+        const session: Session | null = data.session ?? null
+        if (!mounted) return
+        setAuth({ user: session?.user ?? null, loading: false })
+      } catch {
+        if (!mounted) return
+        setAuth({ user: null, loading: false })
+      }
+    }
+
+    void init()
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return
-
-      if (error) console.warn('[auth.getSession] error:', error.message)
-
-      setSession(data.session ?? null)
-      setUser(data.session?.user ?? null)
-      setLoading(false)
-    })()
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession)
-      setUser(newSession?.user ?? null)
-      setLoading(false)
+      setAuth({ user: session?.user ?? null, loading: false })
     })
 
     return () => {
@@ -83,9 +62,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [supabase])
 
-  // (선택) redirectTo 생성 함수가 필요한 곳에서 쓰려고 하면 여기서도 뽑아 쓸 수 있음
-  // const siteOrigin = getSiteOrigin()
+  const value = useMemo<ProviderValue>(() => ({ supabase, auth }), [supabase, auth])
 
-  const value: Ctx = { supabase, user, session, loading }
-  return <SupabaseCtx.Provider value={value}>{children}</SupabaseCtx.Provider>
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+}
+
+export function useSupabase() {
+  const v = useContext(Ctx)
+  if (!v) throw new Error('useSupabase must be used within <Providers />')
+  return v.supabase
+}
+
+export function useAuthUser() {
+  const v = useContext(Ctx)
+  if (!v) throw new Error('useAuthUser must be used within <Providers />')
+  return v.auth
 }

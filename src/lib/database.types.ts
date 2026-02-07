@@ -1,3 +1,6 @@
+Need to install the following packages:
+supabase@2.76.2
+Ok to proceed? (y) 
 export type Json =
   | string
   | number
@@ -83,6 +86,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      coach_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       daily_usage: {
         Row: {
@@ -200,27 +227,21 @@ export type Database = {
       }
       reward_claims: {
         Row: {
-          awarded_points: number
-          claimed_date: string
           created_at: string
-          id: string
-          streak_day: number
+          day: string | null
+          id: number
           user_id: string
         }
         Insert: {
-          awarded_points: number
-          claimed_date: string
           created_at?: string
-          id?: string
-          streak_day: number
+          day?: string | null
+          id?: number
           user_id: string
         }
         Update: {
-          awarded_points?: number
-          claimed_date?: string
           created_at?: string
-          id?: string
-          streak_day?: number
+          day?: string | null
+          id?: number
           user_id?: string
         }
         Relationships: []
