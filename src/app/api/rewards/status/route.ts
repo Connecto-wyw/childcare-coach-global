@@ -1,12 +1,19 @@
-// src/app/api/rewards/status/route.ts
+// src/app/api/rewards/claim/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
-import type { Database } from '@/lib/database.types'
+import type { Database, Tables } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const REWARDS = [
+  100, 100, 100, 100, 100, 100, // 1-6
+  300, // 7
+  100, 100, 100, 100, 100, 100, // 8-13
+  600, // 14
+]
 
 function ymdInKST(d = new Date()) {
   const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -58,104 +65,157 @@ async function createSupabaseServer() {
   })
 }
 
-export async function GET() {
-  const today = ymdInKST(new Date())
+async function hasQuestionToday(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  userId: string,
+  todayKst: string
+) {
+  const { data, error } = await supabase
+    .from('chat_logs')
+    .select('created_at, question')
+    .eq('user_id', userId)
+    .not('question', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(200)
 
-  try {
-    const supabase = await createSupabaseServer()
-    const { data } = await supabase.auth.getUser()
-    const user = data.user
+  if (error) return false
 
-    // ✅ 미로그인이어도 "HTTP 200 + JSON"으로 내려서 UI가 http_error 찍지 않게
-    if (!user) {
-      return NextResponse.json({
-        ok: false,
-        reason: 'not_authenticated',
-        today,
-        claimed_today: false,
-        streak: 0,
-        board: Array.from({ length: 14 }, () => false),
-      })
-    }
-
-    const { data: rows, error } = await supabase
-      .from('reward_claims')
-      .select('day')
-      .eq('user_id', user.id)
-      .order('day', { ascending: false })
-      .limit(60)
-
-    if (error) {
-      // ✅ 여기도 500으로 던지지 말고 200으로 내려서 UI 표시 안정화
-      return NextResponse.json({
-        ok: false,
-        reason: 'db_error',
-        today,
-        error: String(error.message ?? error),
-        claimed_today: false,
-        streak: 0,
-        board: Array.from({ length: 14 }, () => false),
-      })
-    }
-
-    const days = (rows ?? []).map((r: any) => String(r.day)).filter(Boolean)
-
-    if (days.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        today,
-        claimed_today: false,
-        streak: 0,
-        board: Array.from({ length: 14 }, () => false),
-      })
-    }
-
-    const last = days[0]
-    const yesterday = addDays(today, -1)
-    const isLastToday = last === today
-    const isLastYesterday = last === yesterday
-
-    // 하루라도 끊기면 초기화
-    if (!isLastToday && !isLastYesterday) {
-      return NextResponse.json({
-        ok: true,
-        today,
-        claimed_today: false,
-        streak: 0,
-        board: Array.from({ length: 14 }, () => false),
-      })
-    }
-
-    // 연속 streak 계산
-    const set = new Set(days)
-    let streakTotal = 0
-    let cursor = last
-    while (set.has(cursor)) {
-      streakTotal += 1
-      cursor = addDays(cursor, -1)
-      if (streakTotal > 365) break
-    }
-
-    const cyclePos = ((streakTotal - 1) % 14) + 1 // 1~14
-    const board = Array.from({ length: 14 }, (_, i) => i < cyclePos)
-
-    return NextResponse.json({
-      ok: true,
-      today,
-      claimed_today: isLastToday,
-      streak: cyclePos,
-      board,
-    })
-  } catch (e: any) {
-    // ✅ 서버에서 터져도 200 + reason으로 내려서 화면에 http_error가 아니라 원인 텍스트가 찍히게
-    return NextResponse.json({
-      ok: false,
-      reason: 'server_error',
-      today,
-      error: String(e?.message ?? e),
-      claimed_today: false,
-      streak: 0,
-      board: Array.from({ length: 14 }, () => false),
-    })
+  const rows = (data ?? []) as Array<{ created_at: string | null; question: string | null }>
+  for (const r of rows) {
+    const q = String(r.question ?? '').trim()
+    if (!q) continue
+    if (!r.created_at) continue
+    const kstDay = ymdInKST(new Date(r.created_at))
+    if (kstDay === todayKst) return true
   }
+  return false
+}
+
+export async function POST() {
+  const supabase = await createSupabaseServer()
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser()
+
+  if (userErr || !user) {
+    return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
+  }
+
+  const today = ymdInKST(new Date())
+  const yesterday = addDays(today, -1)
+
+  // 1) 오늘 질문 했는지
+  const okQuestion = await hasQuestionToday(supabase, user.id, today)
+  if (!okQuestion) {
+    return NextResponse.json({ ok: false, reason: 'no_question_today' }, { status: 200 })
+  }
+
+  // 2) profiles에서 streak 기준 데이터 가져오기
+  type ProfilePick = Pick<Tables<'profiles'>, 'points' | 'reward_last_date' | 'reward_streak'>
+
+  const { data: prof, error: profErr } = await supabase
+    .from('profiles')
+    .select('points, reward_last_date, reward_streak')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profErr) {
+    return NextResponse.json(
+      { ok: false, reason: 'db_error', error: String(profErr.message ?? profErr) },
+      { status: 500 }
+    )
+  }
+
+  const p = (prof as ProfilePick | null) ?? null
+  const currentPoints = Number(p?.points ?? 0)
+  const lastDate = (p?.reward_last_date ?? null) as string | null
+  const lastStreak = Number(p?.reward_streak ?? 0)
+
+  // 3) 이미 오늘 받았으면 종료
+  if (lastDate === today) {
+    return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
+  }
+
+  // 4) reward_claims 중복 방지 (DB의 day가 오늘로 저장되는 구조여야 함)
+  const { data: claimedRow, error: chkErr } = await supabase
+    .from('reward_claims')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('day', today)
+    .maybeSingle()
+
+  if (chkErr) {
+    return NextResponse.json(
+      { ok: false, reason: 'db_error', error: String(chkErr.message ?? chkErr) },
+      { status: 500 }
+    )
+  }
+
+  if (claimedRow) {
+    return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
+  }
+
+  // 5) 연속 streak 계산
+  const nextTotalStreak = lastDate === yesterday ? Math.max(1, lastStreak + 1) : 1
+
+  // 6) 14일 사이클 포지션(1~14)
+  const cyclePos = ((nextTotalStreak - 1) % 14) + 1
+  const rewardPoints = REWARDS[cyclePos - 1] ?? 100
+
+  // ✅ 7) reward_claims insert: day는 DB가 DEFAULT/GENERATED로 넣게 둔다
+  // (day가 생성 컬럼이라면 여기서 day를 주면 DB가 막는다)
+  const { data: ins, error: insErr } = await supabase
+    .from('reward_claims')
+    .insert({ user_id: user.id } as any)
+    .select('id, day')
+    .single()
+
+  if (insErr) {
+    return NextResponse.json(
+      { ok: false, reason: 'db_error', error: String(insErr.message ?? insErr) },
+      { status: 500 }
+    )
+  }
+
+  // ✅ 안전장치: DB가 만든 day가 오늘이 아니면 롤백 성격으로 에러 처리
+  const insertedDay = String((ins as any)?.day ?? '')
+  if (insertedDay && insertedDay !== today) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: 'day_mismatch',
+        error: `Inserted day(${insertedDay}) != today(${today})`,
+      },
+      { status: 500 }
+    )
+  }
+
+  // 8) profiles 업데이트
+  const nextPoints = currentPoints + rewardPoints
+
+  const { error: updErr } = await supabase
+    .from('profiles')
+    .update({
+      points: nextPoints,
+      reward_last_date: today,
+      reward_streak: nextTotalStreak,
+    })
+    .eq('id', user.id)
+
+  if (updErr) {
+    return NextResponse.json(
+      { ok: false, reason: 'db_error', error: String(updErr.message ?? updErr) },
+      { status: 500 }
+    )
+  }
+
+  return NextResponse.json({
+    ok: true,
+    points_added: rewardPoints,
+    cycle_pos: cyclePos,
+    streak_total: nextTotalStreak,
+    day: today,
+  })
 }
