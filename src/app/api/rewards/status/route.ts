@@ -1,7 +1,7 @@
 // src/app/api/rewards/status/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
@@ -15,7 +15,7 @@ function ymdInKST(d = new Date()) {
     month: '2-digit',
     day: '2-digit',
   })
-  return fmt.format(d) // "YYYY-MM-DD"
+  return fmt.format(d) // YYYY-MM-DD
 }
 
 function addDays(ymd: string, delta: number) {
@@ -28,29 +28,54 @@ function addDays(ymd: string, delta: number) {
   return `${y2}-${m2}-${d2}`
 }
 
-function emptyPayload(today: string) {
-  return {
-    ok: false as const,
-    reason: 'not_authenticated' as const,
-    today,
-    claimed_today: false,
-    streak: 0,
-    board: Array.from({ length: 14 }, () => false),
-  }
+function mustEnv(name: string) {
+  const v = (process.env[name] || '').trim()
+  if (!v) throw new Error(`Missing env: ${name}`)
+  return v
+}
+
+async function createSupabaseServer() {
+  const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(url, anon, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        try {
+          cookieStore.set({ name, value, ...options })
+        } catch {}
+      },
+      remove(name: string, options: any) {
+        try {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+        } catch {}
+      },
+    },
+  })
 }
 
 export async function GET() {
   const today = ymdInKST(new Date())
 
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = await createSupabaseServer()
+    const { data } = await supabase.auth.getUser()
+    const user = data.user
 
-    const { data, error: userErr } = await supabase.auth.getUser()
-    const user = data?.user ?? null
-
-    // ✅ 401 금지: 로그인 관련은 무조건 200으로 내려서 UI가 처리
-    if (userErr || !user) {
-      return NextResponse.json(emptyPayload(today), { status: 200 })
+    // ✅ 미로그인이어도 "HTTP 200 + JSON"으로 내려서 UI가 http_error 찍지 않게
+    if (!user) {
+      return NextResponse.json({
+        ok: false,
+        reason: 'not_authenticated',
+        today,
+        claimed_today: false,
+        streak: 0,
+        board: Array.from({ length: 14 }, () => false),
+      })
     }
 
     const { data: rows, error } = await supabase
@@ -58,31 +83,31 @@ export async function GET() {
       .select('day')
       .eq('user_id', user.id)
       .order('day', { ascending: false })
-      .limit(40)
+      .limit(60)
 
     if (error) {
-      // ✅ 진짜 DB 에러는 500 유지 (이건 프론트에서 메시지 그대로 노출 가능)
-      return NextResponse.json(
-        { ok: false, reason: 'db_error', error: String(error.message ?? error) },
-        { status: 500 }
-      )
+      // ✅ 여기도 500으로 던지지 말고 200으로 내려서 UI 표시 안정화
+      return NextResponse.json({
+        ok: false,
+        reason: 'db_error',
+        today,
+        error: String(error.message ?? error),
+        claimed_today: false,
+        streak: 0,
+        board: Array.from({ length: 14 }, () => false),
+      })
     }
 
-    const days = (rows ?? [])
-      .map((r: any) => String(r?.day ?? '').trim())
-      .filter(Boolean)
+    const days = (rows ?? []).map((r: any) => String(r.day)).filter(Boolean)
 
     if (days.length === 0) {
-      return NextResponse.json(
-        {
-          ok: true,
-          today,
-          claimed_today: false,
-          streak: 0,
-          board: Array.from({ length: 14 }, () => false),
-        },
-        { status: 200 }
-      )
+      return NextResponse.json({
+        ok: true,
+        today,
+        claimed_today: false,
+        streak: 0,
+        board: Array.from({ length: 14 }, () => false),
+      })
     }
 
     const last = days[0]
@@ -90,20 +115,18 @@ export async function GET() {
     const isLastToday = last === today
     const isLastYesterday = last === yesterday
 
+    // 하루라도 끊기면 초기화
     if (!isLastToday && !isLastYesterday) {
-      return NextResponse.json(
-        {
-          ok: true,
-          today,
-          claimed_today: false,
-          streak: 0,
-          board: Array.from({ length: 14 }, () => false),
-        },
-        { status: 200 }
-      )
+      return NextResponse.json({
+        ok: true,
+        today,
+        claimed_today: false,
+        streak: 0,
+        board: Array.from({ length: 14 }, () => false),
+      })
     }
 
-    // ✅ 연속 streak 계산
+    // 연속 streak 계산
     const set = new Set(days)
     let streakTotal = 0
     let cursor = last
@@ -113,25 +136,26 @@ export async function GET() {
       if (streakTotal > 365) break
     }
 
-    // ✅ 14일 보드/싸이클 포지션
     const cyclePos = ((streakTotal - 1) % 14) + 1 // 1~14
     const board = Array.from({ length: 14 }, (_, i) => i < cyclePos)
 
-    return NextResponse.json(
-      {
-        ok: true,
-        today,
-        claimed_today: isLastToday,
-        streak: cyclePos,
-        board,
-      },
-      { status: 200 }
-    )
+    return NextResponse.json({
+      ok: true,
+      today,
+      claimed_today: isLastToday,
+      streak: cyclePos,
+      board,
+    })
   } catch (e: any) {
-    // ✅ 여기서 터지면 프론트는 무조건 http_error 뜸 → 메시지라도 내려주자
-    return NextResponse.json(
-      { ok: false, reason: 'server_error', error: String(e?.message ?? e) },
-      { status: 500 }
-    )
+    // ✅ 서버에서 터져도 200 + reason으로 내려서 화면에 http_error가 아니라 원인 텍스트가 찍히게
+    return NextResponse.json({
+      ok: false,
+      reason: 'server_error',
+      today,
+      error: String(e?.message ?? e),
+      claimed_today: false,
+      streak: 0,
+      board: Array.from({ length: 14 }, () => false),
+    })
   }
 }
