@@ -1,7 +1,7 @@
 // src/app/api/rewards/claim/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import type { Database, Tables } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
@@ -35,9 +35,40 @@ function addDays(ymd: string, delta: number) {
   return `${y2}-${m2}-${d2}`
 }
 
+function mustEnv(name: string) {
+  const v = (process.env[name] || '').trim()
+  if (!v) throw new Error(`Missing env: ${name}`)
+  return v
+}
+
+async function createSupabaseServer() {
+  const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(url, anon, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        try {
+          cookieStore.set({ name, value, ...options })
+        } catch {}
+      },
+      remove(name: string, options: any) {
+        try {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+        } catch {}
+      },
+    },
+  })
+}
+
 // ✅ "오늘(한국시간)" 질문 1개 이상 했는지 체크
 async function hasQuestionToday(
-  supabase: ReturnType<typeof createRouteHandlerClient<Database>>,
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
   userId: string,
   todayKst: string
 ) {
@@ -63,13 +94,14 @@ async function hasQuestionToday(
 }
 
 export async function POST() {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
+  const supabase = await createSupabaseServer()
 
   const {
     data: { user },
+    error: userErr,
   } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (userErr || !user) {
     return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
   }
 
@@ -82,7 +114,7 @@ export async function POST() {
     return NextResponse.json({ ok: false, reason: 'no_question_today' }, { status: 200 })
   }
 
-  // 2) profiles에서 streak 기준 데이터 가져오기 (단일 진실)
+  // 2) profiles에서 streak 기준 데이터 가져오기
   type ProfilePick = Pick<Tables<'profiles'>, 'points' | 'reward_last_date' | 'reward_streak'>
 
   const { data: prof, error: profErr } = await supabase
@@ -99,7 +131,6 @@ export async function POST() {
   }
 
   const p = (prof as ProfilePick | null) ?? null
-
   const currentPoints = Number(p?.points ?? 0)
   const lastDate = (p?.reward_last_date ?? null) as string | null
   const lastStreak = Number(p?.reward_streak ?? 0)
@@ -109,47 +140,55 @@ export async function POST() {
     return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
   }
 
-  // 4) 연속 streak 계산 (총 연속일수)
+  // 4) reward_claims 중복 방지
+  const { data: claimedRow, error: chkErr } = await supabase
+    .from('reward_claims')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('day', today)
+    .maybeSingle()
+
+  if (chkErr) {
+    return NextResponse.json(
+      { ok: false, reason: 'db_error', error: String(chkErr.message ?? chkErr) },
+      { status: 500 }
+    )
+  }
+
+  if (claimedRow) {
+    return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
+  }
+
+  // 5) 연속 streak 계산
   const nextTotalStreak = lastDate === yesterday ? Math.max(1, lastStreak + 1) : 1
 
-  // 5) 14일 사이클 포지션(1~14)
+  // 6) 14일 사이클 포지션(1~14)
   const cyclePos = ((nextTotalStreak - 1) % 14) + 1
   const rewardPoints = REWARDS[cyclePos - 1] ?? 100
 
-  // 6) reward_claims insert
-  // ⚠️ 현재 타입 파일이 오래되면 from('reward_claims')가 never로 잡혀서 insert가 터짐
-  // ✅ 타입 갱신 전까지는 payload만 any 캐스팅으로 우회 가능 (갱신 후 제거)
-  const insertData = {
+  // 7) reward_claims insert (현재 스키마: user_id, day)
+  const { error: insErr } = await supabase.from('reward_claims').insert({
     user_id: user.id,
-    claimed_date: today,
-    streak_day: cyclePos,
-    awarded_points: rewardPoints,
-  }
-
-  const { error: insErr } = await (supabase as any).from('reward_claims').insert(insertData as any)
+    day: today,
+  })
 
   if (insErr) {
-    if (String((insErr as any)?.code) === '23505') {
-      return NextResponse.json({ ok: false, reason: 'already_claimed' }, { status: 200 })
-    }
     return NextResponse.json(
       { ok: false, reason: 'db_error', error: String(insErr.message ?? insErr) },
       { status: 500 }
     )
   }
 
-  // 7) profiles 업데이트
+  // 8) profiles 업데이트
   const nextPoints = currentPoints + rewardPoints
 
-  const updateData = {
-    points: nextPoints,
-    reward_last_date: today,
-    reward_streak: nextTotalStreak,
-  }
-
-  const { error: updErr } = await (supabase as any)
+  const { error: updErr } = await supabase
     .from('profiles')
-    .update(updateData as any)
+    .update({
+      points: nextPoints,
+      reward_last_date: today,
+      reward_streak: nextTotalStreak,
+    })
     .eq('id', user.id)
 
   if (updErr) {

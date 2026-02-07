@@ -215,19 +215,19 @@ const DEFAULT_TIPS: Tip[] = [
   },
 ]
 
-function pickTwoRandom(tips: Tip[]) {
+function pickThreeRandom(tips: Tip[]) {
   const arr = tips.slice()
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[arr[i], arr[j]] = [arr[j], arr[i]]
   }
-  return arr.slice(0, 2)
+  return arr.slice(0, 3) // ✅ 3개 노출
 }
 
 export default function TipSection({ tips = DEFAULT_TIPS }: { tips?: Tip[] }) {
   const items = useMemo(() => {
     const source = Array.isArray(tips) && tips.length > 0 ? tips : DEFAULT_TIPS
-    return pickTwoRandom(source)
+    return pickThreeRandom(source)
   }, [tips])
 
   // ✅ Coach 페이지에서 이미 bg/p-4 박스로 감싸고 있으므로
