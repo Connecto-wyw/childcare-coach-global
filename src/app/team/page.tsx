@@ -44,9 +44,7 @@ function buildTeamImageUrl(image_url: string | null | undefined) {
   if (!supabaseUrl) return raw
 
   const path = raw.replace(/^\//, '')
-  return `${stripTrailingSlash(
-    supabaseUrl
-  )}/storage/v1/object/public/team-images/${path}`
+  return `${stripTrailingSlash(supabaseUrl)}/storage/v1/object/public/team-images/${path}`
 }
 
 function normalizeTeamRow(r: RawTeamRow): TeamCard | null {
@@ -57,8 +55,7 @@ function normalizeTeamRow(r: RawTeamRow): TeamCard | null {
   const purpose = r.purpose ? String(r.purpose) : null
 
   const joinedRaw = Number(r.participant_count ?? 0)
-  const joined =
-    Number.isFinite(joinedRaw) && joinedRaw >= 0 ? joinedRaw : 0
+  const joined = Number.isFinite(joinedRaw) && joinedRaw >= 0 ? joinedRaw : 0
 
   const tags = [r.tag1, r.tag2]
     .map((x) => String(x ?? '').trim())
@@ -77,9 +74,7 @@ export default function TeamPage() {
     const fetchTeams = async () => {
       setLoading(true)
 
-      const { data, error } = await supabase.rpc(
-        'get_teams_with_counts'
-      )
+      const { data, error } = await supabase.rpc('get_teams_with_counts')
 
       if (error) {
         console.error('[get_teams_with_counts] error:', error)
@@ -96,29 +91,21 @@ export default function TeamPage() {
   }, [])
 
   const teams = useMemo(() => {
-    return rows
-      .map(normalizeTeamRow)
-      .filter((x): x is TeamCard => Boolean(x))
+    return rows.map(normalizeTeamRow).filter((x): x is TeamCard => Boolean(x))
   }, [rows])
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="mb-2 text-[22px] font-medium leading-tight">
-          Team
-        </h1>
+        <h1 className="mb-2 text-[22px] font-medium leading-tight">Team</h1>
         <p className="mb-8 text-[14px] font-medium text-[#b4b4b4]">
           Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now.
         </p>
 
         {loading ? (
-          <p className="text-[13px] font-medium text-[#b4b4b4]">
-            Loading…
-          </p>
+          <p className="text-[13px] font-medium text-[#b4b4b4]">Loading…</p>
         ) : teams.length === 0 ? (
-          <p className="text-[13px] font-medium text-[#b4b4b4]">
-            No teams available.
-          </p>
+          <p className="text-[13px] font-medium text-[#b4b4b4]">No teams available.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {teams.map((t) => (
@@ -128,21 +115,16 @@ export default function TeamPage() {
                 className="block overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#dcdcdc]"
               >
                 <div className="w-full overflow-hidden">
-                  <img
-                    src={t.imageSrc}
-                    alt={t.name}
-                    className="h-[220px] w-full object-cover md:h-[260px]"
-                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={t.imageSrc} alt={t.name} className="h-[220px] w-full object-cover md:h-[260px]" />
                 </div>
 
                 <div className="p-6">
                   {/* 타이틀 + Joined */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      {/* ✅ 제목 20px로 축소 */}
-                      <div className="truncate text-[20px] font-semibold text-[#0e0e0e]">
-                        {t.name}
-                      </div>
+                      {/* ✅ 제목 1px 더 축소: 20px -> 19px */}
+                      <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">{t.name}</div>
                     </div>
 
                     {/* ✅ Joined 인디언밥 붉은 계열 적용 */}
@@ -176,10 +158,7 @@ export default function TeamPage() {
                   )}
 
                   {/* Join now 버튼 */}
-                  <button
-                    type="button"
-                    className="mt-6 w-full h-[40px] bg-[#1e1e1e] text-white text-[20px] font-semibold"
-                  >
+                  <button type="button" className="mt-6 w-full h-[40px] bg-[#1e1e1e] text-white text-[20px] font-semibold">
                     Join now
                   </button>
                 </div>
