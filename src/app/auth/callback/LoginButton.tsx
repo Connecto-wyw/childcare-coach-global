@@ -2,18 +2,14 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useSupabaseClient } from '@supabase/auth-helpers-react'
+import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
 function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
 }
 
 export default function LoginButton() {
-  const supabase = useSupabaseClient()
-  const { auth } = supabase
-
   const signInWithGoogle = useCallback(async () => {
-    // ✅ PKCE 안정화: window.origin 대신 고정 Site URL 우선
     const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
     const base =
       envSite.length > 0
@@ -22,15 +18,16 @@ export default function LoginButton() {
         ? window.location.origin
         : ''
 
-    // ✅ Redirect URL allowlist 매칭 안정화: 쿼리스트링 제거
-    // Supabase Redirect URLs에는 `${base}/auth/callback` 만 등록해두면 됨
+    // ✅ 쿼리 없이 고정 (Supabase Redirect allowlist 안정화)
     const redirectTo = `${base}/auth/callback`
 
-    await auth.signInWithOAuth({
+    const supabase = createSupabaseBrowserClient()
+
+    await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
     })
-  }, [auth])
+  }, [])
 
   return (
     <button
