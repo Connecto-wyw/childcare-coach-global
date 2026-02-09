@@ -1,8 +1,8 @@
 // src/app/api/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import OpenAI from 'openai'
+import { createServerClient } from '@supabase/ssr'
+import type { Database } from '@/lib/database.types'
 import { getSystemPrompt } from '@/lib/systemPrompt'
 import { randomUUID } from 'crypto'
 
@@ -22,105 +22,130 @@ function safeString(v: unknown) {
   return typeof v === 'string' ? v : ''
 }
 
+async function openAIChat(model: string, system: string, question: string) {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('MISSING_OPENAI_API_KEY')
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      ...(process.env.OPENAI_ORG_ID ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID } : {}),
+      ...(process.env.OPENAI_PROJECT_ID ? { 'OpenAI-Project': process.env.OPENAI_PROJECT_ID } : {}),
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.4,
+      max_tokens: 1100,
+      stop: ['[END]'],
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: question },
+      ],
+    }),
+    cache: 'no-store',
+  })
+
+  const text = await resp.text()
+  if (!resp.ok) {
+    throw new Error(`OPENAI_${resp.status}:${text.slice(0, 800)}`)
+  }
+
+  const data = JSON.parse(text) as any
+  const part = (data?.choices?.[0]?.message?.content ?? '') as string
+  const finish = (data?.choices?.[0]?.finish_reason ?? null) as string | null
+  return { part, finish }
+}
+
 export async function POST(req: NextRequest) {
   const requestId = randomUUID()
   const startedAt = Date.now()
+  let stage = 'start'
 
   try {
-    // 1) 입력 파싱
+    stage = 'parse_body'
     const body = await req.json().catch(() => ({} as any))
     const question = safeString(body.question).trim()
     const systemFromClient = safeString(body.system)
 
-    // 2) 요청 기본 로그
-    const cookieHeader = req.headers.get('cookie')
-    console.log('[api/chat] request', {
-      requestId,
-      hasCookieHeader: Boolean(cookieHeader),
-      cookieHeaderLen: cookieHeader?.length ?? 0,
-      ua: req.headers.get('user-agent'),
-      referer: req.headers.get('referer'),
-      origin: req.headers.get('origin'),
-      hasQuestion: Boolean(question),
-      questionLen: question ? question.length : 0,
-    })
-
     if (!question) {
-      return NextResponse.json({ error: 'invalid_question', requestId }, { status: 400 })
+      return NextResponse.json({ error: 'invalid_question', requestId, stage }, { status: 400 })
     }
 
-    // ✅ 중요: 네 타입 정의상 options에는 cookies만 넣어야 함
-    // ✅ cookies "함수"를 그대로 넘겨야 함 (cookies() 호출해서 넘기면 타입/런타임 다 꼬임)
-    const supabase = createRouteHandlerClient({ cookies })
+    stage = 'init_supabase'
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+    if (!url || !anon) {
+      return NextResponse.json({ error: 'missing_supabase_env', requestId, stage }, { status: 500 })
+    }
 
-    // 3) Auth
+    const cookieStore = await cookies()
+
+    const supabase = createServerClient<Database>(url, anon, {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+        },
+      },
+    })
+
+    stage = 'auth_get_user'
     const {
       data: { user },
       error: userErr,
     } = await supabase.auth.getUser()
 
     if (userErr || !user) {
-      console.error('[api/chat] unauthorized', {
-        requestId,
-        userErr: userErr ? { message: userErr.message, name: (userErr as any).name } : null,
-      })
-      return NextResponse.json({ error: 'unauthorized', requestId }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', requestId, stage }, { status: 401 })
     }
 
-    console.log('[api/chat] authed', { requestId, userId: user.id })
-
-    // 4) prevContext (RPC)
+    // ✅ prevContext: RPC 말고 chat_logs에서 직전 Q/A 뽑아서 만든다 (타입 충돌 없음)
+    stage = 'load_prev_context'
     let prevContext = ''
     try {
-      const rpc = await supabase.rpc('get_prev_context', { p_user_id: user.id })
-      if (rpc.error) {
-        console.error('[api/chat] get_prev_context rpc error', {
-          requestId,
-          message: rpc.error.message,
-          code: (rpc.error as any).code,
-          details: (rpc.error as any).details,
-        })
-      } else if (rpc.data) {
-        prevContext = String(rpc.data)
+      const { data } = await supabase
+        .from('chat_logs')
+        .select('question, answer')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(2)
+
+      if (data && data.length) {
+        prevContext = data
+          .map((r) => {
+            const q = (r as any).question ?? ''
+            const a = (r as any).answer ?? ''
+            return `Q: ${q}\nA: ${a}`
+          })
+          .join('\n\n')
       }
-    } catch (e: any) {
-      console.error('[api/chat] get_prev_context exception', {
-        requestId,
-        name: e?.name,
-        message: e?.message,
-      })
+    } catch {
+      prevContext = ''
     }
 
-    // 5) greetedToday 판단
+    // ✅ greetedToday: 오늘 chat_logs에 이미 기록이 있으면 true
+    stage = 'count_today'
     const today = new Date().toISOString().slice(0, 10)
     let greetedToday = false
-
     try {
-      const { count, error: countErr } = await supabase
+      const { count } = await supabase
         .from('chat_logs')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00Z`)
-
-      if (countErr) {
-        console.error('[api/chat] chat_logs count error', {
-          requestId,
-          message: countErr.message,
-          code: (countErr as any).code,
-          details: (countErr as any).details,
-        })
-      } else {
-        greetedToday = (count ?? 0) > 0
-      }
-    } catch (e: any) {
-      console.error('[api/chat] chat_logs count exception', {
-        requestId,
-        name: e?.name,
-        message: e?.message,
-      })
+      greetedToday = (count ?? 0) > 0
+    } catch {
+      greetedToday = false
     }
 
-    // 6) system prompt 구성
+    stage = 'compose_system'
     const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext })
     const kParentingRule = `
 You answer in **English only**.
@@ -131,119 +156,56 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
 - Do not repeat the final sentence. End cleanly.`.trim()
     const system = `${base}\n\n${kParentingRule}`
 
-    // 7) OpenAI 호출
-    const apiKey = process.env.OPENAI_API_KEY
-    const MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+    stage = 'openai_first'
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+    const { part, finish } = await openAIChat(model, system, question)
 
-    if (!apiKey) {
-      console.error('[api/chat] missing OPENAI_API_KEY', { requestId })
-      return NextResponse.json({ error: 'missing_openai_key', requestId }, { status: 500 })
-    }
+    let answer = String(part || '').replace(/\s*\[END\]\s*$/, '')
 
-    const openai = new OpenAI({
-      apiKey,
-      organization: process.env.OPENAI_ORG_ID,
-      project: process.env.OPENAI_PROJECT_ID,
-    })
-
-    let part = ''
-    let finish: string | null | undefined = null
-
-    try {
-      const first = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: question },
-        ],
-        temperature: 0.4,
-        max_tokens: 1100,
-        stop: ['[END]'],
-      })
-
-      part = first.choices[0]?.message?.content ?? ''
-      finish = first.choices[0]?.finish_reason
-    } catch (err: any) {
-      console.error('[api/chat] openai first call error', {
-        requestId,
-        name: err?.name,
-        message: err?.message,
-        status: err?.status,
-        code: err?.code,
-      })
-      return NextResponse.json({ error: 'openai_error', requestId }, { status: 500 })
-    }
-
-    let answer = part.replace(/\s*\[END\]\s*$/, '')
-
-    // 8) 이어쓰기 1회(필요 시)
+    // 이어쓰기 1회(필요 시)
     if (finish !== 'stop') {
+      stage = 'openai_continue'
       try {
-        const cont = await openai.chat.completions.create({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: question },
-            { role: 'assistant', content: part },
-            { role: 'user', content: 'Do not repeat prior text. Conclude succinctly. End with [END].' },
-          ],
-          temperature: 0.35,
-          max_tokens: 400,
-          stop: ['[END]'],
-        })
-        const tail = cont.choices[0]?.message?.content ?? ''
-        answer += tail.replace(/\s*\[END\]\s*$/, '')
-      } catch (err: any) {
-        console.error('[api/chat] openai continuation error', {
-          requestId,
-          name: err?.name,
-          message: err?.message,
-          status: err?.status,
-          code: err?.code,
-        })
+        const cont = await openAIChat(
+          model,
+          system,
+          `${question}\n\n(Continue. Do not repeat prior text. Conclude succinctly. End with [END].)`
+        )
+        const tail = (cont.part || '').replace(/\s*\[END\]\s*$/, '')
+        if (tail) answer += tail
+      } catch {
+        // 이어쓰기 실패는 무시
       }
     }
 
+    stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // 9) 로그 저장(실패해도 답변은 내려줌)
+    // ✅ chat_logs 저장: 너 테이블 스키마대로 question/answer로 1행 저장
+    stage = 'insert_logs'
     try {
-      const turnId = randomUUID()
-      const { error: insertErr } = await supabase.from('chat_logs').insert([
-        { user_id: user.id, role: 'user', content: question, turn_id: turnId },
-        { user_id: user.id, role: 'assistant', content: answer, turn_id: turnId },
-      ])
-      if (insertErr) {
-        console.error('[api/chat] chat_logs insert error', {
-          requestId,
-          message: insertErr.message,
-          code: (insertErr as any).code,
-          details: (insertErr as any).details,
-        })
-      }
-    } catch (e: any) {
-      console.error('[api/chat] chat_logs insert exception', {
-        requestId,
-        name: e?.name,
-        message: e?.message,
+      await supabase.from('chat_logs').insert({
+        user_id: user.id,
+        question,
+        answer,
+        model,
+        lang: 'en',
       })
+    } catch {
+      // 저장 실패해도 답변은 내려줌
     }
 
-    console.log('[api/chat] ok', {
-      requestId,
-      ms: Date.now() - startedAt,
-      userId: user.id,
-      model: MODEL,
-    })
-
-    return NextResponse.json({ answer, requestId })
+    stage = 'ok'
+    return NextResponse.json({ answer, requestId, ms: Date.now() - startedAt }, { status: 200 })
   } catch (e: any) {
-    console.error('[api/chat] fatal', {
-      requestId,
-      name: e?.name,
-      message: e?.message,
-      stack: e?.stack,
-    })
-    return NextResponse.json({ error: 'server_error', requestId }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'server_error',
+        requestId,
+        stage,
+        message: String(e?.message ?? e).slice(0, 800),
+      },
+      { status: 500 }
+    )
   }
 }
