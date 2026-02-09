@@ -5,10 +5,8 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
 import JoinButtonClient from './JoinButtonClient'
-import sanitizeHtml from 'sanitize-html'
 
-
-// ✅ 마크다운 렌더
+// ✅ 마크다운 렌더 (fallback용)
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -34,6 +32,9 @@ const FALLBACK_DETAIL_TEXT = 'No additional details yet.'
 const SKY_BLUE = '#3EB6F1'
 const SKY_BLUE_LIGHT = '#EAF6FF'
 
+// ✅ 여기 teamId가 “임시 하드코딩 상세” 대상
+const HARDCODED_TEAM_ID = 'eee3586c-2ffe-45c5-888d-0a98f4d0b0d9'
+
 function parseSteps(raw: any): DiscountStep[] {
   if (!raw) return []
   if (!Array.isArray(raw)) return []
@@ -42,7 +43,12 @@ function parseSteps(raw: any): DiscountStep[] {
       participants: Number(x?.participants ?? 0),
       discount_percent: Number(x?.discount_percent ?? 0),
     }))
-    .filter((s) => Number.isFinite(s.participants) && Number.isFinite(s.discount_percent) && s.participants > 0)
+    .filter(
+      (s) =>
+        Number.isFinite(s.participants) &&
+        Number.isFinite(s.discount_percent) &&
+        s.participants > 0
+    )
     .sort((a, b) => a.participants - b.participants)
 }
 
@@ -56,7 +62,10 @@ function calcCurrentDiscountPercent(count: number, steps: DiscountStep[]) {
 
 function formatMoney(n: number, currency: string) {
   try {
-    return new Intl.NumberFormat('en-US').format(n) + (currency === 'KRW' ? ' KRW' : ` ${currency}`)
+    return (
+      new Intl.NumberFormat('en-US').format(n) +
+      (currency === 'KRW' ? ' KRW' : ` ${currency}`)
+    )
   } catch {
     return `${n} ${currency}`
   }
@@ -88,8 +97,15 @@ async function createSupabaseServer() {
   })
 }
 
-async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
-  const { count, error } = await sb.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId)
+async function getParticipantCount(
+  sb: Awaited<ReturnType<typeof createSupabaseServer>>,
+  teamId: string
+) {
+  const { count, error } = await sb
+    .from('team_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('team_id', teamId)
+
   if (error) return 0
   return Number(count ?? 0)
 }
@@ -120,6 +136,145 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
   return ''
 }
 
+function HardcodedDetailForKTableware() {
+  return (
+    <section className="mt-8 overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
+      {/* 상단 헤더 */}
+      <div className="border-b border-[#efefef] bg-[#fafafa] px-6 py-5">
+        <div className="text-[13px] font-semibold text-[#6f6f6f]">
+          Trending & Premium from Korea
+        </div>
+        <div className="mt-1 text-[22px] font-semibold leading-snug text-[#0e0e0e]">
+          Discover the most trending and premium products from South Korea — carefully curated for you.
+        </div>
+        <div className="mt-3 space-y-1 text-[14px] leading-relaxed text-[#5f5f5f]">
+          <div>The more people join, the lower the price drops.</div>
+          <div>The power of community unlocks better deals.</div>
+          <div className="mt-2">
+            ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT charge you.
+          </div>
+          <div>
+            When payments and shipping officially launch, you’ll be the first to know via your signed-in Google email.
+          </div>
+          <div className="pt-1">
+            <span className="font-semibold text-[#0e0e0e]">Join early.</span> Unlock better prices. Be part of something new.
+          </div>
+        </div>
+      </div>
+
+      {/* 본문 */}
+      <div className="px-6 py-6">
+        <div className="flex items-start gap-3">
+          <div className="mt-[2px] flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0f7fd] text-[18px]">
+            🍽️
+          </div>
+          <div className="min-w-0">
+            <div className="text-[20px] font-semibold text-[#0e0e0e]">
+              K-Kids Silicone Tableware Set
+            </div>
+            <div className="mt-1 text-[14px] font-medium text-[#7a7a7a]">
+              Safe. Smart. Beautifully designed for modern families.
+            </div>
+          </div>
+        </div>
+
+        {/* 5가지 포인트 */}
+        <div className="mt-6 space-y-4">
+          {[
+            {
+              no: '1',
+              title: 'Designed for Little Hands',
+              emoji: '🖐️ 👶',
+              body:
+                'Thoughtfully shaped for small hands learning to eat independently. The ergonomic curves and balanced weight help children grip comfortably, building confidence at every meal.',
+            },
+            {
+              no: '2',
+              title: 'Safe, Food-Grade Silicone',
+              emoji: '🌿 🛡️',
+              body:
+                'Made with BPA-free, food-grade silicone trusted by Korean parents. Soft, durable, and gentle on little mouths — giving parents peace of mind at every bite.',
+            },
+            {
+              no: '3',
+              title: 'Strong Suction, Less Mess',
+              emoji: '💪 🍽️',
+              body:
+                'The powerful suction base keeps bowls and plates firmly in place. Less slipping, fewer spills, and calmer mealtimes for both parents and toddlers.',
+            },
+            {
+              no: '4',
+              title: 'Everyday Practical & Easy to Clean',
+              emoji: '🧼 ✨',
+              body:
+                'Dishwasher-safe and effortless to wash by hand. Designed for busy family routines — because parenting is already demanding enough.',
+            },
+            {
+              no: '5',
+              title: 'Minimal Korean Design',
+              emoji: '🎀 🇰🇷',
+              body:
+                'Soft neutral tones and clean, modern aesthetics inspired by Korean parenting style. Beautiful enough to leave on your table, functional enough to use every day.',
+            },
+          ].map((x) => (
+            <div key={x.no} className="rounded-2xl border border-[#efefef] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
+                      {x.no}
+                    </span>
+                    <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">
+                      {x.title}
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0 text-[16px]">{x.emoji}</div>
+              </div>
+              <div className="mt-3 text-[14px] leading-relaxed text-[#5f5f5f]">
+                {x.body}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Why parents love it */}
+        <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-[#fafafa] p-6">
+          <div className="text-[16px] font-semibold text-[#0e0e0e]">
+            🌸 Why Parents Love It in Southeast Asia
+          </div>
+
+          <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
+            {[
+              'Safe materials you can trust',
+              'Designed to support self-feeding milestones',
+              'Reduces mealtime stress and mess',
+              'Stylish enough for modern homes',
+            ].map((t) => (
+              <li key={t} className="flex items-start gap-2">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
+                  ✓
+                </span>
+                <span className="leading-relaxed">{t}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">
+            Smarter mealtimes. Safer materials. The Korean way.
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function renderHardcodedDetail(teamId: string) {
+  // ✅ 지금은 이 팀만 임시 하드코딩 상세 적용
+  if (teamId === HARDCODED_TEAM_ID) return <HardcodedDetailForKTableware />
+  return null
+}
+
 // ✅ Next 16에서 params가 Promise로 올 수 있음
 export default async function TeamDetailPage({
   params,
@@ -142,19 +297,16 @@ export default async function TeamDetailPage({
         'x-matched-path': h.get('x-matched-path'),
         referer: h.get('referer'),
       },
-      note: 'teamId could not be resolved. This usually happens when params is Promise or routing/link mismatch.',
+      note: 'teamId could not be resolved.',
     }
 
     return (
       <main className="min-h-screen bg-white text-[#0e0e0e]">
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="text-[28px] font-semibold">TEAM route params missing</h1>
-          <p className="mt-2 text-[13px] text-[#7a7a7a]">This page used to 404 because teamId was empty.</p>
-
           <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
-{JSON.stringify(debug, null, 2)}
+            {JSON.stringify(debug, null, 2)}
           </pre>
-
           <div className="mt-6">
             <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
               Back to TEAM →
@@ -179,7 +331,7 @@ export default async function TeamDetailPage({
           <p className="mt-2 text-[13px] text-[#7a7a7a]">teamId: {teamId}</p>
 
           <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
-{JSON.stringify({ teamErr, teamRes }, null, 2)}
+            {JSON.stringify({ teamErr, teamRes }, null, 2)}
           </pre>
 
           <div className="mt-6">
@@ -195,7 +347,11 @@ export default async function TeamDetailPage({
   const team = teamRes as unknown as TeamRow
   const participantCount = await getParticipantCount(sb, teamId)
 
-  const { data: pricingRes } = await sb.from('team_pricing_rules').select('*').eq('team_id', teamId).maybeSingle()
+  const { data: pricingRes } = await sb
+    .from('team_pricing_rules')
+    .select('*')
+    .eq('team_id', teamId)
+    .maybeSingle()
 
   const pricing = (pricingRes ?? null) as PricingRow | null
   const steps = parseSteps((pricing as any)?.discount_steps)
@@ -208,7 +364,11 @@ export default async function TeamDetailPage({
   const discountedPrice = minPrice > 0 ? Math.max(minPrice, discountedPriceRaw) : discountedPriceRaw
 
   const progressMax = steps.length > 0 ? steps[steps.length - 1].participants : 0
-  const progressPct = progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
+  const progressPct =
+    progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
+
+  // ✅ 하드코딩 상세가 있으면 이걸 우선 렌더
+  const hardcodedDetail = renderHardcodedDetail(teamId)
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -231,7 +391,9 @@ export default async function TeamDetailPage({
               </div>
             </div>
 
-            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">{team.purpose ?? 'No description yet.'}</div>
+            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">
+              {team.purpose ?? 'No description yet.'}
+            </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {team.tag1 ? (
@@ -290,10 +452,7 @@ export default async function TeamDetailPage({
               ) : null}
 
               {steps.length > 0 ? (
-                <div
-                  className="mt-6 overflow-hidden rounded-xl border border-black/15"
-                  style={{ background: SKY_BLUE_LIGHT }}
-                >
+                <div className="mt-6 overflow-hidden rounded-xl border border-black/15" style={{ background: SKY_BLUE_LIGHT }}>
                   <div className="grid grid-cols-3 px-4 py-3 text-[13px] font-semibold text-[#0e0e0e]">
                     <div>Participants</div>
                     <div>Discount</div>
@@ -308,7 +467,10 @@ export default async function TeamDetailPage({
                       return (
                         <div
                           key={`${s.participants}_${idx}`}
-                          className={['grid grid-cols-3 px-4 py-3 text-[13px]', hit ? 'bg-black/5' : 'bg-transparent'].join(' ')}
+                          className={[
+                            'grid grid-cols-3 px-4 py-3 text-[13px]',
+                            hit ? 'bg-black/5' : 'bg-transparent',
+                          ].join(' ')}
                         >
                           <div>{s.participants}+</div>
                           <div>{s.discount_percent}%</div>
@@ -327,25 +489,25 @@ export default async function TeamDetailPage({
               <div className="mt-3 text-center text-[12px] text-black/60"></div>
             </div>
 
-            {/* ✅ 상세(어드민 입력) - 마크다운 렌더 */}
-            <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-white p-6">
-              <div className="text-[18px] font-semibold">{FALLBACK_DETAIL_TITLE}</div>
+            {/* ✅ 상세 영역: 하드코딩 우선, 없으면 기존 마크다운 */}
+            {hardcodedDetail ? (
+              hardcodedDetail
+            ) : (
+              <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-white p-6">
+                <div className="text-[18px] font-semibold">{FALLBACK_DETAIL_TITLE}</div>
 
-              {team.detail_image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={team.detail_image_url}
-                  alt="detail"
-                  className="mt-4 w-full h-auto rounded-2xl object-cover"
-                />
-              ) : null}
+                {team.detail_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={team.detail_image_url} alt="detail" className="mt-4 w-full h-auto rounded-2xl object-cover" />
+                ) : null}
 
-              <div className="mt-4 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                  {team.detail_markdown || FALLBACK_DETAIL_TEXT}
-                </ReactMarkdown>
+                <div className="mt-4 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                    {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+                  </ReactMarkdown>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-10">
               <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
