@@ -334,15 +334,12 @@ export default function RewardPage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
 
-        {/* ✅ 상단(News/Team 스타일) */}
         <h1 className="text-[22px] font-medium leading-tight">Reward</h1>
         <p className="mt-3 text-[14px] text-[#b4b4b4]">Daily check-in rewards for asking 1 question on Coach.</p>
 
-        {/* ✅ 줄로만 구분 */}
         <div className="mt-10 border-t border-[#eeeeee]">
           {/* ===================== 1) 14-Day Stamp Board ===================== */}
           <section className="py-10">
-            {/* ✅ (요청) 여기 “회색 큰 박스” 제거: border/bg/padding wrapper 삭제 */}
             <div className="flex items-center justify-between">
               <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
 
@@ -366,34 +363,48 @@ export default function RewardPage() {
               ) : null}
             </div>
 
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-4">
+            {/* ✅ 모바일도 "한 줄에 7개" 고정 */}
+            <div className="mt-5 grid grid-cols-7 gap-2">
               {Array.from({ length: 14 }).map((_, i) => {
                 const day = i + 1
                 const filled = board[i]
                 const filledCount = board.filter(Boolean).length
 
                 return (
-                  <div key={day} className="border border-[#eeeeee] p-4 text-center bg-white">
-                    <div className="text-[13px] md:text-[14px] font-semibold text-[#1e1e1e]">Day {day}</div>
+                  <div
+                    key={day}
+                    className={[
+                      'border border-[#eeeeee] bg-white text-center',
+                      // ✅ 모바일에서 칸을 작게: padding 줄이기
+                      'p-2',
+                      // ✅ 너무 커지지 않게: 최소 높이
+                      'min-h-[84px]',
+                    ].join(' ')}
+                  >
+                    {/* ✅ Day 글자 작게 */}
+                    <div className="text-[11px] font-semibold text-[#1e1e1e]">Day {day}</div>
 
-                    <div className="mt-3 flex items-center justify-center">
-                      <div className="relative w-8 h-8">
+                    {/* ✅ 스탬프 아이콘 작게 */}
+                    <div className="mt-2 flex items-center justify-center">
+                      <div className="relative w-6 h-6">
                         <Image
                           src={filled ? STAMP_AFTER_SRC : STAMP_BEFORE_SRC}
                           alt={filled ? 'Mission completed' : 'Mission not started'}
                           fill
-                          sizes="32px"
+                          sizes="24px"
                           className={['object-contain', !user ? 'opacity-70' : 'opacity-100'].join(' ')}
                           priority={false}
                         />
                       </div>
                     </div>
 
-                    <div className="mt-3 text-[13px] md:text-[14px] text-gray-700 font-semibold">{REWARDS[i]}p</div>
+                    {/* ✅ 포인트 텍스트도 작게 */}
+                    <div className="mt-2 text-[11px] text-gray-700 font-semibold">{REWARDS[i]}p</div>
 
+                    {/* ✅ CLEAR도 작은 칸에 맞게 축소 */}
                     {claimedToday && filled && day === filledCount ? (
                       <div
-                        className="mt-3 inline-flex items-center justify-center px-2.5 py-1 rounded text-[12px] font-extrabold text-white"
+                        className="mt-2 inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-extrabold text-white"
                         style={{ backgroundColor: '#1e1e1e' }}
                       >
                         CLEAR
@@ -407,7 +418,6 @@ export default function RewardPage() {
 
           {/* ===================== 2) Daily Check-in ===================== */}
           <section className="border-t border-[#eeeeee] py-10">
-            {/* ✅ (요청) 여기 “회색 큰 박스” 제거: border/bg/padding wrapper 삭제 */}
             <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
             <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
               Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
@@ -536,7 +546,6 @@ export default function RewardPage() {
               </div>
             </div>
 
-            {/* My Reward + Button */}
             <div className="mt-7 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-5">
               <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
                 <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
