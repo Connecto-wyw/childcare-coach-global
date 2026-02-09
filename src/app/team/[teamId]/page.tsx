@@ -9,6 +9,7 @@ import JoinButtonClient from './JoinButtonClient'
 // ✅ 마크다운 렌더
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -86,15 +87,16 @@ async function createSupabaseServer() {
 }
 
 async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
-  const { count, error } = await sb
-    .from('team_members')
-    .select('*', { count: 'exact', head: true })
-    .eq('team_id', teamId)
-
+  const { count, error } = await sb.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId)
   if (error) return 0
   return Number(count ?? 0)
 }
 
+/**
+ * params가 비는 케이스 방어
+ * - 1차: params.teamId
+ * - 2차: headers에서 /team/{id} 추출
+ */
 async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
   const raw1 = paramsObj?.teamId
   const teamId1 = typeof raw1 === 'string' ? decodeURIComponent(raw1).trim() : ''
@@ -116,6 +118,7 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
   return ''
 }
 
+// ✅ Next 16에서 params가 Promise로 올 수 있음
 export default async function TeamDetailPage({
   params,
 }: {
@@ -190,11 +193,7 @@ export default async function TeamDetailPage({
   const team = teamRes as unknown as TeamRow
   const participantCount = await getParticipantCount(sb, teamId)
 
-  const { data: pricingRes } = await sb
-    .from('team_pricing_rules')
-    .select('*')
-    .eq('team_id', teamId)
-    .maybeSingle()
+  const { data: pricingRes } = await sb.from('team_pricing_rules').select('*').eq('team_id', teamId).maybeSingle()
 
   const pricing = (pricingRes ?? null) as PricingRow | null
   const steps = parseSteps((pricing as any)?.discount_steps)
@@ -207,8 +206,7 @@ export default async function TeamDetailPage({
   const discountedPrice = minPrice > 0 ? Math.max(minPrice, discountedPriceRaw) : discountedPriceRaw
 
   const progressMax = steps.length > 0 ? steps[steps.length - 1].participants : 0
-  const progressPct =
-    progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
+  const progressPct = progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -251,6 +249,7 @@ export default async function TeamDetailPage({
               <ShareButtonClient />
             </div>
 
+            {/* ✅ 가격/할인 영역 */}
             <div
               className="mt-8 rounded-2xl px-6 py-8"
               style={{
@@ -289,7 +288,10 @@ export default async function TeamDetailPage({
               ) : null}
 
               {steps.length > 0 ? (
-                <div className="mt-6 overflow-hidden rounded-xl border border-black/15" style={{ background: SKY_BLUE_LIGHT }}>
+                <div
+                  className="mt-6 overflow-hidden rounded-xl border border-black/15"
+                  style={{ background: SKY_BLUE_LIGHT }}
+                >
                   <div className="grid grid-cols-3 px-4 py-3 text-[13px] font-semibold text-[#0e0e0e]">
                     <div>Participants</div>
                     <div>Discount</div>
@@ -320,26 +322,26 @@ export default async function TeamDetailPage({
                 <JoinButtonClient teamId={teamId} />
               </div>
 
-              <div className="mt-3 text-center text-[12px] text-black/60">
-                * Join을 누르면 team_members에 참여가 기록돼.
-              </div>
+              <div className="mt-3 text-center text-[12px] text-black/60">* Join을 누르면 team_members에 참여가 기록돼.</div>
             </div>
 
-            {/* ✅ 상세(어드민 입력) - 마크다운 렌더로 변경 */}
+            {/* ✅ 상세(어드민 입력) - 마크다운 렌더 */}
             <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-white p-6">
               <div className="text-[18px] font-semibold">{FALLBACK_DETAIL_TITLE}</div>
 
               {team.detail_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={team.detail_image_url} alt="detail" className="mt-4 w-full h-auto rounded-2xl object-cover" />
+                <img
+                  src={team.detail_image_url}
+                  alt="detail"
+                  className="mt-4 w-full h-auto rounded-2xl object-cover"
+                />
               ) : null}
 
-              <div className="mt-4">
-                <div className="prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2 prose-strong:text-[#0e0e0e]">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {team.detail_markdown || FALLBACK_DETAIL_TEXT}
-                  </ReactMarkdown>
-                </div>
+              <div className="mt-4 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                  {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+                </ReactMarkdown>
               </div>
             </div>
 

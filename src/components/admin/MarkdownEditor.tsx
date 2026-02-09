@@ -4,6 +4,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks' // ✅ 추가
 
 type Props = {
   value: string
@@ -52,7 +53,6 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
       const newStart = base + (cursorOffset?.startDelta ?? 0)
       const newEnd = base + (cursorOffset?.endDelta ?? insert.length)
       requestAnimationFrame(() => focusAndSetSelection(newStart, newEnd))
-      return value.slice(start, end)
     },
     [value, onChange, focusAndSetSelection]
   )
@@ -83,13 +83,9 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
         const line = value.slice(lineStart, lineEnd)
 
         let nextLine = line
-        if (line.startsWith(prefix)) {
-          nextLine = line.slice(prefix.length)
-        } else if (line.startsWith('## ') || line.startsWith('### ')) {
-          nextLine = prefix + line.replace(/^#{2,3}\s+/, '')
-        } else {
-          nextLine = prefix + line
-        }
+        if (line.startsWith(prefix)) nextLine = line.slice(prefix.length)
+        else if (line.startsWith('## ') || line.startsWith('### ')) nextLine = prefix + line.replace(/^#{2,3}\s+/, '')
+        else nextLine = prefix + line
 
         replaceRange(lineStart, lineEnd, nextLine, { startDelta: 0, endDelta: nextLine.length })
       })
@@ -168,84 +164,25 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
   }, [withSelection, value, replaceRange])
 
   return (
-    <div className="rounded-xl border border-gray-700 bg-[#1c1c1c] overflow-hidden text-white">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 border-b border-gray-700 px-3 py-2 bg-[#2a2a2a]">
+    <div className="rounded-xl border border-[#2a2a2a] bg-[#1f1f1f] overflow-hidden">
+      <div className="flex items-center justify-between gap-2 border-b border-[#2a2a2a] px-3 py-2 bg-[#1f1f1f]">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={applyBold}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Bold"
-          >
-            B
-          </button>
-
-          <button
-            type="button"
-            onClick={() => applyHeading(2)}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Heading 2"
-          >
-            H2
-          </button>
-
-          <button
-            type="button"
-            onClick={() => applyHeading(3)}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Heading 3"
-          >
-            H3
-          </button>
-
-          <button
-            type="button"
-            onClick={applyBullets}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Bulleted list"
-          >
-            • List
-          </button>
-
-          <button
-            type="button"
-            onClick={applyNumbered}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Numbered list"
-          >
-            1. List
-          </button>
-
-          <button
-            type="button"
-            onClick={applyQuote}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Quote"
-          >
-            “ Quote
-          </button>
-
-          <button
-            type="button"
-            onClick={applyLink}
-            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
-            title="Link"
-          >
-            🔗 Link
-          </button>
+          <button type="button" onClick={applyBold} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">B</button>
+          <button type="button" onClick={() => applyHeading(2)} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">H2</button>
+          <button type="button" onClick={() => applyHeading(3)} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">H3</button>
+          <button type="button" onClick={applyBullets} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">• List</button>
+          <button type="button" onClick={applyNumbered} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">1. List</button>
+          <button type="button" onClick={applyQuote} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">“ Quote</button>
+          <button type="button" onClick={applyLink} className="h-8 px-2 rounded-md border border-[#3a3a3a] text-[12px] font-semibold text-white hover:bg-[#2a2a2a]">🔗 Link</button>
         </div>
 
-        {/* Write / Preview */}
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setTab('write')}
             className={[
               'h-8 px-3 rounded-md text-[12px] font-semibold border',
-              tab === 'write'
-                ? 'bg-white text-black border-white'
-                : 'bg-[#1f1f1f] text-white border-gray-700 hover:bg-[#333333]',
+              tab === 'write' ? 'bg-white text-[#111] border-white' : 'bg-[#1f1f1f] text-white border-[#3a3a3a]',
             ].join(' ')}
           >
             Write
@@ -255,9 +192,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
             onClick={() => setTab('preview')}
             className={[
               'h-8 px-3 rounded-md text-[12px] font-semibold border',
-              tab === 'preview'
-                ? 'bg-white text-black border-white'
-                : 'bg-[#1f1f1f] text-white border-gray-700 hover:bg-[#333333]',
+              tab === 'preview' ? 'bg-white text-[#111] border-white' : 'bg-[#1f1f1f] text-white border-[#3a3a3a]',
             ].join(' ')}
           >
             Preview
@@ -265,7 +200,6 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
         </div>
       </div>
 
-      {/* Editor */}
       {tab === 'write' ? (
         <textarea
           ref={taRef}
@@ -273,12 +207,13 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           rows={rows}
-          className="w-full px-4 py-3 text-[14px] leading-relaxed outline-none bg-[#2b2b2b] text-white placeholder-gray-400"
+          className="w-full px-4 py-3 text-[14px] leading-relaxed outline-none bg-[#1f1f1f] text-white placeholder:text-[#8a8a8a]"
         />
       ) : (
-        <div className="px-4 py-3 bg-[#2b2b2b]">
-          <div className="prose prose-invert max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{value || ''}</ReactMarkdown>
+        <div className="px-4 py-3 text-white">
+          <div className="prose max-w-none prose-invert prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
+            {/* ✅ 핵심: remarkBreaks 추가 */}
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{value || ''}</ReactMarkdown>
           </div>
         </div>
       )}
