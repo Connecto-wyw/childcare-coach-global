@@ -1,7 +1,7 @@
 // src/app/api/rewards/status/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
@@ -28,23 +28,68 @@ function addDays(ymd: string, delta: number) {
   return `${y2}-${m2}-${d2}`
 }
 
-export async function GET() {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+function mustEnv(name: string) {
+  const v = (process.env[name] || '').trim()
+  if (!v) throw new Error(`Missing env: ${name}`)
+  return v
+}
 
+async function createSupabaseServer() {
+  const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(url, anon, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        try {
+          cookieStore.set({ name, value, ...options })
+        } catch {}
+      },
+      remove(name: string, options: any) {
+        try {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+        } catch {}
+      },
+    },
+  })
+}
+
+export async function GET() {
   const today = ymdInKST(new Date())
 
-  // ✅ 로그인 안해도 200 + 기본값
-  if (!user) {
+  let supabase: Awaited<ReturnType<typeof createSupabaseServer>>
+  try {
+    supabase = await createSupabaseServer()
+  } catch (e: any) {
+    // ✅ status는 절대 500 내지 말고, UI가 처리할 수 있게 200으로 통일
     return NextResponse.json({
-      ok: true,
+      ok: false,
+      reason: 'config_error',
       today,
       claimed_today: false,
       streak: 0,
       board: Array.from({ length: 14 }, () => false),
+      error: String(e?.message ?? e),
+    })
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // ✅ 로그인 안해도 200으로 내려서 UI가 http_error 찍지 않게
+  if (!user) {
+    return NextResponse.json({
+      ok: true,
       reason: 'not_authenticated',
+      today,
+      claimed_today: false,
+      streak: 0,
+      board: Array.from({ length: 14 }, () => false),
     })
   }
 
@@ -55,7 +100,6 @@ export async function GET() {
     .order('day', { ascending: false })
     .limit(40)
 
-  // ✅ 여기서도 500 금지: 200 + ok:false 로 내려서 프론트가 "http_error" 찍지 않게
   if (error) {
     return NextResponse.json({
       ok: false,
@@ -68,9 +112,7 @@ export async function GET() {
     })
   }
 
-  const days = (data ?? [])
-    .map((r: any) => String(r.day))
-    .filter(Boolean)
+  const days = (data ?? []).map((r: any) => String(r.day)).filter(Boolean)
 
   if (days.length === 0) {
     return NextResponse.json({
