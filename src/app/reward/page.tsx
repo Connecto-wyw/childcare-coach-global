@@ -363,7 +363,6 @@ export default function RewardPage() {
               ) : null}
             </div>
 
-            {/* ✅ 모바일도 "한 줄에 7개" 고정 */}
             <div className="mt-5 grid grid-cols-7 gap-2">
               {Array.from({ length: 14 }).map((_, i) => {
                 const day = i + 1
@@ -371,20 +370,9 @@ export default function RewardPage() {
                 const filledCount = board.filter(Boolean).length
 
                 return (
-                  <div
-                    key={day}
-                    className={[
-                      'border border-[#eeeeee] bg-white text-center',
-                      // ✅ 모바일에서 칸을 작게: padding 줄이기
-                      'p-2',
-                      // ✅ 너무 커지지 않게: 최소 높이
-                      'min-h-[84px]',
-                    ].join(' ')}
-                  >
-                    {/* ✅ Day 글자 작게 */}
+                  <div key={day} className="border border-[#eeeeee] bg-white text-center p-2 min-h-[84px]">
                     <div className="text-[11px] font-semibold text-[#1e1e1e]">Day {day}</div>
 
-                    {/* ✅ 스탬프 아이콘 작게 */}
                     <div className="mt-2 flex items-center justify-center">
                       <div className="relative w-6 h-6">
                         <Image
@@ -398,10 +386,8 @@ export default function RewardPage() {
                       </div>
                     </div>
 
-                    {/* ✅ 포인트 텍스트도 작게 */}
                     <div className="mt-2 text-[11px] text-gray-700 font-semibold">{REWARDS[i]}p</div>
 
-                    {/* ✅ CLEAR도 작은 칸에 맞게 축소 */}
                     {claimedToday && filled && day === filledCount ? (
                       <div
                         className="mt-2 inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-extrabold text-white"
@@ -416,6 +402,18 @@ export default function RewardPage() {
             </div>
           </section>
 
+          {/* ===================== (이동) My Reward ===================== */}
+          <section className="border-t border-[#eeeeee] py-10">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
+                <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
+                <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
+              </div>
+
+              {claimButton}
+            </div>
+          </section>
+
           {/* ===================== 2) Daily Check-in ===================== */}
           <section className="border-t border-[#eeeeee] py-10">
             <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
@@ -424,7 +422,6 @@ export default function RewardPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Rewards */}
               <div className="border border-[#eeeeee] p-5 bg-white">
                 <div className="flex items-center gap-3">
                   <IconWrap bg="rgba(159,29,35,0.08)">
@@ -493,7 +490,6 @@ export default function RewardPage() {
                 </div>
               </div>
 
-              {/* Rule */}
               <div className="border border-[#eeeeee] p-5 bg-white">
                 <div className="flex items-center gap-3">
                   <IconWrap bg="rgba(62,182,241,0.10)">
@@ -544,15 +540,6 @@ export default function RewardPage() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="mt-7 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-5">
-              <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
-                <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
-                <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
-              </div>
-
-              {claimButton}
             </div>
           </section>
         </div>
