@@ -2,7 +2,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
+import { createSupabaseBrowserClient } from '@/lib/browser'
 
 function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
@@ -18,7 +18,6 @@ export default function LoginButton() {
         ? window.location.origin
         : ''
 
-    // ✅ 쿼리 없이 고정 (Supabase Redirect allowlist 안정화)
     const redirectTo = `${base}/auth/callback`
 
     const supabase = createSupabaseBrowserClient()

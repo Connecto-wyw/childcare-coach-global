@@ -10,9 +10,16 @@ function serializeCookie(name: string, value: string, options: any = {}) {
   if (options.expires) cookie += `; Expires=${new Date(options.expires).toUTCString()}`
   if (options.sameSite) cookie += `; SameSite=${options.sameSite}`
   if (options.secure) cookie += `; Secure`
-  // httpOnly은 브라우저 JS에서 설정 불가(무시됨)
 
   return cookie
+}
+
+function getCookie(name: string) {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(`${name}=`))
+  return match ? decodeURIComponent(match.split('=')[1] ?? '') : undefined
 }
 
 export function createSupabaseBrowserClient() {
@@ -22,11 +29,7 @@ export function createSupabaseBrowserClient() {
     {
       cookies: {
         get(name: string) {
-          if (typeof document === 'undefined') return undefined
-          const match = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith(`${name}=`))
-          return match ? decodeURIComponent(match.split('=')[1] ?? '') : undefined
+          return getCookie(name)
         },
         set(name: string, value: string, options: any) {
           if (typeof document === 'undefined') return

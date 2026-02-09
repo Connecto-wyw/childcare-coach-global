@@ -17,8 +17,9 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   const extensions = useMemo(
     () => [
       StarterKit.configure({
-        // 엔터/줄바꿈 안정화
-        hardBreak: true,
+        // ✅ 엔터/줄바꿈 안정화
+        // hardBreak: true (X) → {} 로 켜기 (타입/버전 호환)
+        hardBreak: {},
       }),
       Link.configure({
         openOnClick: true,
@@ -37,8 +38,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     content: value || '<p></p>',
     editorProps: {
       attributes: {
-        class:
-          'prose max-w-none focus:outline-none px-4 py-3',
+        class: 'prose max-w-none focus:outline-none px-4 py-3',
         style: `min-height:${minHeight}px;`,
       },
     },
@@ -52,7 +52,11 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     if (!editor) return
     const current = editor.getHTML()
     if ((value || '') !== current) {
-      editor.commands.setContent(value || '<p></p>', false)
+      // ✅ setContent(value, false) (X) → 옵션 객체로 emitUpdate 끄기
+      editor.commands.setContent(value || '<p></p>', { emitUpdate: false })
+      // (emitUpdate 옵션이 없는 버전이라면 위 줄에서 타입 에러가 날 수 있는데,
+      // 그 경우엔 아래 한 줄로 바꾸면 무조건 통과함)
+      // editor.commands.setContent(value || '<p></p>')
     }
   }, [value, editor])
 
