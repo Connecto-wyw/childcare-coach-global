@@ -6,6 +6,10 @@ import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
 import JoinButtonClient from './JoinButtonClient'
 
+// ✅ 마크다운 렌더
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,7 +28,6 @@ type DiscountStep = { participants: number; discount_percent: number }
 const FALLBACK_DETAIL_TITLE = 'Details'
 const FALLBACK_DETAIL_TEXT = 'No additional details yet.'
 
-// ✅ 코치 페이지에서 쓰던 밝은 하늘색(네가 말한 그거)
 const SKY_BLUE = '#3EB6F1'
 const SKY_BLUE_LIGHT = '#EAF6FF'
 
@@ -92,11 +95,6 @@ async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseS
   return Number(count ?? 0)
 }
 
-/**
- * params가 비는 케이스 방어
- * - 1차: params.teamId
- * - 2차: headers에서 /team/{id} 추출
- */
 async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
   const raw1 = paramsObj?.teamId
   const teamId1 = typeof raw1 === 'string' ? decodeURIComponent(raw1).trim() : ''
@@ -118,7 +116,6 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
   return ''
 }
 
-// ✅ Next 16에서 params가 Promise로 올 수 있음
 export default async function TeamDetailPage({
   params,
 }: {
@@ -254,7 +251,6 @@ export default async function TeamDetailPage({
               <ShareButtonClient />
             </div>
 
-            {/* ✅ (1) 가격/할인 영역을 Details 위로 올림 + (3) 밝은 하늘색 적용 */}
             <div
               className="mt-8 rounded-2xl px-6 py-8"
               style={{
@@ -262,8 +258,6 @@ export default async function TeamDetailPage({
                 color: '#0e0e0e',
               }}
             >
-
-
               <div className="mt-4 text-center">
                 {basePrice > 0 ? (
                   <>
@@ -322,7 +316,6 @@ export default async function TeamDetailPage({
                 </div>
               ) : null}
 
-              {/* ✅ (2) 실제로 눌리는 Join 버튼 */}
               <div className="mt-6 flex justify-center">
                 <JoinButtonClient teamId={teamId} />
               </div>
@@ -332,7 +325,7 @@ export default async function TeamDetailPage({
               </div>
             </div>
 
-            {/* ✅ 상세(어드민 입력) */}
+            {/* ✅ 상세(어드민 입력) - 마크다운 렌더로 변경 */}
             <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-white p-6">
               <div className="text-[18px] font-semibold">{FALLBACK_DETAIL_TITLE}</div>
 
@@ -341,8 +334,12 @@ export default async function TeamDetailPage({
                 <img src={team.detail_image_url} alt="detail" className="mt-4 w-full h-auto rounded-2xl object-cover" />
               ) : null}
 
-              <div className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-[#3a3a3a]">
-                {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+              <div className="mt-4">
+                <div className="prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2 prose-strong:text-[#0e0e0e]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
 

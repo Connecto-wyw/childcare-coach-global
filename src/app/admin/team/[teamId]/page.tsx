@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Database } from '@/lib/database.types'
+import MarkdownEditor from '@/components/admin/MarkdownEditor'
+
 
 const BUCKET = 'team-images'
 
@@ -355,12 +357,13 @@ export default function AdminTeamDetailSettingsPage() {
               placeholder="팀 이름 (필수)"
               className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
             />
-            <textarea
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              placeholder="팀 목적(설명)"
-              className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-24"
+           <MarkdownEditor
+            value={detailMarkdown}
+            onChange={setDetailMarkdown}
+            placeholder="상세 텍스트(마크다운). Bold/Heading/List를 툴바로 넣어."
+            minRows={12}
             />
+
             <div className="grid grid-cols-2 gap-3">
               <input
                 value={tag1}
