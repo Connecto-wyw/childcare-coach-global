@@ -442,7 +442,7 @@ export default function RewardPage() {
                     <div className="mt-0.5">
                       <SvgCalendar color={ACCENT_BLUE} />
                     </div>
-                    <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    <div className="text-[14px] md:text-[14px] text-gray-800 leading-relaxed">
                       <span className="font-semibold">Day 1–6:</span>{' '}
                       <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
                         100p/day
