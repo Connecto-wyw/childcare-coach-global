@@ -66,31 +66,39 @@ async function createSupabaseServer() {
   })
 }
 
-// ✅ "오늘(한국시간)" 질문 1개 이상 했는지 체크
+/**
+ * ✅ KST "하루"의 UTC 범위 계산
+ * - KST 00:00:00  ~ 다음날 00:00:00
+ * - UTC로는 9시간 빼면 됨
+ */
+function kstDayToUtcRange(todayKst: string) {
+  const [y, m, d] = todayKst.split('-').map(Number)
+
+  // KST 기준 자정(00:00)을 "UTC로 표현"하려면 9시간을 더한 UTC시각이 KST자정이 됨
+  // 즉, UTC = KST - 9h  => KST 자정은 UTC 전날 15:00
+  const startUtc = new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - 9 * 60 * 60 * 1000)
+  const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000)
+
+  return { startIso: startUtc.toISOString(), endIso: endUtc.toISOString() }
+}
+
+// ✅ "오늘(KST)" 질문 1개 이상 했는지 (created_at 범위로 DB에서 직접 체크)
 async function hasQuestionToday(
   supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
   userId: string,
   todayKst: string
 ) {
-  const { data, error } = await supabase
+  const { startIso, endIso } = kstDayToUtcRange(todayKst)
+
+  const { count, error } = await supabase
     .from('chat_logs')
-    .select('created_at, question')
+    .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .not('question', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(200)
+    .gte('created_at', startIso)
+    .lt('created_at', endIso)
 
-  if (error) return false
-
-  const rows = (data ?? []) as Array<{ created_at: string | null; question: string | null }>
-  for (const r of rows) {
-    const q = String(r.question ?? '').trim()
-    if (!q) continue
-    if (!r.created_at) continue
-    const kstDay = ymdInKST(new Date(r.created_at))
-    if (kstDay === todayKst) return true
-  }
-  return false
+  return { ok: !error, has: (count ?? 0) > 0, error }
 }
 
 export async function POST() {
@@ -102,8 +110,6 @@ export async function POST() {
   } = await supabase.auth.getUser()
 
   if (userErr || !user) {
-    // ✅ 프론트가 http_error로 취급하지 않게 200도 가능하지만,
-    // 일단 인증은 401 유지(원하면 200으로 바꿀 수 있음)
     return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
   }
 
@@ -111,8 +117,19 @@ export async function POST() {
   const yesterday = addDays(today, -1)
 
   // 1) 오늘 질문 했는지
-  const okQuestion = await hasQuestionToday(supabase, user.id, today)
-  if (!okQuestion) {
+  const q = await hasQuestionToday(supabase, user.id, today)
+  if (!q.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: 'chat_logs_read_error',
+        today,
+        error: String(q.error?.message ?? q.error),
+      },
+      { status: 200 }
+    )
+  }
+  if (!q.has) {
     return NextResponse.json({ ok: false, reason: 'no_question_today', today }, { status: 200 })
   }
 
@@ -147,7 +164,7 @@ export async function POST() {
     .from('reward_claims')
     .select('id')
     .eq('user_id', user.id)
-    .eq('day', today) // day가 date여도 PostgREST가 캐스팅 처리함
+    .eq('day', today)
     .maybeSingle()
 
   if (chkErr) {
@@ -168,10 +185,11 @@ export async function POST() {
   const cyclePos = ((nextTotalStreak - 1) % 14) + 1
   const rewardPoints = REWARDS[cyclePos - 1] ?? 100
 
-  // ✅ 7) reward_claims insert
-  //    day는 DB default(KST today date)로 자동 세팅되게 함(핵심)
+  // 7) reward_claims insert
   const { error: insErr } = await supabase.from('reward_claims').insert({
     user_id: user.id,
+    day: today, // ✅ 여기서 명시적으로 today 넣어버리자 (DB default에 의존하지 않기)
+    points: rewardPoints, // ✅ 컬럼 없으면 지워
   } as any)
 
   if (insErr) {
@@ -200,7 +218,7 @@ export async function POST() {
     )
   }
 
-  // ✅ 9) UI가 즉시 도장 갱신할 수 있게 board까지 같이 내려줌
+  // 9) UI 즉시 갱신용 board
   const board = Array.from({ length: 14 }, (_, i) => i < cyclePos)
 
   return NextResponse.json({
