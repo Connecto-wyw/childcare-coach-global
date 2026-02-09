@@ -55,13 +55,6 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 // ✅ Indianbob main color
 const INDIANBOB_RED = '#9F1D23'
 
-/**
- * ✅ EVENT Badge with blink/pulse
- * - REWARD 글자 위(A 근처)에 뜨게:
- *   left를 퍼센트로 잡고 translateX(-50%)로 가운데 맞춤
- * - 텍스트와 약 3px 여백: top 값으로 컨트롤
- * - Reduce Motion이면 애니메이션 OFF
- */
 function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   return (
     <>
@@ -87,9 +80,7 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
 
       <style jsx>{`
         .nav-badge {
-          /* ✅ "A 위" 근처: 60~66% 사이에서 미세 조정 가능 */
           left: 62%;
-          /* ✅ REWARD 글자 위, 약 3px 띄움 느낌 */
           top: -11px;
           transform: translateX(-50%);
           transform-origin: center;
@@ -126,11 +117,6 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   )
 }
 
-/**
- * ✅ TEAM BETA Badge (EVENT와 동일한 pulse)
- * - 배경: 검정, 글씨: 흰색
- * - 위치: TEAM 글자 중앙 위
- */
 function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
   return (
     <>
@@ -332,14 +318,32 @@ export default function NavBar() {
               >
                 <span>{it.label}</span>
 
-                {/* ✅ TEAM 위 BETA 뱃지 (EVENT와 동일한 pulse) */}
                 {isTeam && showTeamBadge ? <NavBetaBadge text={teamBadgeText} /> : null}
-
-                {/* ✅ REWARD 위 EVENT 뱃지 */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
           })}
+
+          {/* ✅ CONTACT US (외부 링크) */}
+          <a
+            href="http://indianbob.me/info"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={[
+              'text-[13px] font-semibold',
+              'px-2 py-1 -my-1 rounded-md',
+              'border',
+              'transition',
+              'hover:bg-[#9F1D23]/5',
+              'hover:opacity-90',
+            ].join(' ')}
+            style={{
+              color: INDIANBOB_RED,
+              borderColor: 'rgba(159, 29, 35, 0.25)',
+            }}
+          >
+            CONTACT US
+          </a>
         </nav>
 
         {/* Right */}
