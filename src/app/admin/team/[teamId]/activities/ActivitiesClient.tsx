@@ -4,10 +4,12 @@
 import { useMemo, useState } from 'react'
 import { useSupabase } from '@/app/providers'
 import type { Tables } from '@/lib/database.types'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type ActivityRow = Tables<'team_activities'>
 
-const BUCKET = 'team-images' // 이미 팀에서 쓰는 버킷 그대로 사용 (원하면 activity-images로 분리 가능)
+const BUCKET = 'team-images'
 
 function safeFileExt(name: string) {
   const parts = name.split('.')
@@ -21,6 +23,10 @@ function ymd(d: string | null) {
   } catch {
     return ''
   }
+}
+
+function mdText(v: unknown) {
+  return String(v ?? '').trim()
 }
 
 export default function ActivitiesClient({
@@ -69,7 +75,6 @@ export default function ActivitiesClient({
   const openEdit = (a: ActivityRow) => {
     setEditingId(a.id)
     setTitle(a.title ?? '')
-    // body 컬럼이 있으면 그걸, 없으면 description을
     const b = ((a as any).body ?? a.description ?? '') as string
     setBody(b)
     setIsActive(Boolean((a as any).is_active ?? true))
@@ -148,9 +153,7 @@ export default function ActivitiesClient({
     const payload: any = {
       team_id: teamId,
       title: t,
-      // body 컬럼을 쓸 거면 body로 저장
       body: body.trim() ? body.trim() : null,
-      // description 컬럼도 남겨두고 싶으면 동기화(선택)
       description: body.trim() ? body.trim() : null,
       image_url: finalImageUrl ? finalImageUrl : null,
       is_active: Boolean(isActive),
@@ -194,7 +197,6 @@ export default function ActivitiesClient({
     refetch()
   }
 
-  // 간단한 sort up/down (숫자 바꾸는 방식)
   const bumpSort = async (id: string, delta: number) => {
     const row = list.find((x) => x.id === id)
     if (!row) return
@@ -215,10 +217,7 @@ export default function ActivitiesClient({
       <div>
         <div className="flex items-center justify-between">
           <h2 className="text-[18px] font-semibold">Activities</h2>
-          <button
-            onClick={openCreate}
-            className="rounded-lg bg-[#1e1e1e] px-4 py-2 text-[13px] font-semibold text-white"
-          >
+          <button onClick={openCreate} className="rounded-lg bg-[#1e1e1e] px-4 py-2 text-[13px] font-semibold text-white">
             + New
           </button>
         </div>
@@ -239,11 +238,10 @@ export default function ActivitiesClient({
               const active = Boolean((a as any).is_active ?? true)
               const so = Number((a as any).sort_order ?? 0)
               const img = ((a as any).image_url ?? '') as string
+              const text = mdText((a as any).body ?? a.description ?? '')
+
               return (
-                <div
-                  key={a.id}
-                  className="rounded-2xl border border-[#e9e9e9] bg-white p-4"
-                >
+                <div key={a.id} className="rounded-2xl border border-[#e9e9e9] bg-white p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -260,30 +258,16 @@ export default function ActivitiesClient({
                     </div>
 
                     <div className="shrink-0 flex gap-2">
-                      <button
-                        onClick={() => bumpSort(a.id, -1)}
-                        className="rounded-lg border border-[#e9e9e9] px-3 py-2 text-[12px] font-semibold"
-                        title="sort -1"
-                      >
+                      <button onClick={() => bumpSort(a.id, -1)} className="rounded-lg border border-[#e9e9e9] px-3 py-2 text-[12px] font-semibold" title="sort -1">
                         ↑
                       </button>
-                      <button
-                        onClick={() => bumpSort(a.id, +1)}
-                        className="rounded-lg border border-[#e9e9e9] px-3 py-2 text-[12px] font-semibold"
-                        title="sort +1"
-                      >
+                      <button onClick={() => bumpSort(a.id, +1)} className="rounded-lg border border-[#e9e9e9] px-3 py-2 text-[12px] font-semibold" title="sort +1">
                         ↓
                       </button>
-                      <button
-                        onClick={() => openEdit(a)}
-                        className="rounded-lg bg-[#f0f7fd] px-3 py-2 text-[12px] font-semibold text-[#3497f3]"
-                      >
+                      <button onClick={() => openEdit(a)} className="rounded-lg bg-[#f0f7fd] px-3 py-2 text-[12px] font-semibold text-[#3497f3]">
                         Edit
                       </button>
-                      <button
-                        onClick={() => remove(a.id)}
-                        className="rounded-lg bg-[#9F1D23] px-3 py-2 text-[12px] font-semibold text-white"
-                      >
+                      <button onClick={() => remove(a.id)} className="rounded-lg bg-[#9F1D23] px-3 py-2 text-[12px] font-semibold text-white">
                         Delete
                       </button>
                     </div>
@@ -292,12 +276,18 @@ export default function ActivitiesClient({
                   {img ? (
                     <div className="mt-3 overflow-hidden rounded-xl bg-[#f3f3f3]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img} alt={a.title} className="h-40 w-full object-cover" />
+                      <img src={img} alt={a.title ?? ''} className="h-40 w-full object-cover" />
                     </div>
                   ) : null}
 
-                  <div className="mt-3 line-clamp-2 text-[13px] font-medium text-[#8f8f8f]">
-                    {(((a as any).body ?? a.description ?? '') as string) || '—'}
+                  {/* ✅ 기존: 그냥 텍스트 출력 → ✅ 변경: markdown 렌더 */}
+                  <div className="mt-3">
+                    <div className="text-[12px] font-semibold text-[#b4b4b4] mb-2">Preview</div>
+                    <div className="rounded-xl border border-[#eeeeee] bg-white p-3">
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text || '—'}</ReactMarkdown>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )
@@ -311,10 +301,7 @@ export default function ActivitiesClient({
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold">{editingId ? 'Edit Activity' : 'Create Activity'}</h2>
           {editingId && (
-            <button
-              onClick={resetForm}
-              className="text-[13px] font-semibold text-[#3497f3] hover:underline underline-offset-2"
-            >
+            <button onClick={resetForm} className="text-[13px] font-semibold text-[#3497f3] hover:underline underline-offset-2">
               Clear
             </button>
           )}
@@ -332,29 +319,35 @@ export default function ActivitiesClient({
           </div>
 
           <div>
-            <label className="text-[13px] font-semibold">Body</label>
+            <label className="text-[13px] font-semibold">Body (Markdown)</label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               className="mt-2 w-full rounded-xl border border-[#e9e9e9] px-4 py-3 text-[15px] font-medium outline-none"
-              rows={6}
-              placeholder="Explain this activity..."
+              rows={8}
+              placeholder={`Example:\n\n**Bold title**\n- bullet 1\n- bullet 2\n\n# Heading (if you want)\n`}
             />
+          </div>
+
+          {/* ✅ 편집 중 실시간 마크다운 미리보기 */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[13px] font-semibold">Preview</label>
+              <span className="text-[12px] text-[#b4b4b4]">This is how it will look on the page.</span>
+            </div>
+            <div className="mt-2 rounded-xl border border-[#e9e9e9] bg-white p-4">
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{mdText(body) || '—'}</ReactMarkdown>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[13px] font-semibold">is_active</label>
               <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="h-5 w-5"
-                />
-                <span className="text-[13px] font-medium text-[#8f8f8f]">
-                  {isActive ? 'Visible' : 'Hidden'}
-                </span>
+                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-5 w-5" />
+                <span className="text-[13px] font-medium text-[#8f8f8f]">{isActive ? 'Visible' : 'Hidden'}</span>
               </div>
             </div>
 
@@ -372,21 +365,11 @@ export default function ActivitiesClient({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[13px] font-semibold">starts_at</label>
-              <input
-                type="date"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-[#e9e9e9] px-4 py-3 text-[15px] font-medium outline-none"
-              />
+              <input type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e9e9e9] px-4 py-3 text-[15px] font-medium outline-none" />
             </div>
             <div>
               <label className="text-[13px] font-semibold">ends_at</label>
-              <input
-                type="date"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-[#e9e9e9] px-4 py-3 text-[15px] font-medium outline-none"
-              />
+              <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e9e9e9] px-4 py-3 text-[15px] font-medium outline-none" />
             </div>
           </div>
 
@@ -399,9 +382,7 @@ export default function ActivitiesClient({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={previewUrl} alt="preview" className="h-44 w-full object-cover" />
                 ) : (
-                  <div className="flex h-44 items-center justify-center text-[13px] font-medium text-[#b4b4b4]">
-                    No image
-                  </div>
+                  <div className="flex h-44 items-center justify-center text-[13px] font-medium text-[#b4b4b4]">No image</div>
                 )}
               </div>
             </div>

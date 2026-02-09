@@ -412,7 +412,7 @@ export default function RewardPage() {
               <div>
                 <div className={sectionTitleClass}>My Reward</div>
                 <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
-                  * Claim today is available after you ask at least 1 question on the Coach.
+                Claim today is available after you ask at least 1 question on the Coach.
                 </div>
               </div>
 
