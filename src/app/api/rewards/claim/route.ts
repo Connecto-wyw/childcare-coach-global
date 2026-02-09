@@ -101,9 +101,10 @@ export async function POST() {
     error: userErr,
   } = await supabase.auth.getUser()
 
-  // ✅ 401 금지: 프론트가 http_error로 찍으니 200으로 내려서 UI가 처리하게
   if (userErr || !user) {
-    return NextResponse.json({ ok: false, reason: 'not_authenticated' })
+    // ✅ 프론트가 http_error로 취급하지 않게 200도 가능하지만,
+    // 일단 인증은 401 유지(원하면 200으로 바꿀 수 있음)
+    return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
   }
 
   const today = ymdInKST(new Date())
@@ -112,10 +113,10 @@ export async function POST() {
   // 1) 오늘 질문 했는지
   const okQuestion = await hasQuestionToday(supabase, user.id, today)
   if (!okQuestion) {
-    return NextResponse.json({ ok: false, reason: 'no_question_today' })
+    return NextResponse.json({ ok: false, reason: 'no_question_today', today }, { status: 200 })
   }
 
-  // 2) profiles에서 streak 기준 데이터 가져오기
+  // 2) profiles에서 데이터 가져오기
   type ProfilePick = Pick<Tables<'profiles'>, 'points' | 'reward_last_date' | 'reward_streak'>
 
   const { data: prof, error: profErr } = await supabase
@@ -127,7 +128,7 @@ export async function POST() {
   if (profErr) {
     return NextResponse.json(
       { ok: false, reason: 'db_error', error: String(profErr.message ?? profErr) },
-      { status: 500 }
+      { status: 200 }
     )
   }
 
@@ -138,26 +139,26 @@ export async function POST() {
 
   // 3) 이미 오늘 받았으면 종료
   if (lastDate === today) {
-    return NextResponse.json({ ok: false, reason: 'already_claimed' })
+    return NextResponse.json({ ok: false, reason: 'already_claimed', today }, { status: 200 })
   }
 
-  // 4) reward_claims 중복 방지
+  // 4) reward_claims 중복 방지(오늘 record 있으면 종료)
   const { data: claimedRow, error: chkErr } = await supabase
     .from('reward_claims')
     .select('id')
     .eq('user_id', user.id)
-    .eq('day', today)
+    .eq('day', today) // day가 date여도 PostgREST가 캐스팅 처리함
     .maybeSingle()
 
   if (chkErr) {
     return NextResponse.json(
       { ok: false, reason: 'db_error', error: String(chkErr.message ?? chkErr) },
-      { status: 500 }
+      { status: 200 }
     )
   }
 
   if (claimedRow) {
-    return NextResponse.json({ ok: false, reason: 'already_claimed' })
+    return NextResponse.json({ ok: false, reason: 'already_claimed', today }, { status: 200 })
   }
 
   // 5) 연속 streak 계산
@@ -167,16 +168,16 @@ export async function POST() {
   const cyclePos = ((nextTotalStreak - 1) % 14) + 1
   const rewardPoints = REWARDS[cyclePos - 1] ?? 100
 
-  // 7) reward_claims insert (현재 스키마: user_id, day)
+  // ✅ 7) reward_claims insert
+  //    day는 DB default(KST today date)로 자동 세팅되게 함(핵심)
   const { error: insErr } = await supabase.from('reward_claims').insert({
     user_id: user.id,
-    day: today,
-  })
+  } as any)
 
   if (insErr) {
     return NextResponse.json(
       { ok: false, reason: 'db_error', error: String(insErr.message ?? insErr) },
-      { status: 500 }
+      { status: 200 }
     )
   }
 
@@ -195,14 +196,19 @@ export async function POST() {
   if (updErr) {
     return NextResponse.json(
       { ok: false, reason: 'db_error', error: String(updErr.message ?? updErr) },
-      { status: 500 }
+      { status: 200 }
     )
   }
 
+  // ✅ 9) UI가 즉시 도장 갱신할 수 있게 board까지 같이 내려줌
+  const board = Array.from({ length: 14 }, (_, i) => i < cyclePos)
+
   return NextResponse.json({
     ok: true,
+    today,
     points_added: rewardPoints,
-    cycle_pos: cyclePos,
-    streak_total: nextTotalStreak,
+    streak: cyclePos,
+    board,
+    total_points: nextPoints,
   })
 }
