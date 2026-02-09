@@ -329,6 +329,9 @@ export default function RewardPage() {
     )
   }, [authLoading, user, loadingClaim, loginGoogle, handleClaim])
 
+  // ✅ 섹션 타이틀(Stamp Board와 동일한 톤)로 통일하기 위한 공통 클래스
+  const sectionTitleClass = 'text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]'
+
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
@@ -341,7 +344,7 @@ export default function RewardPage() {
           {/* ===================== 1) 14-Day Stamp Board ===================== */}
           <section className="py-10">
             <div className="flex items-center justify-between">
-              <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
+              <div className={sectionTitleClass}>14-Day Stamp Board</div>
 
               {user ? (
                 <div className="text-[13px] md:text-[14px] text-gray-600">
@@ -404,10 +407,13 @@ export default function RewardPage() {
 
           {/* ===================== (이동) My Reward ===================== */}
           <section className="border-t border-[#eeeeee] py-10">
+            {/* ✅ 타이틀: Stamp Board와 동일한 크기/굵기 */}
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
-                <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
-                <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
+              <div>
+                <div className={sectionTitleClass}>My Reward</div>
+                <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
+                  * Claim today is available after you ask at least 1 question on the Coach.
+                </div>
               </div>
 
               {claimButton}
@@ -416,7 +422,8 @@ export default function RewardPage() {
 
           {/* ===================== 2) Daily Check-in ===================== */}
           <section className="border-t border-[#eeeeee] py-10">
-            <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
+            {/* ✅ 타이틀: Stamp Board와 동일한 크기/굵기 */}
+            <div className={sectionTitleClass}>Daily Check-in</div>
             <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
               Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
             </div>
