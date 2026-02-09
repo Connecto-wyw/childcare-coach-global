@@ -44,52 +44,40 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
   const replaceRange = useCallback(
     (start: number, end: number, insert: string, cursorOffset?: { startDelta: number; endDelta: number }) => {
       const before = value.slice(0, start)
-      const selected = value.slice(start, end)
       const after = value.slice(end)
       const next = before + insert + after
       onChange(next)
 
-      // selection 복구(버튼 누른 뒤 커서 위치 자연스럽게)
       const base = before.length
       const newStart = base + (cursorOffset?.startDelta ?? 0)
       const newEnd = base + (cursorOffset?.endDelta ?? insert.length)
       requestAnimationFrame(() => focusAndSetSelection(newStart, newEnd))
-      return selected
+      return value.slice(start, end)
     },
     [value, onChange, focusAndSetSelection]
   )
 
-  const withSelection = useCallback(
-    (fn: (start: number, end: number) => void) => {
-      const el = taRef.current
-      if (!el) return
-      const start = el.selectionStart ?? 0
-      const end = el.selectionEnd ?? 0
-      fn(start, end)
-    },
-    []
-  )
+  const withSelection = useCallback((fn: (start: number, end: number) => void) => {
+    const el = taRef.current
+    if (!el) return
+    const start = el.selectionStart ?? 0
+    const end = el.selectionEnd ?? 0
+    fn(start, end)
+  }, [])
 
-  // ✅ Bold: **선택**
   const applyBold = useCallback(() => {
     withSelection((start, end) => {
       const selected = value.slice(start, end)
-      // 선택이 없으면 placeholder 텍스트를 넣어주자
       const inner = selected || 'bold text'
       const insert = `**${inner}**`
-      if (selected) {
-        replaceRange(start, end, insert, { startDelta: 2, endDelta: 2 + inner.length })
-      } else {
-        replaceRange(start, end, insert, { startDelta: 2, endDelta: 2 + inner.length })
-      }
+      replaceRange(start, end, insert, { startDelta: 2, endDelta: 2 + inner.length })
     })
   }, [withSelection, value, replaceRange])
 
-  // ✅ Heading: 현재 줄 앞에 ## / ### 토글
   const applyHeading = useCallback(
     (level: 2 | 3) => {
       const prefix = level === 2 ? '## ' : '### '
-      withSelection((start, end) => {
+      withSelection((start) => {
         const lineStart = getLineStart(value, start)
         const lineEnd = getLineEnd(value, start)
         const line = value.slice(lineStart, lineEnd)
@@ -98,23 +86,17 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
         if (line.startsWith(prefix)) {
           nextLine = line.slice(prefix.length)
         } else if (line.startsWith('## ') || line.startsWith('### ')) {
-          // 다른 heading이면 교체
           nextLine = prefix + line.replace(/^#{2,3}\s+/, '')
         } else {
           nextLine = prefix + line
         }
 
-        const insert = nextLine
-        replaceRange(lineStart, lineEnd, insert, {
-          startDelta: 0,
-          endDelta: insert.length,
-        })
+        replaceRange(lineStart, lineEnd, nextLine, { startDelta: 0, endDelta: nextLine.length })
       })
     },
     [withSelection, value, replaceRange]
   )
 
-  // ✅ Bullets: 선택한 줄마다 "- " 붙이기/해제
   const applyBullets = useCallback(() => {
     withSelection((start, end) => {
       const a = getLineStart(value, start)
@@ -135,7 +117,6 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
     })
   }, [withSelection, value, replaceRange])
 
-  // ✅ Numbered: 선택한 줄마다 "1. " 붙이기(간단 버전: 토글은 제거만)
   const applyNumbered = useCallback(() => {
     withSelection((start, end) => {
       const a = getLineStart(value, start)
@@ -157,7 +138,6 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
     })
   }, [withSelection, value, replaceRange])
 
-  // ✅ Quote: 선택한 줄마다 "> " 토글
   const applyQuote = useCallback(() => {
     withSelection((start, end) => {
       const a = getLineStart(value, start)
@@ -178,26 +158,24 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
     })
   }, [withSelection, value, replaceRange])
 
-  // ✅ Link: [text](url)
   const applyLink = useCallback(() => {
     withSelection((start, end) => {
       const selected = value.slice(start, end) || 'link text'
       const insert = `[${selected}](https://)`
-      // 커서는 url에 두는 게 편함
       const urlStart = insert.indexOf('https://')
       replaceRange(start, end, insert, { startDelta: urlStart, endDelta: insert.length - 1 })
     })
   }, [withSelection, value, replaceRange])
 
   return (
-    <div className="rounded-xl border border-[#e9e9e9] bg-white overflow-hidden">
+    <div className="rounded-xl border border-gray-700 bg-[#1c1c1c] overflow-hidden text-white">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 border-b border-[#eeeeee] px-3 py-2 bg-white">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-700 px-3 py-2 bg-[#2a2a2a]">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={applyBold}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Bold"
           >
             B
@@ -206,7 +184,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           <button
             type="button"
             onClick={() => applyHeading(2)}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Heading 2"
           >
             H2
@@ -215,7 +193,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           <button
             type="button"
             onClick={() => applyHeading(3)}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Heading 3"
           >
             H3
@@ -224,7 +202,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           <button
             type="button"
             onClick={applyBullets}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Bulleted list"
           >
             • List
@@ -233,7 +211,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           <button
             type="button"
             onClick={applyNumbered}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Numbered list"
           >
             1. List
@@ -242,7 +220,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           <button
             type="button"
             onClick={applyQuote}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Quote"
           >
             “ Quote
@@ -251,7 +229,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           <button
             type="button"
             onClick={applyLink}
-            className="h-8 px-2 rounded-md border border-[#e9e9e9] text-[12px] font-semibold hover:bg-[#f5f5f5]"
+            className="h-8 px-2 rounded-md border border-gray-700 bg-[#1f1f1f] text-[12px] font-semibold hover:bg-[#333333]"
             title="Link"
           >
             🔗 Link
@@ -265,7 +243,9 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
             onClick={() => setTab('write')}
             className={[
               'h-8 px-3 rounded-md text-[12px] font-semibold border',
-              tab === 'write' ? 'bg-[#1e1e1e] text-white border-[#1e1e1e]' : 'bg-white text-[#1e1e1e] border-[#e9e9e9]',
+              tab === 'write'
+                ? 'bg-white text-black border-white'
+                : 'bg-[#1f1f1f] text-white border-gray-700 hover:bg-[#333333]',
             ].join(' ')}
           >
             Write
@@ -275,7 +255,9 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
             onClick={() => setTab('preview')}
             className={[
               'h-8 px-3 rounded-md text-[12px] font-semibold border',
-              tab === 'preview' ? 'bg-[#1e1e1e] text-white border-[#1e1e1e]' : 'bg-white text-[#1e1e1e] border-[#e9e9e9]',
+              tab === 'preview'
+                ? 'bg-white text-black border-white'
+                : 'bg-[#1f1f1f] text-white border-gray-700 hover:bg-[#333333]',
             ].join(' ')}
           >
             Preview
@@ -291,11 +273,13 @@ export default function MarkdownEditor({ value, onChange, placeholder, minRows =
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           rows={rows}
-          className="w-full px-4 py-3 text-[14px] leading-relaxed outline-none"
+          className="w-full px-4 py-3 text-[14px] leading-relaxed outline-none bg-[#2b2b2b] text-white placeholder-gray-400"
         />
       ) : (
-        <div className="px-4 py-3 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{value || ''}</ReactMarkdown>
+        <div className="px-4 py-3 bg-[#2b2b2b]">
+          <div className="prose prose-invert max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{value || ''}</ReactMarkdown>
+          </div>
         </div>
       )}
     </div>
