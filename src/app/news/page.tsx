@@ -119,7 +119,7 @@ export default async function NewsPage() {
                             <div className="text-[15px] text-[#b4b4b4] font-Light">{date}</div>
                           </div>
 
-                          <h2 className="mt-3 text-[22px] sm:text-[22px] leading-tight font- line-clamp-3">
+                          <h2 className="mt-3 text-[20px] sm:text-[20px] leading-tight font- line-clamp-3">
                             {n.title}
                           </h2>
                         </div>
