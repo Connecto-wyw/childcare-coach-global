@@ -126,6 +126,39 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   )
 }
 
+/**
+ * ✅ TEAM 위 BETA 뱃지 (검정 배경 / 흰 글씨)
+ * - REWARD EVENT 뱃지처럼 absolute로 올려붙임
+ * - TEAM 글자 가운데에 오도록 left:50% + translateX(-50%)
+ */
+function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
+  return (
+    <span
+      className={[
+        'absolute',
+        'rounded-full',
+        'px-[6px]',
+        'py-[1px]',
+        'text-[9px]',
+        'font-extrabold',
+        'leading-none',
+        'text-white',
+        'select-none',
+        'pointer-events-none',
+        'whitespace-nowrap',
+      ].join(' ')}
+      style={{
+        backgroundColor: '#000000',
+        left: '50%',
+        top: '-11px',
+        transform: 'translateX(-50%)',
+      }}
+    >
+      {text}
+    </span>
+  )
+}
+
 export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
@@ -243,6 +276,9 @@ export default function NavBar() {
   const rewardBadgeText = 'EVENT'
   const showRewardBadge = true
 
+  const teamBadgeText = 'BETA'
+  const showTeamBadge = true
+
   return (
     <header className="w-full bg-white border-b border-[#eeeeee]">
       {/* ✅ 뱃지가 위로 올라가도 안 잘리게 NavBar 높이 약간 증가 */}
@@ -251,16 +287,22 @@ export default function NavBar() {
         <nav className="flex items-center gap-4">
           {items.map((it) => {
             const isReward = it.href === '/reward'
+            const isTeam = it.href === '/team'
+
             return (
               <Link
                 key={it.href}
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  isReward ? 'relative inline-flex items-center' : '',
+                  // ✅ REWARD/TEAM은 뱃지 올릴 거라 relative 필요
+                  isReward || isTeam ? 'relative inline-flex items-center' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
+
+                {/* ✅ TEAM 위 BETA 뱃지 */}
+                {isTeam && showTeamBadge ? <NavBetaBadge text={teamBadgeText} /> : null}
 
                 {/* ✅ REWARD 위(=A 위 근처) EVENT 뱃지 */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
