@@ -5,6 +5,7 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { getSystemPrompt } from '@/lib/systemPrompt'
 import { randomUUID, createHash } from 'crypto'
 
@@ -39,13 +40,17 @@ async function callOpenAI(model: string, body: ChatBody, key: string, attempts =
   let last: Response | null = null
   for (let i = 1; i <= attempts; i++) {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST', headers: mkHeaders(key), body: JSON.stringify({ ...body, model }), cache: 'no-store',
+      method: 'POST',
+      headers: mkHeaders(key),
+      body: JSON.stringify({ ...body, model }),
+      cache: 'no-store',
     })
     if (resp.ok) return resp
     if (resp.status === 429 || (resp.status >= 500 && resp.status <= 599)) {
       const ra = parseInt(resp.headers.get('retry-after') || '0', 10)
-      await new Promise(r => setTimeout(r, Math.max(ra * 1000, 400 * i * i)))
-      last = resp; continue
+      await new Promise((r) => setTimeout(r, Math.max(ra * 1000, 400 * i * i)))
+      last = resp
+      continue
     }
     return resp
   }
@@ -62,7 +67,10 @@ function extractSummary(text?: string | null) {
 function normalizeAnswer(text: string) {
   let t = text.replace(/\s*\[END\]\s*$/, '')
   const lines = t.split('\n')
-  const idxs = lines.map((ln, i) => ({ ln, i })).filter(x => /^\s*요약:\s*/.test(x.ln)).map(x => x.i)
+  const idxs = lines
+    .map((ln, i) => ({ ln, i }))
+    .filter((x) => /^\s*요약:\s*/.test(x.ln))
+    .map((x) => x.i)
   if (idxs.length > 1) {
     const keep = idxs[idxs.length - 1]
     t = lines.filter((_, i) => i === keep || !idxs.includes(i)).join('\n')
@@ -93,18 +101,35 @@ function isLikelyCutOff(text: string) {
 
 // ---------- Handler ----------
 export async function POST(req: Request) {
-  const { user_id, question, system }: AskBody = await req.json()
+  const body = (await req.json()) as AskBody
+  const question = body.question
+  const system = body.system
+
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local'
   const ua = req.headers.get('user-agent') || 'ua'
+
   if (!question?.trim()) {
     return NextResponse.json({ error: 'bad_request', message: '질문이 비어 있습니다.' }, { status: 400 })
   }
 
-  // guest rate limit
-  if (!user_id) {
-    const k = keyOf(ip); const used = guestMap.get(k) ?? 0
+  // ✅ 여기서 로그인 유저면 서버에서 user를 읽어서 user_id를 강제로 세팅
+  const jar = await cookies()
+  const authSb = createRouteHandlerClient({ cookies })
+  const {
+    data: { user },
+  } = await authSb.auth.getUser()
+
+  const effectiveUserId = user?.id ?? (body.user_id || null)
+
+  // guest rate limit: 로그인 유저면 제한 걸지 않음
+  if (!effectiveUserId) {
+    const k = keyOf(ip)
+    const used = guestMap.get(k) ?? 0
     if (used >= GUEST_LIMIT) {
-      return NextResponse.json({ error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' },
+        { status: 403 }
+      )
     }
     guestMap.set(k, used + 1)
   }
@@ -115,22 +140,21 @@ export async function POST(req: Request) {
   const primary = process.env.OPENAI_MODEL || 'gpt-4o-mini'
   const models = [primary, 'gpt-4o', 'gpt-5']
 
-  const jar = await cookies()
   const today = new Date().toISOString().slice(0, 10)
   const greetedToday = jar.get('coach_last_greet')?.value === today
 
   // stable device id + sid
   const { deviceId, setCookie } = resolveDeviceId(jar, ip, ua)
   let sid = jar.get('coach_sid')?.value
-  if (!sid) sid = user_id ?? randomUUID()
+  if (!sid) sid = effectiveUserId ?? randomUUID()
 
   // prevContext: user 우선, 아니면 device 기반
   let prevContext = ''
   try {
     const sb = admin()
     const base = sb.from('chat_logs').select('summary').order('created_at', { ascending: false }).limit(1)
-    const { data, error } = user_id
-      ? await base.eq('user_id', user_id).maybeSingle()
+    const { data, error } = effectiveUserId
+      ? await base.eq('user_id', effectiveUserId).maybeSingle()
       : await base.eq('device_id', deviceId).maybeSingle()
     if (error) console.error('chat_logs select error', error)
     prevContext = (data?.summary as string) ?? ''
@@ -153,7 +177,7 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
 
   const baseBody: ChatBody = {
     temperature: 0.35,
-    max_tokens: 1100,        // ≈2000 bytes 목표 대비 여유
+    max_tokens: 1100,
     stop: ['[END]'],
     messages: [
       { role: 'system', content: finalSystem },
@@ -176,7 +200,10 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
       break
     } else if (m === models[models.length - 1]) {
       const bodyText = await resp.text().catch(() => '')
-      return NextResponse.json({ error: 'upstream', status: resp.status, body: bodyText.slice(0, 2000) }, { status: resp.status })
+      return NextResponse.json(
+        { error: 'upstream', status: resp.status, body: bodyText.slice(0, 2000) },
+        { status: resp.status }
+      )
     }
   }
 
@@ -207,7 +234,7 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
   try {
     const sb = admin()
     const { error } = await sb.from('chat_logs').insert({
-      user_id: user_id ?? null,
+      user_id: effectiveUserId, // ✅ 로그인 유저면 여기 들어감
       device_id: deviceId,
       sid: sid.toString(),
       question,
