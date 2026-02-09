@@ -22,7 +22,9 @@ export default function LoginButton() {
         ? window.location.origin
         : ''
 
-    const redirectTo = `${base}/auth/callback?next=/coach`
+    // ✅ Redirect URL allowlist 매칭 안정화: 쿼리스트링 제거
+    // Supabase Redirect URLs에는 `${base}/auth/callback` 만 등록해두면 됨
+    const redirectTo = `${base}/auth/callback`
 
     await auth.signInWithOAuth({
       provider: 'google',

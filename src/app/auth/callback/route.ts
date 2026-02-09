@@ -6,12 +6,15 @@ import { createServerClient } from '@supabase/ssr'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
-  const next = url.searchParams.get('next') ?? '/coach'
+
+  // ✅ open redirect 방지: next는 "내 사이트 내부 경로"만 허용
+  const nextRaw = url.searchParams.get('next') ?? '/coach'
+  const nextPath = nextRaw.startsWith('/') ? nextRaw : '/coach'
 
   // ✅ response 먼저 만들고 여기에 쿠키를 SET 해서 내려보냄
-  const response = NextResponse.redirect(new URL(next, url.origin))
+  const response = NextResponse.redirect(new URL(nextPath, url.origin))
 
-  // ✅ Next 16 타입: cookies()가 Promise로 잡힐 수 있어서 await 필요
+  // ✅ Next 16: cookies()가 Promise로 잡힐 수 있어서 await 필요
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -35,9 +38,9 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
-      return NextResponse.redirect(
-        new URL(`/auth/auth-code-error?message=${encodeURIComponent(error.message)}`, url.origin)
-      )
+      const errUrl = new URL('/auth/auth-code-error', url.origin)
+      errUrl.searchParams.set('message', error.message)
+      return NextResponse.redirect(errUrl)
     }
   }
 
