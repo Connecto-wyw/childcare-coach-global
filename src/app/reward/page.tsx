@@ -330,213 +330,223 @@ export default function RewardPage() {
   }, [authLoading, user, loadingClaim, loginGoogle, handleClaim])
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
+    // ✅ Team과 동일한 wrapper 스타일
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        <Modal open={modalOpen} title={modalTitle} message={modalMsg} onClose={() => setModalOpen(false)} />
 
-      <h1 className="text-2xl md:text-[28px] font-extrabold text-[#1e1e1e]">REWARD</h1>
+        {/* ✅ Team과 동일한 타이틀 스타일 */}
+        <h1 className="mb-2 text-[22px] font-medium leading-tight">Reward</h1>
 
-      <div className="mt-6 border border-[#eeeeee] bg-white p-6 md:p-7">
-        {/* ✅ (요청) Daily Check-in 위 말풍선/배너 영역 제거됨 */}
+        {/* ✅ Team과 동일한 서브 텍스트 스타일(회색) */}
+        <p className="mb-8 text-[14px] font-medium text-[#b4b4b4]">
+          Daily check-in rewards for asking 1 question on Coach.
+        </p>
 
-        <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
-        <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
-          Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
-        </div>
+        {/* 기존 내용 */}
+        <div className="border border-[#eeeeee] bg-white p-6 md:p-7">
+          <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">Daily Check-in</div>
+          <div className="mt-2 text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
+            Ask 1 question on Coach each day to earn points. Complete 14 days to finish the cycle, then it restarts from Day 1.
+          </div>
 
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Rewards */}
-          <div className="border border-[#eeeeee] p-5">
-            <div className="flex items-center gap-3">
-              <IconWrap bg="rgba(159,29,35,0.08)">
-                <SvgGift color={INDIANBOB_RED} />
-              </IconWrap>
-              <div className="text-[16px] md:text-[17px] font-extrabold text-[#1e1e1e]">Rewards</div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <SvgCalendar color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  <span className="font-semibold">Day 1–6:</span>{' '}
-                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
-                    100p/day
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 5v14" stroke={ACCENT_BLUE} strokeWidth="2" strokeLinecap="round" />
-                    <path d="M5 12h14" stroke={ACCENT_BLUE} strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  <span className="font-semibold">Day 7:</span>{' '}
-                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
-                    300p
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <SvgCalendar color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  <span className="font-semibold">Day 8–13:</span>{' '}
-                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
-                    100p/day
-                  </span>
-                </div>
-              </div>
-
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Rewards */}
+            <div className="border border-[#eeeeee] p-5">
               <div className="flex items-center gap-3">
-                <div className="mt-0.5">
-                  <SvgGift color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  <span className="font-semibold">Day 14:</span>{' '}
-                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
-                    600p
-                  </span>
-                  <span
-                    className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[12px] font-extrabold"
-                    style={{ backgroundColor: 'rgba(159,29,35,0.10)', color: INDIANBOB_RED }}
-                  >
-                    Bonus
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Rule */}
-          <div className="border border-[#eeeeee] p-5">
-            <div className="flex items-center gap-3">
-              <IconWrap bg="rgba(62,182,241,0.10)">
-                <SvgList color={ACCENT_BLUE} />
-              </IconWrap>
-              <div className="text-[16px] md:text-[17px] font-extrabold text-[#1e1e1e]">Rule</div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <SvgCalendar color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  <span className="font-semibold">One claim</span> per day.
-                </div>
+                <IconWrap bg="rgba(159,29,35,0.08)">
+                  <SvgGift color={INDIANBOB_RED} />
+                </IconWrap>
+                <div className="text-[16px] md:text-[17px] font-extrabold text-[#1e1e1e]">Rewards</div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <SvgReset color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  Missing a day{' '}
-                  <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
-                    resets
-                  </span>{' '}
-                  streak to Day 1.
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <SvgCoins color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  Points are added to your <span className="font-extrabold">balance</span>.
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <SvgAlert color={ACCENT_BLUE} />
-                </div>
-                <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
-                  If you don’t ask a question on Coach, you can’t claim for that day.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ✅ 14-day stamp board */}
-        <div className="mt-7 border-t border-[#eeeeee] pt-6">
-          <div className="flex items-center justify-between">
-            <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
-
-            {user ? (
-              <div className="text-[13px] md:text-[14px] text-gray-600">
-                {status?.ok ? (
-                  <>
-                    Streak: <span className="font-extrabold text-[#1e1e1e]">{streak}</span>
-                    {loadingStatus ? <span className="ml-2">Loading…</span> : null}
-                  </>
-                ) : (
-                  <>
-                    {loadingStatus ? <span>Loading…</span> : <span className="text-red-600">Status error: {status?.reason}</span>}
-                  </>
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-4">
-            {Array.from({ length: 14 }).map((_, i) => {
-              const day = i + 1
-              const filled = board[i]
-              const filledCount = board.filter(Boolean).length
-
-              return (
-                <div key={day} className="border border-[#eeeeee] p-4 text-center bg-white">
-                  <div className="text-[13px] md:text-[14px] font-semibold text-[#1e1e1e]">Day {day}</div>
-
-                  {/* ✅ (요청) 미션 전/완료 아이콘 교체 */}
-                  <div className="mt-3 flex items-center justify-center">
-                    <div className="relative w-8 h-8">
-                      <Image
-                        src={filled ? STAMP_AFTER_SRC : STAMP_BEFORE_SRC}
-                        alt={filled ? 'Mission completed' : 'Mission not started'}
-                        fill
-                        sizes="32px"
-                        className={[
-                          'object-contain',
-                          // 로그인 전에는 살짝 흐리게 (원하면 제거 가능)
-                          !user ? 'opacity-70' : 'opacity-100',
-                        ].join(' ')}
-                        priority={false}
-                      />
-                    </div>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <SvgCalendar color={ACCENT_BLUE} />
                   </div>
-
-                  <div className="mt-3 text-[13px] md:text-[14px] text-gray-700 font-semibold">{REWARDS[i]}p</div>
-
-                  {claimedToday && filled && day === filledCount ? (
-                    <div className="mt-3 inline-flex items-center justify-center px-2.5 py-1 rounded text-[12px] font-extrabold text-white" style={{ backgroundColor: '#1e1e1e' }}>
-                      CLEAR
-                    </div>
-                  ) : null}
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    <span className="font-semibold">Day 1–6:</span>{' '}
+                    <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
+                      100p/day
+                    </span>
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        </div>
 
-        <div className="mt-7 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-5">
-          <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
-            <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
-            <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M12 5v14" stroke={ACCENT_BLUE} strokeWidth="2" strokeLinecap="round" />
+                      <path d="M5 12h14" stroke={ACCENT_BLUE} strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    <span className="font-semibold">Day 7:</span>{' '}
+                    <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
+                      300p
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <SvgCalendar color={ACCENT_BLUE} />
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    <span className="font-semibold">Day 8–13:</span>{' '}
+                    <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
+                      100p/day
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="mt-0.5">
+                    <SvgGift color={ACCENT_BLUE} />
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    <span className="font-semibold">Day 14:</span>{' '}
+                    <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
+                      600p
+                    </span>
+                    <span
+                      className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[12px] font-extrabold"
+                      style={{ backgroundColor: 'rgba(159,29,35,0.10)', color: INDIANBOB_RED }}
+                    >
+                      Bonus
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rule */}
+            <div className="border border-[#eeeeee] p-5">
+              <div className="flex items-center gap-3">
+                <IconWrap bg="rgba(62,182,241,0.10)">
+                  <SvgList color={ACCENT_BLUE} />
+                </IconWrap>
+                <div className="text-[16px] md:text-[17px] font-extrabold text-[#1e1e1e]">Rule</div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <SvgCalendar color={ACCENT_BLUE} />
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    <span className="font-semibold">One claim</span> per day.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <SvgReset color={ACCENT_BLUE} />
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    Missing a day{' '}
+                    <span className="font-extrabold" style={{ color: INDIANBOB_RED }}>
+                      resets
+                    </span>{' '}
+                    streak to Day 1.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <SvgCoins color={ACCENT_BLUE} />
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    Points are added to your <span className="font-extrabold">balance</span>.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <SvgAlert color={ACCENT_BLUE} />
+                  </div>
+                  <div className="text-[14px] md:text-[15px] text-gray-800 leading-relaxed">
+                    If you don’t ask a question on Coach, you can’t claim for that day.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {claimButton}
+          {/* ✅ 14-day stamp board */}
+          <div className="mt-7 border-t border-[#eeeeee] pt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-[16px] md:text-[18px] font-semibold text-[#1e1e1e]">14-Day Stamp Board</div>
+
+              {user ? (
+                <div className="text-[13px] md:text-[14px] text-gray-600">
+                  {status?.ok ? (
+                    <>
+                      Streak: <span className="font-extrabold text-[#1e1e1e]">{streak}</span>
+                      {loadingStatus ? <span className="ml-2">Loading…</span> : null}
+                    </>
+                  ) : (
+                    <>
+                      {loadingStatus ? (
+                        <span>Loading…</span>
+                      ) : (
+                        <span className="text-red-600">Status error: {status?.reason}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-4">
+              {Array.from({ length: 14 }).map((_, i) => {
+                const day = i + 1
+                const filled = board[i]
+                const filledCount = board.filter(Boolean).length
+
+                return (
+                  <div key={day} className="border border-[#eeeeee] p-4 text-center bg-white">
+                    <div className="text-[13px] md:text-[14px] font-semibold text-[#1e1e1e]">Day {day}</div>
+
+                    <div className="mt-3 flex items-center justify-center">
+                      <div className="relative w-8 h-8">
+                        <Image
+                          src={filled ? STAMP_AFTER_SRC : STAMP_BEFORE_SRC}
+                          alt={filled ? 'Mission completed' : 'Mission not started'}
+                          fill
+                          sizes="32px"
+                          className={['object-contain', !user ? 'opacity-70' : 'opacity-100'].join(' ')}
+                          priority={false}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-[13px] md:text-[14px] text-gray-700 font-semibold">{REWARDS[i]}p</div>
+
+                    {claimedToday && filled && day === filledCount ? (
+                      <div
+                        className="mt-3 inline-flex items-center justify-center px-2.5 py-1 rounded text-[12px] font-extrabold text-white"
+                        style={{ backgroundColor: '#1e1e1e' }}
+                      >
+                        CLEAR
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mt-7 flex items-center justify-between gap-3 border-t border-[#eeeeee] pt-5">
+            <div className="text-[14px] md:text-[15px] text-gray-700 leading-relaxed">
+              <div className="font-extrabold text-[#1e1e1e] text-[15px] md:text-[16px]">My Reward</div>
+              <div className="mt-1">* Claim today is available after you ask at least 1 question on the Coach.</div>
+            </div>
+
+            {claimButton}
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

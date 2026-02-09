@@ -108,7 +108,7 @@ export default function TeamPage() {
           Team
         </h1>
         <p className="mb-8 text-[14px] font-medium text-[#b4b4b4]">
-          Join small challenges and share routines together.
+          Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now.
         </p>
 
         {loading ? (
