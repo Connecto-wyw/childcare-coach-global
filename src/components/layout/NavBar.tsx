@@ -87,9 +87,7 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
 
       <style jsx>{`
         .nav-badge {
-          /* ✅ "A 위" 근처: 60~66% 사이에서 미세 조정 가능 */
           left: 62%;
-          /* ✅ REWARD 글자 위, 약 3px 띄움 느낌 */
           top: -11px;
           transform: translateX(-50%);
           transform-origin: center;
@@ -332,36 +330,11 @@ export default function NavBar() {
               >
                 <span>{it.label}</span>
 
-                {/* ✅ TEAM 위 BETA 뱃지 */}
                 {isTeam && showTeamBadge ? <NavBetaBadge text={teamBadgeText} /> : null}
-
-                {/* ✅ REWARD 위 EVENT 뱃지 */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
           })}
-
-          {/* ✅ CONTACT US (외부 링크) */}
-          <a
-            href="http://indianbob.me/info"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={[
-              'text-[12px] font-semibold', // ✅ 다른 메뉴보다 작게
-              'px-2 py-[2px] -my-1', // ✅ 버튼 높이 줄이기
-              'rounded-md border',
-              'transition',
-              'hover:bg-[#9F1D23]/5',
-              'hover:opacity-90',
-              'leading-none', // ✅ 높이 더 줄이기
-            ].join(' ')}
-            style={{
-              color: INDIANBOB_RED,
-              borderColor: 'rgba(159, 29, 35, 0.25)',
-            }}
-          >
-            CONTACT US
-          </a>
         </nav>
 
         {/* Right */}
@@ -370,15 +343,16 @@ export default function NavBar() {
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
+              {/* ✅ Points 영역: 폰트/영역 1px씩 축소 */}
               <span
                 className={[
                   'flex items-center gap-1 whitespace-nowrap',
-                  'text-[12px] font-semibold',
-                  'px-2 py-1 rounded-md',
+                  'text-[11px] font-semibold', // 12 -> 11
+                  'px-[7px] py-[3px] rounded-md', // (px-2 py-1)보다 1px 정도 작게
                   'bg-[#F2F7FF] text-[#0B4DD6] border border-[#D6E6FF]',
                 ].join(' ')}
               >
-                <CoinIcon className="w-4 h-4 text-[#0B4DD6]" />
+                <CoinIcon className="w-[15px] h-[15px] text-[#0B4DD6]" />
                 <span>Points:</span>
                 <span>{loadingPoints ? '…' : format(points)}</span>
               </span>
