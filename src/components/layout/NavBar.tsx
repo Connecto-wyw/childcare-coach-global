@@ -127,35 +127,69 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
 }
 
 /**
- * ✅ TEAM 위 BETA 뱃지 (검정 배경 / 흰 글씨)
- * - REWARD EVENT 뱃지처럼 absolute로 올려붙임
- * - TEAM 글자 가운데에 오도록 left:50% + translateX(-50%)
+ * ✅ TEAM BETA Badge (EVENT와 동일한 pulse)
+ * - 배경: 검정, 글씨: 흰색
+ * - 위치: TEAM 글자 중앙 위
  */
 function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
   return (
-    <span
-      className={[
-        'absolute',
-        'rounded-full',
-        'px-[6px]',
-        'py-[1px]',
-        'text-[9px]',
-        'font-extrabold',
-        'leading-none',
-        'text-white',
-        'select-none',
-        'pointer-events-none',
-        'whitespace-nowrap',
-      ].join(' ')}
-      style={{
-        backgroundColor: '#000000',
-        left: '50%',
-        top: '-11px',
-        transform: 'translateX(-50%)',
-      }}
-    >
-      {text}
-    </span>
+    <>
+      <span
+        className={[
+          'beta-badge',
+          'absolute',
+          'rounded-full',
+          'px-[6px]',
+          'py-[1px]',
+          'text-[9px]',
+          'font-extrabold',
+          'leading-none',
+          'text-white',
+          'select-none',
+          'pointer-events-none',
+          'whitespace-nowrap',
+        ].join(' ')}
+        style={{ backgroundColor: '#000000' }}
+      >
+        {text}
+      </span>
+
+      <style jsx>{`
+        .beta-badge {
+          left: 50%;
+          top: -11px;
+          transform: translateX(-50%);
+          transform-origin: center;
+
+          animation: beta-badge-pulse 1.2s ease-in-out infinite;
+          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.18);
+        }
+
+        @keyframes beta-badge-pulse {
+          0% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.22);
+          }
+          50% {
+            opacity: 0.6;
+            transform: translateX(-50%) scale(1.06);
+            box-shadow: 0 0 0 6px rgba(0, 0, 0, 0);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .beta-badge {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </>
   )
 }
 
@@ -266,7 +300,6 @@ export default function NavBar() {
   const signOut = useCallback(async () => {
     setMenuOpen(false)
     await supabase.auth.signOut()
-    // 로그아웃 후 UI 깨끗하게
     try {
       window.location.href = '/coach'
     } catch {}
@@ -281,7 +314,6 @@ export default function NavBar() {
 
   return (
     <header className="w-full bg-white border-b border-[#eeeeee]">
-      {/* ✅ 뱃지가 위로 올라가도 안 잘리게 NavBar 높이 약간 증가 */}
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         {/* Left: menu */}
         <nav className="flex items-center gap-4">
@@ -295,16 +327,15 @@ export default function NavBar() {
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  // ✅ REWARD/TEAM은 뱃지 올릴 거라 relative 필요
                   isReward || isTeam ? 'relative inline-flex items-center' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
 
-                {/* ✅ TEAM 위 BETA 뱃지 */}
+                {/* ✅ TEAM 위 BETA 뱃지 (EVENT와 동일한 pulse) */}
                 {isTeam && showTeamBadge ? <NavBetaBadge text={teamBadgeText} /> : null}
 
-                {/* ✅ REWARD 위(=A 위 근처) EVENT 뱃지 */}
+                {/* ✅ REWARD 위 EVENT 뱃지 */}
                 {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
               </Link>
             )
@@ -317,7 +348,6 @@ export default function NavBar() {
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
-              {/* ✅ Points: 배지 느낌으로 강조 (색상 변경) */}
               <span
                 className={[
                   'flex items-center gap-1 whitespace-nowrap',
@@ -331,7 +361,6 @@ export default function NavBar() {
                 <span>{loadingPoints ? '…' : format(points)}</span>
               </span>
 
-              {/* ✅ 계정 닉네임 클릭 → 로그아웃 메뉴 */}
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
