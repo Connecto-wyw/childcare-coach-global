@@ -5,6 +5,8 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
 import JoinButtonClient from './JoinButtonClient'
+import sanitizeHtml from 'sanitize-html'
+
 
 // ✅ 마크다운 렌더
 import ReactMarkdown from 'react-markdown'
@@ -322,7 +324,7 @@ export default async function TeamDetailPage({
                 <JoinButtonClient teamId={teamId} />
               </div>
 
-              <div className="mt-3 text-center text-[12px] text-black/60">* Join을 누르면 team_members에 참여가 기록돼.</div>
+              <div className="mt-3 text-center text-[12px] text-black/60"></div>
             </div>
 
             {/* ✅ 상세(어드민 입력) - 마크다운 렌더 */}
