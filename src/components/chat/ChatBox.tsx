@@ -16,7 +16,7 @@ type ChatMessage = {
 }
 
 type ApiChatOk = { answer?: string; requestId?: string }
-type ApiChatErr = { error?: string; requestId?: string }
+type ApiChatErr = { error?: string; requestId?: string; message?: string; body?: string; status?: number }
 
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -50,7 +50,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const endRef = useRef<HTMLDivElement | null>(null)
   const chatBarRef = useRef<HTMLDivElement | null>(null)
 
-  // ✅ 첫 마운트 때 scrollIntoView 방지
   const didMountRef = useRef(false)
   const prevMsgLenRef = useRef(0)
 
@@ -67,7 +66,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return () => clearInterval(id)
   }, [loading])
 
-  // ✅ 고정 입력창 높이를 CSS 변수로 저장: --chatbar-h
   useEffect(() => {
     const el = chatBarRef.current
     if (!el) return
@@ -92,7 +90,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     }
   }, [])
 
-  // ✅ 스크롤 자동 이동
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true
@@ -127,12 +124,19 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     setMessages((prev) => [...prev, { id: uuid(), role, content, createdAt: Date.now() }])
   }, [])
 
+  async function safeJsonParse<T>(raw: string): Promise<T | null> {
+    try {
+      return raw ? (JSON.parse(raw) as T) : null
+    } catch {
+      return null
+    }
+  }
+
   const ask = useCallback(
     async (override?: string) => {
       const q = (override ?? input).trim()
       if (!q) return
 
-      // ✅ 로그인 필수
       if (!user) {
         setShowLoginModal(true)
         return
@@ -145,7 +149,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       setDebug('')
 
       try {
-        // ✅ 핵심: /api/ask 말고 /api/chat만 호출
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,33 +160,35 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         })
 
         const raw = await res.text()
-        let okData: ApiChatOk = {}
-        let errData: ApiChatErr = {}
-
-        try {
-          const parsed = raw ? JSON.parse(raw) : {}
-          if (res.ok) okData = parsed
-          else errData = parsed
-        } catch {
-          // JSON 아닌 경우 raw 그대로 debug에
-        }
 
         if (!res.ok) {
-          // 401이면 로그인 모달 띄우고 여기서 끝
-          if (res.status === 401) {
-            setShowLoginModal(true)
-            setDebug(`401 unauthorized: ${raw.slice(0, 400)}`)
-            return
-          }
-          throw new Error(`${res.status} ${errData.error ?? ''} ${raw.slice(0, 400)}`)
+          const errJson = await safeJsonParse<ApiChatErr>(raw)
+          const rid = errJson?.requestId ? ` (requestId: ${errJson.requestId})` : ''
+          const core =
+            res.status === 401
+              ? `401 Unauthorized${rid}\n\nSign in again and retry.`
+              : `Error ${res.status}${rid}\n\n${errJson?.error || errJson?.message || 'api/chat failed'}`
+
+          setError(core)
+          setDebug(raw.slice(0, 1000))
+          push('assistant', core)
+          if (res.status === 401) setShowLoginModal(true)
+          return
         }
 
-        const answer = (okData.answer || '').trim()
-        if (answer) {
-          push('assistant', answer)
-        } else {
-          throw new Error(`empty_answer ${raw.slice(0, 400)}`)
+        const okJson = await safeJsonParse<ApiChatOk>(raw)
+        const answer = (okJson?.answer || '').trim()
+
+        if (!answer) {
+          const rid = okJson?.requestId ? ` (requestId: ${okJson.requestId})` : ''
+          const msg = `Empty answer from server${rid}`
+          setError(msg)
+          setDebug(raw.slice(0, 1000))
+          push('assistant', msg)
+          return
         }
+
+        push('assistant', answer)
       } catch (e) {
         const msg = 'The response is delayed. Please try again.'
         setError(msg)
@@ -196,7 +201,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     [input, user, push, systemPrompt]
   )
 
-  // ✅ 키워드 클릭(외부에서 이벤트로 텍스트 주입)
   useEffect(() => {
     const handler = (e: Event) => {
       const text = (e as CustomEvent<string>).detail
@@ -209,7 +213,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         setShowLoginModal(true)
         return
       }
-
       if (loading) return
       void ask(q)
     }
