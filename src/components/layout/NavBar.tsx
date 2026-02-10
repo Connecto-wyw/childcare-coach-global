@@ -55,7 +55,7 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ TEAM BETA Badge (black pulse) - above TEAM
+ * ✅ TEAM BETA Badge (black pulse) - above TEAM (center)
  */
 function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
   return (
@@ -120,16 +120,17 @@ function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
 }
 
 /**
- * ✅ REWARD "Comming Soon" - to the RIGHT of REWARD (single line, no overlap)
+ * ✅ REWARD "Comming Soon" Badge - above REWARD like TEAM(BETA)
+ * - 기본은 중앙(50%)
+ * - 텍스트가 길어서 겹치면 오른쪽으로 조금 미는 용도: left: 62% (원하면 58~70% 사이로 조절)
  */
-function NavSoonInlineBadge({ text = 'Comming Soon' }: { text?: string }) {
+function NavSoonBadge({ text = 'Comming Soon' }: { text?: string }) {
   return (
     <>
       <span
         className={[
-          'soon-inline',
-          'inline-flex',
-          'items-center',
+          'soon-badge',
+          'absolute',
           'rounded-full',
           'px-[7px]',
           'py-[2px]',
@@ -140,7 +141,6 @@ function NavSoonInlineBadge({ text = 'Comming Soon' }: { text?: string }) {
           'select-none',
           'pointer-events-none',
           'whitespace-nowrap',
-          'ml-2',
         ].join(' ')}
         style={{ backgroundColor: INDIANBOB_RED }}
       >
@@ -148,7 +148,13 @@ function NavSoonInlineBadge({ text = 'Comming Soon' }: { text?: string }) {
       </span>
 
       <style jsx>{`
-        .soon-inline {
+        .soon-badge {
+          /* ✅ TEAM처럼 위에 올리되, 모자라면 오른쪽으로 살짝 */
+          left: 62%;
+          top: -12px;
+          transform: translateX(-50%);
+          transform-origin: center;
+
           animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
           box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.25);
         }
@@ -156,23 +162,23 @@ function NavSoonInlineBadge({ text = 'Comming Soon' }: { text?: string }) {
         @keyframes indianbob-badge-pulse {
           0% {
             opacity: 1;
-            transform: scale(1);
+            transform: translateX(-50%) scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.28);
           }
           50% {
             opacity: 0.6;
-            transform: scale(1.06);
+            transform: translateX(-50%) scale(1.06);
             box-shadow: 0 0 0 6px rgba(159, 29, 35, 0);
           }
           100% {
             opacity: 1;
-            transform: scale(1);
+            transform: translateX(-50%) scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .soon-inline {
+          .soon-badge {
             animation: none !important;
           }
         }
@@ -323,7 +329,7 @@ export default function NavBar() {
   const teamBadgeText = 'BETA'
 
   const showRewardBadge = true
-  const rewardBadgeText = 'Comming Soon' // ✅ 한 줄
+  const rewardBadgeText = 'Comming Soon'
 
   const onClickReward = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -350,12 +356,12 @@ export default function NavBar() {
                     onClick={onClickReward}
                     className={[
                       'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                      'inline-flex items-center', // ✅ baseline 유지
+                      'relative inline-flex items-center', // ✅ badge를 위에 올리려면 relative 필요
                       'cursor-pointer',
                     ].join(' ')}
                   >
                     <span>{it.label}</span>
-                    {showRewardBadge ? <NavSoonInlineBadge text={rewardBadgeText} /> : null}
+                    {showRewardBadge ? <NavSoonBadge text={rewardBadgeText} /> : null}
                   </a>
                 )
               }
