@@ -15,7 +15,7 @@ type ChatMessage = {
   createdAt: number
 }
 
-type ApiChatOk = { answer?: string; requestId?: string }
+type ApiChatOk = { answer?: string; requestId?: string; sessionId?: string; insertOk?: boolean; insertError?: string | null }
 type ApiChatErr = { error?: string; requestId?: string; message?: string; body?: string; status?: number }
 
 function uuid() {
@@ -34,6 +34,21 @@ function getSiteOrigin() {
   return ''
 }
 
+// ✅ 비로그인 유저도 안정적으로 식별하기 위한 localStorage sessionId
+const SESSION_KEY = 'cc_session_id'
+function getOrCreateSessionId() {
+  if (typeof window === 'undefined') return uuid()
+  try {
+    const existing = window.localStorage.getItem(SESSION_KEY)
+    if (existing && existing.trim()) return existing.trim()
+    const created = uuid()
+    window.localStorage.setItem(SESSION_KEY, created)
+    return created
+  } catch {
+    return uuid()
+  }
+}
+
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const { user } = useAuthUser()
   const supabase = useSupabase()
@@ -45,7 +60,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const [error, setError] = useState('')
   const [debug, setDebug] = useState('')
-  const [showLoginModal, setShowLoginModal] = useState(false)
+
+  const [sessionId, setSessionId] = useState('')
 
   const endRef = useRef<HTMLDivElement | null>(null)
   const chatBarRef = useRef<HTMLDivElement | null>(null)
@@ -54,8 +70,8 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const prevMsgLenRef = useRef(0)
 
   useEffect(() => {
-    if (user) setShowLoginModal(false)
-  }, [user])
+    setSessionId(getOrCreateSessionId())
+  }, [])
 
   useEffect(() => {
     if (!loading) {
@@ -112,6 +128,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return `${base}/auth/callback?next=/coach`
   }, [])
 
+  // (기존 유지) 로그인 버튼/플로우가 다른 곳에서 쓸 수도 있어서 함수는 남김
   const loginGoogle = useCallback(async () => {
     const redirectTo = getAuthRedirectTo()
     await supabase.auth.signInWithOAuth({
@@ -137,10 +154,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       const q = (override ?? input).trim()
       if (!q) return
 
-      if (!user) {
-        setShowLoginModal(true)
-        return
-      }
+      const sid = sessionId || getOrCreateSessionId()
 
       push('user', q)
       setInput('')
@@ -155,6 +169,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           body: JSON.stringify({
             system: systemPrompt ?? '',
             question: q,
+            sessionId: sid, // ✅ 비로그인도 식별자 전달
           }),
           cache: 'no-store',
         })
@@ -164,28 +179,36 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         if (!res.ok) {
           const errJson = await safeJsonParse<ApiChatErr>(raw)
           const rid = errJson?.requestId ? ` (requestId: ${errJson.requestId})` : ''
-          const core =
-            res.status === 401
-              ? `401 Unauthorized${rid}\n\nSign in again and retry.`
-              : `Error ${res.status}${rid}\n\n${errJson?.error || errJson?.message || 'api/chat failed'}`
-
+          const core = `Error ${res.status}${rid}\n\n${errJson?.error || errJson?.message || 'api/chat failed'}`
           setError(core)
-          setDebug(raw.slice(0, 1000))
+          setDebug(raw.slice(0, 1200))
           push('assistant', core)
-          if (res.status === 401) setShowLoginModal(true)
           return
         }
 
         const okJson = await safeJsonParse<ApiChatOk>(raw)
         const answer = (okJson?.answer || '').trim()
 
+        // 서버가 sessionId를 돌려주면 동기화(선택)
+        if (okJson?.sessionId && okJson.sessionId !== sid) {
+          try {
+            window.localStorage.setItem(SESSION_KEY, okJson.sessionId)
+            setSessionId(okJson.sessionId)
+          } catch {}
+        }
+
         if (!answer) {
           const rid = okJson?.requestId ? ` (requestId: ${okJson.requestId})` : ''
           const msg = `Empty answer from server${rid}`
           setError(msg)
-          setDebug(raw.slice(0, 1000))
+          setDebug(raw.slice(0, 1200))
           push('assistant', msg)
           return
+        }
+
+        // 저장 실패를 사용자에게 노출하지는 않되, debug에는 남김
+        if (okJson?.insertOk === false) {
+          setDebug((d) => `${d ? d + '\n\n' : ''}insertError: ${okJson.insertError ?? 'unknown'}`)
         }
 
         push('assistant', answer)
@@ -198,7 +221,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         setLoading(false)
       }
     },
-    [input, user, push, systemPrompt]
+    [input, sessionId, push, systemPrompt]
   )
 
   useEffect(() => {
@@ -208,18 +231,13 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       if (!q) return
 
       setInput(q)
-
-      if (!user) {
-        setShowLoginModal(true)
-        return
-      }
       if (loading) return
       void ask(q)
     }
 
     window.addEventListener('coach:setMessage', handler as EventListener)
     return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [user, loading, ask])
+  }, [loading, ask])
 
   return (
     <div className="w-full">
@@ -306,34 +324,22 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           </div>
 
           {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
+
+          {/* (선택) 문제 생길 때만 확인용 */}
+          {debug ? (
+            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
+              user: {user?.id ?? 'null'}
+              {'\n'}
+              sessionId: {sessionId || 'null'}
+              {'\n'}
+              {debug}
+            </pre>
+          ) : null}
         </div>
       </div>
 
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm bg-white p-6 text-center text-[#0e0e0e] border border-[#dcdcdc]">
-            <h3 className="text-[13px] font-semibold text-[#1e1e1e]">Sign in to continue</h3>
-
-            <div className="mt-4 grid gap-2">
-              <button onClick={loginGoogle} className="h-10 bg-[#1e1e1e] text-white text-[13px] font-semibold">
-                Sign in
-              </button>
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="h-10 border border-[#dcdcdc] text-[13px] font-medium text-[#1e1e1e]"
-              >
-                Close
-              </button>
-            </div>
-
-            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
-              user: {user?.id ?? 'null'}
-              {'\n'}
-              {debug ? `debug: ${debug}` : ''}
-            </pre>
-          </div>
-        </div>
-      )}
+      {/* ✅ 로그인 강제/모달 제거: 비로그인도 그대로 사용 */}
+      {/* loginGoogle 함수는 유지(다른 UI에서 재사용 가능) */}
     </div>
   )
 }

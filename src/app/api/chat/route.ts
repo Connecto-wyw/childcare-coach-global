@@ -23,7 +23,7 @@ function safeString(v: unknown) {
   return typeof v === 'string' ? v : ''
 }
 
-  function getIp(h: any) {
+function getIp(h: any) {
   const xf = h.get('x-forwarded-for')
   if (xf) return xf.split(',')[0].trim()
   return h.get('x-real-ip') || null
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({} as any))
     const question = safeString(body.question).trim()
     const systemFromClient = safeString(body.system)
+    const sessionIdFromClient = safeString(body.sessionId).trim()
 
     if (!question) {
       return NextResponse.json({ error: 'invalid_question', requestId, stage }, { status: 400 })
@@ -92,23 +93,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'missing_service_role_key', requestId, stage }, { status: 500 })
     }
 
-    // ✅ cookie 기반 sessionId (비로그인 유저 식별)
+    // ✅ sessionId: 클라이언트(localStorage) -> 쿠키 -> 서버 생성 순
     const cookieStore = await cookies()
     const SESSION_COOKIE = 'cc_session_id'
-    let sessionId = cookieStore.get(SESSION_COOKIE)?.value
+    let sessionId = sessionIdFromClient || cookieStore.get(SESSION_COOKIE)?.value
 
     if (!sessionId) {
       sessionId = randomUUID()
-      cookieStore.set({
-        name: SESSION_COOKIE,
-        value: sessionId,
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: true,
-        path: '/',
-        maxAge: 60 * 60 * 24 * 365, // 1년
-      })
     }
+
+    // 쿠키는 항상 세팅(있어도 갱신)
+    cookieStore.set({
+      name: SESSION_COOKIE,
+      value: sessionId,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: true,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    })
 
     // ✅ 일반 서버클라이언트(anon): auth/조회용 (RLS 적용)
     const supabase = createServerClient<Database>(url, anon, {
@@ -216,7 +219,7 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // ✅ chat_logs 저장: admin(service role)로 저장 => 광고 유입도 100% 저장
+    // ✅ chat_logs 저장: admin(service role)로 저장 => 비로그인/광고 유입 포함 100% 저장 시도
     stage = 'insert_logs'
     let insertOk = false
     let insertError: string | null = null
@@ -237,7 +240,7 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
 
     if (insErr) {
       insertOk = false
-      insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}`
+      insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}${(insErr as any)?.details ? ` | ${(insErr as any).details}` : ''}`
       console.error('[chat_logs insert error]', { requestId, userId, sessionId, insErr })
     } else {
       insertOk = true
