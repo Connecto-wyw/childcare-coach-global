@@ -52,11 +52,12 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
   )
 }
 
-// ✅ Indianbob main color
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ Red badge (pulse) - BELOW the label (no overlap)
+ * ✅ Red badge (pulse)
+ * - absolute로 “REWARD 위”에 띄우기
+ * - 2줄 텍스트 지원
  */
 function NavSoonBadge({ text }: { text: string }) {
   return (
@@ -64,9 +65,7 @@ function NavSoonBadge({ text }: { text: string }) {
       <span
         className={[
           'soon-badge',
-          'inline-flex',
-          'items-center',
-          'justify-center',
+          'absolute',
           'rounded-full',
           'px-[6px]',
           'py-[2px]',
@@ -86,6 +85,11 @@ function NavSoonBadge({ text }: { text: string }) {
 
       <style jsx>{`
         .soon-badge {
+          left: 50%;
+          top: -18px; /* ✅ 위로 올림 */
+          transform: translateX(-50%);
+          transform-origin: center;
+
           animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
           box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.25);
         }
@@ -93,17 +97,17 @@ function NavSoonBadge({ text }: { text: string }) {
         @keyframes indianbob-badge-pulse {
           0% {
             opacity: 1;
-            transform: scale(1);
+            transform: translateX(-50%) scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.28);
           }
           50% {
             opacity: 0.6;
-            transform: scale(1.06);
+            transform: translateX(-50%) scale(1.06);
             box-shadow: 0 0 0 6px rgba(159, 29, 35, 0);
           }
           100% {
             opacity: 1;
-            transform: scale(1);
+            transform: translateX(-50%) scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0);
           }
         }
@@ -336,7 +340,6 @@ export default function NavBar() {
     <>
       <SoonModal open={soonOpen} title="REWARD" message="Opening soon." onClose={() => setSoonOpen(false)} />
 
-      {/* ✅ 헤더 높이 늘림: py-4 -> py-5 */}
       <header className="w-full bg-white border-b border-[#eeeeee]">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-4">
           {/* Left */}
@@ -353,13 +356,13 @@ export default function NavBar() {
                     onClick={onClickReward}
                     className={[
                       'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                      'inline-flex flex-col items-center justify-center',
-                      'leading-tight',
+                      'relative inline-flex items-center', // ✅ 배지 absolute 기준점
                       'cursor-pointer',
+                      'pt-[10px]', // ✅ 위 배지가 들어갈 공간 확보(겹침 방지)
                     ].join(' ')}
                   >
                     <span>{it.label}</span>
-                    {showRewardBadge ? <span className="mt-[2px]"><NavSoonBadge text={rewardBadgeText} /></span> : null}
+                    {showRewardBadge ? <NavSoonBadge text={rewardBadgeText} /> : null}
                   </a>
                 )
               }
