@@ -2,48 +2,34 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { getSupabaseBrowserClient } from '@/lib/browser'
+import { useSupabase } from '@/app/providers'
 
 type Props = {
-  provider?: 'google' | 'kakao'
-  redirectTo?: string
   className?: string
-  children?: React.ReactNode
+  redirectTo?: string
 }
 
-export default function LoginButton({
-  provider = 'google',
-  redirectTo,
-  className,
-  children,
-}: Props) {
-  // ✅ Supabase client는 싱글톤을 가져다 씀 (중복 생성 방지)
-  const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-
+export default function LoginButton({ className, redirectTo }: Props) {
+  const supabase = useSupabase()
   const [loading, setLoading] = useState(false)
 
-  async function onClick() {
+  const cb = useMemo(() => {
+    // 기본은 현재 도메인 + /auth/callback
+    if (redirectTo) return redirectTo
+    if (typeof window === 'undefined') return '/auth/callback'
+    return `${window.location.origin}/auth/callback`
+  }, [redirectTo])
+
+  const signIn = async () => {
     try {
       setLoading(true)
-
-      // ✅ redirectTo가 없으면 현재 origin 기준으로 callback으로 보냄
-      const origin =
-        typeof window !== 'undefined' ? window.location.origin : ''
-
-      const finalRedirectTo =
-        redirectTo ?? `${origin}/auth/callback`
-
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: 'google',
         options: {
-          redirectTo: finalRedirectTo,
+          redirectTo: cb,
         },
       })
-
-      if (error) {
-        console.error('signInWithOAuth error:', error)
-        alert(error.message)
-      }
+      if (error) console.error('[signInWithOAuth] error:', error)
     } finally {
       setLoading(false)
     }
@@ -52,11 +38,11 @@ export default function LoginButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={signIn}
       disabled={loading}
       className={className ?? 'px-4 py-2 rounded bg-black text-white'}
     >
-      {children ?? (loading ? 'Signing in...' : 'Sign in')}
+      {loading ? 'Signing in…' : 'Sign in with Google'}
     </button>
   )
 }

@@ -2,47 +2,67 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import type { Database } from '@/lib/database.types'
 
-export async function GET(request: Request) {
-  const url = new URL(request.url)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
+}
+
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+
   const code = url.searchParams.get('code')
+  const error = url.searchParams.get('error')
+  const errorDescription = url.searchParams.get('error_description')
 
-  // ✅ open redirect 방지: next는 "내 사이트 내부 경로"만 허용
-  const nextRaw = url.searchParams.get('next') ?? '/coach'
-  const nextPath = nextRaw.startsWith('/') ? nextRaw : '/coach'
-
-  // ✅ response 먼저 만들고 여기에 쿠키를 SET 해서 내려보냄
-  const response = NextResponse.redirect(new URL(nextPath, url.origin))
-
-  // ✅ Next 16: cookies()가 Promise로 잡힐 수 있어서 await 필요
-  const cookieStore = await cookies()
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          response.cookies.set({ name, value: '', ...options, maxAge: 0 })
-        },
-      },
-    }
-  )
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) {
-      const errUrl = new URL('/auth/auth-code-error', url.origin)
-      errUrl.searchParams.set('message', error.message)
-      return NextResponse.redirect(errUrl)
-    }
+  // Supabase에서 error 파라미터로 오면 바로 에러 페이지로
+  if (error) {
+    const msg = errorDescription ? `${error}: ${errorDescription}` : error
+    return NextResponse.redirect(
+      new URL(`/auth/auth-code-error?message=${encodeURIComponent(msg)}`, url.origin)
+    )
   }
 
-  return response
+  if (!code) {
+    return NextResponse.redirect(
+      new URL(`/auth/auth-code-error?message=${encodeURIComponent('Missing code')}`, url.origin)
+    )
+  }
+
+  const cookieStore = await cookies()
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
+
+  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnon, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
+      setAll(cookiesToSet) {
+        // NextResponse에서 Set-Cookie를 내려야 브라우저에 저장됨
+        // 여기서는 아래 NextResponse에 반영하기 위해 일단 store에 반영
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options)
+        })
+      },
+    },
+  })
+
+  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+
+  if (exchangeError) {
+    return NextResponse.redirect(
+      new URL(
+        `/auth/auth-code-error?message=${encodeURIComponent(exchangeError.message)}`,
+        url.origin
+      )
+    )
+  }
+
+  // 로그인 성공 후 이동 (너 메인 페이지가 /coach)
+  return NextResponse.redirect(new URL('/coach', url.origin))
 }
