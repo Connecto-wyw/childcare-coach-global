@@ -3,10 +3,7 @@
 
 import { useMemo, useCallback, useEffect, useState } from 'react'
 import { motion, useReducedMotion, type Variants } from 'framer-motion'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
-
-const supabase = createClientComponentClient<Database>()
+import { useSupabase } from '@/app/providers'
 
 export const COACH_SET_MESSAGE_EVENT = 'coach:setMessage'
 
@@ -32,6 +29,8 @@ function withEmoji(label: string, idx: number) {
 }
 
 export default function KeywordButtons({ keywords, className, max = 12 }: Props) {
+  const supabase = useSupabase()
+
   const reduced = useReducedMotion()
   const [dbKeywords, setDbKeywords] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -60,7 +59,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
     return () => {
       cancelled = true
     }
-  }, [keywords])
+  }, [keywords, supabase])
 
   const items = useMemo(() => {
     const fallback = ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']

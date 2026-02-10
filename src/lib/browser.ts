@@ -1,45 +1,19 @@
-// src/lib/supabase/browser.ts
+// src/lib/browser.ts
 import { createBrowserClient } from '@supabase/ssr'
+import type { Database } from '@/lib/database.types'
 
-function serializeCookie(name: string, value: string, options: any = {}) {
-  const enc = encodeURIComponent
-  let cookie = `${name}=${enc(value)}`
+let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
-  cookie += `; Path=${options.path ?? '/'}`
-  if (options.maxAge != null) cookie += `; Max-Age=${options.maxAge}`
-  if (options.expires) cookie += `; Expires=${new Date(options.expires).toUTCString()}`
-  if (options.sameSite) cookie += `; SameSite=${options.sameSite}`
-  if (options.secure) cookie += `; Secure`
+export function getSupabaseBrowserClient() {
+  if (browserClient) return browserClient
 
-  return cookie
-}
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
 
-function getCookie(name: string) {
-  if (typeof document === 'undefined') return undefined
-  const match = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${name}=`))
-  return match ? decodeURIComponent(match.split('=')[1] ?? '') : undefined
-}
+  if (!url || !anon) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  }
 
-export function createSupabaseBrowserClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return getCookie(name)
-        },
-        set(name: string, value: string, options: any) {
-          if (typeof document === 'undefined') return
-          document.cookie = serializeCookie(name, value, options)
-        },
-        remove(name: string, options: any) {
-          if (typeof document === 'undefined') return
-          document.cookie = serializeCookie(name, '', { ...options, maxAge: 0 })
-        },
-      },
-    }
-  )
+  browserClient = createBrowserClient<Database>(url, anon)
+  return browserClient
 }

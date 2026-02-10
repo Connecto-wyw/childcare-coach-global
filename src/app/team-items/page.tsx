@@ -1,13 +1,11 @@
-// src/app/team/page.tsx
+// src/app/team-items/page.tsx
 'use client'
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useSupabase } from '@/app/providers'
 import type { Database } from '@/lib/database.types'
 import { calcTeamItemPricing } from '@/lib/teamPricing'
-
-const supabase = createClientComponentClient<Database>()
 
 type TeamCard = {
   id: string
@@ -26,6 +24,8 @@ const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=60'
 
 export default function TeamPage() {
+  const supabase = useSupabase()
+
   const [teams, setTeams] = useState<TeamCard[]>([])
   const [teamItems, setTeamItems] = useState<TeamItemRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,6 +62,7 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -93,6 +94,7 @@ export default function TeamPage() {
                       className="block bg-[#222] border border-gray-700 rounded-lg overflow-hidden hover:border-white/30 hover:bg-white/5 transition cursor-pointer"
                     >
                       <div className="w-full aspect-[4/3] bg-[#111]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={it.cover_image_url || FALLBACK_IMG}
                           alt={it.title}
@@ -144,6 +146,7 @@ export default function TeamPage() {
                       className="block bg-[#222] border border-gray-700 rounded-lg overflow-hidden hover:border-white/30 hover:bg-white/5 transition cursor-pointer"
                     >
                       <div className="w-full aspect-[4/3] bg-[#111]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={t.image_url || FALLBACK_IMG}
                           alt={t.name}

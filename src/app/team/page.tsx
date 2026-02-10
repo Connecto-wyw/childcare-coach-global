@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
-
-const supabase = createClientComponentClient<Database>()
+import { useSupabase } from '@/app/providers'
 
 type RawTeamRow = {
   id?: string | null
@@ -67,14 +64,20 @@ function normalizeTeamRow(r: RawTeamRow): TeamCard | null {
 }
 
 export default function TeamPage() {
+  const supabase = useSupabase()
+
   const [rows, setRows] = useState<RawTeamRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let alive = true
+
     const fetchTeams = async () => {
       setLoading(true)
 
       const { data, error } = await supabase.rpc('get_teams_with_counts')
+
+      if (!alive) return
 
       if (error) {
         console.error('[get_teams_with_counts] error:', error)
@@ -88,7 +91,11 @@ export default function TeamPage() {
     }
 
     fetchTeams()
-  }, [])
+
+    return () => {
+      alive = false
+    }
+  }, [supabase])
 
   const teams = useMemo(() => {
     return rows.map(normalizeTeamRow).filter((x): x is TeamCard => Boolean(x))
@@ -116,18 +123,21 @@ export default function TeamPage() {
               >
                 <div className="w-full overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={t.imageSrc} alt={t.name} className="h-[220px] w-full object-cover md:h-[260px]" />
+                  <img
+                    src={t.imageSrc}
+                    alt={t.name}
+                    className="h-[220px] w-full object-cover md:h-[260px]"
+                  />
                 </div>
 
                 <div className="p-6">
-                  {/* 타이틀 + Joined */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      {/* ✅ 제목 1px 더 축소: 20px -> 19px */}
-                      <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">{t.name}</div>
+                      <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">
+                        {t.name}
+                      </div>
                     </div>
 
-                    {/* ✅ Joined 인디언밥 붉은 계열 적용 */}
                     <div
                       className="shrink-0 rounded-full bg-[#9F1D23]/10 px-4 py-2 text-[13px] font-semibold text-[#9F1D23] flex items-center gap-2"
                       aria-label={`Joined ${t.joined}`}
@@ -138,12 +148,10 @@ export default function TeamPage() {
                     </div>
                   </div>
 
-                  {/* 설명 */}
                   <div className="mt-3 line-clamp-3 text-[15px] font-medium leading-relaxed text-[#8f8f8f]">
                     {t.purpose || 'No description yet.'}
                   </div>
 
-                  {/* 태그 */}
                   {t.tags.length > 0 && (
                     <div className="mt-5 flex flex-wrap gap-3">
                       {t.tags.map((tag) => (
@@ -157,8 +165,10 @@ export default function TeamPage() {
                     </div>
                   )}
 
-                  {/* Join now 버튼 */}
-                  <button type="button" className="mt-6 w-full h-[40px] bg-[#1e1e1e] text-white text-[20px] font-semibold">
+                  <button
+                    type="button"
+                    className="mt-6 w-full h-[40px] bg-[#1e1e1e] text-white text-[20px] font-semibold"
+                  >
                     Join now
                   </button>
                 </div>
