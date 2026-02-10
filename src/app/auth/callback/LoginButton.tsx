@@ -1,44 +1,37 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useSupabase } from '@/app/providers'
+import { useMemo } from 'react'
+import { getSupabaseBrowserClient } from '@/lib/browser'
 
-type Props = {
-  className?: string
-  redirectTo?: string
-}
-
-export default function LoginButton({ className, redirectTo }: Props) {
-  const supabase = useSupabase()
-  const [loading, setLoading] = useState(false)
-
-  const cb = useMemo(() => {
-    if (redirectTo) return redirectTo
-    if (typeof window === 'undefined') return '/auth/callback'
-    return `${window.location.origin}/auth/callback`
-  }, [redirectTo])
+export default function LoginButton() {
+  const supabase = useMemo(() => getSupabaseBrowserClient(), [])
 
   const signIn = async () => {
+    // ✅ 1) 서버 쿠키 세션부터 강제 삭제
     try {
-      setLoading(true)
+      await fetch('/api/auth/signout', { method: 'POST' })
+    } catch {}
 
-      // ✅ 기존 세션/쿠키/스토리지 꼬임 방지: 항상 로그아웃 후 시작
-      await supabase.auth.signOut()
+    // ✅ 2) 클라이언트 세션도 삭제(이중 안전)
+    try {
+      await supabase.auth.signOut({ scope: 'global' })
+    } catch {}
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: cb,
-          queryParams: {
-            // ✅ 매번 계정 선택창 + 재동의(계정 고정 방지에 더 강함)
-            prompt: 'consent select_account',
-          },
+    const redirectTo = `${window.location.origin}/auth/callback`
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        // ✅ 계정 선택 강제
+        queryParams: {
+          prompt: 'select_account consent',
         },
-      })
+      },
+    })
 
-      if (error) console.error('[signInWithOAuth] error:', error)
-    } finally {
-      setLoading(false)
+    if (error) {
+      console.error('[signInWithOAuth] error:', error)
     }
   }
 
@@ -46,10 +39,9 @@ export default function LoginButton({ className, redirectTo }: Props) {
     <button
       type="button"
       onClick={signIn}
-      disabled={loading}
-      className={className ?? 'px-4 py-2 rounded bg-black text-white'}
+      className="rounded-lg bg-black px-4 py-2 text-white text-sm font-semibold"
     >
-      {loading ? 'Signing in…' : 'Sign in with Google'}
+      Sign in with Google
     </button>
   )
 }
