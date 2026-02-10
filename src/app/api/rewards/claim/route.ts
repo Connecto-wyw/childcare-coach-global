@@ -15,16 +15,12 @@ const REWARDS = [
   600, // 14
 ]
 
-function ymdInKST(d = new Date()) {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  return fmt.format(d) // YYYY-MM-DD
+// ✅ UTC 날짜 문자열(YYYY-MM-DD)
+function ymdInUTC(d = new Date()) {
+  return d.toISOString().slice(0, 10)
 }
 
+// ✅ UTC 기준 날짜 더하기(YYYY-MM-DD)
 function addDays(ymd: string, delta: number) {
   const [y, m, d] = ymd.split('-').map((x) => Number(x))
   const dt = new Date(Date.UTC(y, m - 1, d))
@@ -44,7 +40,6 @@ function mustEnv(name: string) {
 async function createSupabaseServer() {
   const url = mustEnv('NEXT_PUBLIC_SUPABASE_URL')
   const anon = mustEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
-
   const cookieStore = await cookies()
 
   return createServerClient<Database>(url, anon, {
@@ -66,39 +61,33 @@ async function createSupabaseServer() {
   })
 }
 
-/**
- * ✅ KST "하루"의 UTC 범위 계산
- * - KST 00:00:00  ~ 다음날 00:00:00
- * - UTC로는 9시간 빼면 됨
- */
-function kstDayToUtcRange(todayKst: string) {
-  const [y, m, d] = todayKst.split('-').map(Number)
-
-  // KST 기준 자정(00:00)을 "UTC로 표현"하려면 9시간을 더한 UTC시각이 KST자정이 됨
-  // 즉, UTC = KST - 9h  => KST 자정은 UTC 전날 15:00
-  const startUtc = new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - 9 * 60 * 60 * 1000)
-  const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000)
-
-  return { startIso: startUtc.toISOString(), endIso: endUtc.toISOString() }
-}
-
-// ✅ "오늘(KST)" 질문 1개 이상 했는지 (created_at 범위로 DB에서 직접 체크)
-async function hasQuestionToday(
+// ✅ "오늘(UTC)" 질문 1개 이상 했는지 체크
+async function hasQuestionTodayUTC(
   supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
   userId: string,
-  todayKst: string
+  todayUtc: string
 ) {
-  const { startIso, endIso } = kstDayToUtcRange(todayKst)
-
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('chat_logs')
-    .select('id', { count: 'exact', head: true })
+    .select('created_at, question')
     .eq('user_id', userId)
     .not('question', 'is', null)
-    .gte('created_at', startIso)
-    .lt('created_at', endIso)
+    .order('created_at', { ascending: false })
+    .limit(200)
 
-  return { ok: !error, has: (count ?? 0) > 0, error }
+  if (error) return false
+
+  const rows = (data ?? []) as Array<{ created_at: string | null; question: string | null }>
+  for (const r of rows) {
+    const q = String(r.question ?? '').trim()
+    if (!q) continue
+    if (!r.created_at) continue
+
+    // created_at은 timestamptz → new Date() 하면 UTC로 파싱됨
+    const utcDay = ymdInUTC(new Date(r.created_at))
+    if (utcDay === todayUtc) return true
+  }
+  return false
 }
 
 export async function POST() {
@@ -113,23 +102,13 @@ export async function POST() {
     return NextResponse.json({ ok: false, reason: 'not_authenticated' }, { status: 401 })
   }
 
-  const today = ymdInKST(new Date())
+  // ✅ 전부 UTC 기준
+  const today = ymdInUTC(new Date())
   const yesterday = addDays(today, -1)
 
-  // 1) 오늘 질문 했는지
-  const q = await hasQuestionToday(supabase, user.id, today)
-  if (!q.ok) {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: 'chat_logs_read_error',
-        today,
-        error: String(q.error?.message ?? q.error),
-      },
-      { status: 200 }
-    )
-  }
-  if (!q.has) {
+  // 1) 오늘(UTC) 질문 했는지
+  const okQuestion = await hasQuestionTodayUTC(supabase, user.id, today)
+  if (!okQuestion) {
     return NextResponse.json({ ok: false, reason: 'no_question_today', today }, { status: 200 })
   }
 
@@ -178,18 +157,17 @@ export async function POST() {
     return NextResponse.json({ ok: false, reason: 'already_claimed', today }, { status: 200 })
   }
 
-  // 5) 연속 streak 계산
+  // 5) 연속 streak 계산 (UTC 기준)
   const nextTotalStreak = lastDate === yesterday ? Math.max(1, lastStreak + 1) : 1
 
   // 6) 14일 사이클 포지션(1~14)
   const cyclePos = ((nextTotalStreak - 1) % 14) + 1
   const rewardPoints = REWARDS[cyclePos - 1] ?? 100
 
-  // 7) reward_claims insert
+  // 7) reward_claims insert (✅ day를 UTC today로 명시 저장)
   const { error: insErr } = await supabase.from('reward_claims').insert({
     user_id: user.id,
-    day: today, // ✅ 여기서 명시적으로 today 넣어버리자 (DB default에 의존하지 않기)
-    points: rewardPoints, // ✅ 컬럼 없으면 지워
+    day: today,
   } as any)
 
   if (insErr) {
@@ -199,7 +177,7 @@ export async function POST() {
     )
   }
 
-  // 8) profiles 업데이트
+  // 8) profiles 업데이트 (✅ reward_last_date도 UTC today 저장)
   const nextPoints = currentPoints + rewardPoints
 
   const { error: updErr } = await supabase
@@ -218,7 +196,7 @@ export async function POST() {
     )
   }
 
-  // 9) UI 즉시 갱신용 board
+  // 9) UI 즉시 갱신용
   const board = Array.from({ length: 14 }, (_, i) => i < cyclePos)
 
   return NextResponse.json({

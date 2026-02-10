@@ -8,14 +8,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function ymdInKST(d = new Date()) {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  return fmt.format(d) // YYYY-MM-DD
+function ymdInUTC(d = new Date()) {
+  return d.toISOString().slice(0, 10) // YYYY-MM-DD (UTC)
 }
 
 function addDays(ymd: string, delta: number) {
@@ -59,13 +53,12 @@ async function createSupabaseServer() {
 }
 
 export async function GET() {
-  const today = ymdInKST(new Date())
+  const today = ymdInUTC(new Date())
 
   let supabase: Awaited<ReturnType<typeof createSupabaseServer>>
   try {
     supabase = await createSupabaseServer()
   } catch (e: any) {
-    // ✅ status는 절대 500 내지 말고, UI가 처리할 수 있게 200으로 통일
     return NextResponse.json({
       ok: false,
       reason: 'config_error',
@@ -81,7 +74,6 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // ✅ 로그인 안해도 200으로 내려서 UI가 http_error 찍지 않게
   if (!user) {
     return NextResponse.json({
       ok: true,
