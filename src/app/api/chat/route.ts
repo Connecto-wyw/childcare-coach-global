@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'unauthorized', requestId, stage }, { status: 401 })
     }
 
-    // ✅ prevContext: RPC 말고 chat_logs에서 직전 Q/A 뽑아서 만든다 (타입 충돌 없음)
+    // ✅ prevContext: chat_logs에서 직전 Q/A 뽑아서 만든다
     stage = 'load_prev_context'
     let prevContext = ''
     try {
@@ -181,22 +181,39 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // ✅ chat_logs 저장: 너 테이블 스키마대로 question/answer로 1행 저장
+    // ✅ chat_logs 저장: 실패를 숨기지 말고 응답에 노출
     stage = 'insert_logs'
-    try {
-      await supabase.from('chat_logs').insert({
-        user_id: user.id,
-        question,
-        answer,
-        model,
-        lang: 'en',
-      })
-    } catch {
-      // 저장 실패해도 답변은 내려줌
+    let insertOk = false
+    let insertError: string | null = null
+
+    const { error: insErr } = await supabase.from('chat_logs').insert({
+      user_id: user.id,
+      question,
+      answer,
+      model,
+      lang: 'en',
+    })
+
+    if (insErr) {
+      insertOk = false
+      insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}`
+      console.error('[chat_logs insert error]', { requestId, userId: user.id, insErr })
+    } else {
+      insertOk = true
     }
 
     stage = 'ok'
-    return NextResponse.json({ answer, requestId, ms: Date.now() - startedAt }, { status: 200 })
+    return NextResponse.json(
+      {
+        answer,
+        requestId,
+        ms: Date.now() - startedAt,
+        userId: user.id,
+        insertOk,
+        insertError,
+      },
+      { status: 200 }
+    )
   } catch (e: any) {
     return NextResponse.json(
       {

@@ -1,4 +1,3 @@
-// src/app/auth/callback/LoginButton.tsx
 'use client'
 
 import { useMemo, useState } from 'react'
@@ -7,16 +6,9 @@ import { useSupabase } from '@/app/providers'
 type Props = {
   className?: string
   redirectTo?: string
-  forceAccountPicker?: boolean // ✅ 추가: 계정 선택 강제
-  signOutBeforeSignIn?: boolean // ✅ 추가: 이전 세션 끊고 시작
 }
 
-export default function LoginButton({
-  className,
-  redirectTo,
-  forceAccountPicker = true,
-  signOutBeforeSignIn = false,
-}: Props) {
+export default function LoginButton({ className, redirectTo }: Props) {
   const supabase = useSupabase()
   const [loading, setLoading] = useState(false)
 
@@ -30,20 +22,17 @@ export default function LoginButton({
     try {
       setLoading(true)
 
-      if (signOutBeforeSignIn) {
-        // ✅ “이전 계정으로 강제 로그인”처럼 보이는 케이스 방지
-        await supabase.auth.signOut()
-      }
+      // ✅ 기존 세션/쿠키/스토리지 꼬임 방지: 항상 로그아웃 후 시작
+      await supabase.auth.signOut()
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: cb,
-          queryParams: forceAccountPicker
-            ? {
-                prompt: 'select_account', // ✅ 매번 계정 선택
-              }
-            : undefined,
+          queryParams: {
+            // ✅ 매번 계정 선택창 + 재동의(계정 고정 방지에 더 강함)
+            prompt: 'consent select_account',
+          },
         },
       })
 
