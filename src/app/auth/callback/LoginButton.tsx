@@ -24,7 +24,13 @@ export default function LoginButton() {
 
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        // ✅ 항상 계정 선택 화면 강제
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
     })
   }, [])
 
