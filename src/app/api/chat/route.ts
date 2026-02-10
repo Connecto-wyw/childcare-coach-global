@@ -1,7 +1,8 @@
 // src/app/api/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { getSystemPrompt } from '@/lib/systemPrompt'
 import { randomUUID } from 'crypto'
@@ -20,6 +21,12 @@ function trimToBytes(s: string, limit = 2000) {
 
 function safeString(v: unknown) {
   return typeof v === 'string' ? v : ''
+}
+
+  function getIp(h: any) {
+  const xf = h.get('x-forwarded-for')
+  if (xf) return xf.split(',')[0].trim()
+  return h.get('x-real-ip') || null
 }
 
 async function openAIChat(model: string, system: string, question: string) {
@@ -76,12 +83,34 @@ export async function POST(req: NextRequest) {
     stage = 'init_supabase'
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+
     if (!url || !anon) {
       return NextResponse.json({ error: 'missing_supabase_env', requestId, stage }, { status: 500 })
     }
+    if (!serviceKey) {
+      return NextResponse.json({ error: 'missing_service_role_key', requestId, stage }, { status: 500 })
+    }
 
+    // ✅ cookie 기반 sessionId (비로그인 유저 식별)
     const cookieStore = await cookies()
+    const SESSION_COOKIE = 'cc_session_id'
+    let sessionId = cookieStore.get(SESSION_COOKIE)?.value
 
+    if (!sessionId) {
+      sessionId = randomUUID()
+      cookieStore.set({
+        name: SESSION_COOKIE,
+        value: sessionId,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: true,
+        path: '/',
+        maxAge: 60 * 60 * 24 * 365, // 1년
+      })
+    }
+
+    // ✅ 일반 서버클라이언트(anon): auth/조회용 (RLS 적용)
     const supabase = createServerClient<Database>(url, anon, {
       cookies: {
         get(name: string) {
@@ -96,33 +125,37 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // ✅ admin client(service role): 저장용 (RLS 무시)
+    const admin = createClient<Database>(url, serviceKey, {
+      auth: { persistSession: false },
+    })
+
     stage = 'auth_get_user'
     const {
       data: { user },
-      error: userErr,
     } = await supabase.auth.getUser()
 
-    if (userErr || !user) {
-      return NextResponse.json({ error: 'unauthorized', requestId, stage }, { status: 401 })
-    }
+    // 로그인/비로그인 모두 허용
+    const userId = user?.id ?? null
 
-    // ✅ prevContext: chat_logs에서 직전 Q/A 뽑아서 만든다
+    // ✅ prevContext: 로그인 유저면 user_id로, 아니면 session_id로
     stage = 'load_prev_context'
     let prevContext = ''
     try {
-      const { data } = await supabase
+      const q = supabase
         .from('chat_logs')
         .select('question, answer')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(2)
 
+      const { data } = userId ? await q.eq('user_id', userId) : await q.eq('session_id', sessionId)
+
       if (data && data.length) {
         prevContext = data
-          .map((r) => {
-            const q = (r as any).question ?? ''
-            const a = (r as any).answer ?? ''
-            return `Q: ${q}\nA: ${a}`
+          .map((r: any) => {
+            const qq = r?.question ?? ''
+            const aa = r?.answer ?? ''
+            return `Q: ${qq}\nA: ${aa}`
           })
           .join('\n\n')
       }
@@ -130,16 +163,17 @@ export async function POST(req: NextRequest) {
       prevContext = ''
     }
 
-    // ✅ greetedToday: 오늘 chat_logs에 이미 기록이 있으면 true
+    // ✅ greetedToday: 로그인 유저면 user_id 기준, 아니면 session_id 기준
     stage = 'count_today'
     const today = new Date().toISOString().slice(0, 10)
     let greetedToday = false
     try {
-      const { count } = await supabase
+      const q = supabase
         .from('chat_logs')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00Z`)
+
+      const { count } = userId ? await q.eq('user_id', userId) : await q.eq('session_id', sessionId)
       greetedToday = (count ?? 0) > 0
     } catch {
       greetedToday = false
@@ -154,6 +188,7 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
 - Mention at most **one** brief, minimized caution framed constructively.
 - Keep the total answer under **~2000 bytes**.
 - Do not repeat the final sentence. End cleanly.`.trim()
+
     const system = `${base}\n\n${kParentingRule}`
 
     stage = 'openai_first'
@@ -181,23 +216,29 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // ✅ chat_logs 저장: 실패를 숨기지 말고 응답에 노출
+    // ✅ chat_logs 저장: admin(service role)로 저장 => 광고 유입도 100% 저장
     stage = 'insert_logs'
     let insertOk = false
     let insertError: string | null = null
 
-    const { error: insErr } = await supabase.from('chat_logs').insert({
-      user_id: user.id,
+    const h = await headers()
+    const { error: insErr } = await admin.from('chat_logs').insert({
+      user_id: userId,        // 로그인 유저면 저장, 아니면 null
+      session_id: sessionId,  // 비로그인 식별자 (필수)
       question,
       answer,
       model,
       lang: 'en',
-    })
+      ip: getIp(h),
+      user_agent: h.get('user-agent'),
+      referer: h.get('referer'),
+      path: req.nextUrl.pathname,
+    } as any)
 
     if (insErr) {
       insertOk = false
       insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}`
-      console.error('[chat_logs insert error]', { requestId, userId: user.id, insErr })
+      console.error('[chat_logs insert error]', { requestId, userId, sessionId, insErr })
     } else {
       insertOk = true
     }
@@ -208,7 +249,8 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         answer,
         requestId,
         ms: Date.now() - startedAt,
-        userId: user.id,
+        userId,
+        sessionId,
         insertOk,
         insertError,
       },
