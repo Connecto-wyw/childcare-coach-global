@@ -9,10 +9,10 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function ymdInUTC(d = new Date()) {
-  return d.toISOString().slice(0, 10) // YYYY-MM-DD (UTC)
+  return d.toISOString().slice(0, 10)
 }
 
-function addDays(ymd: string, delta: number) {
+function addDaysUTC(ymd: string, delta: number) {
   const [y, m, d] = ymd.split('-').map((x) => Number(x))
   const dt = new Date(Date.UTC(y, m - 1, d))
   dt.setUTCDate(dt.getUTCDate() + delta)
@@ -117,7 +117,7 @@ export async function GET() {
   }
 
   const last = days[0]
-  const yesterday = addDays(today, -1)
+  const yesterday = addDaysUTC(today, -1)
   const isLastToday = last === today
   const isLastYesterday = last === yesterday
 
@@ -136,7 +136,7 @@ export async function GET() {
   let cursor = last
   while (set.has(cursor)) {
     streakTotal += 1
-    cursor = addDays(cursor, -1)
+    cursor = addDaysUTC(cursor, -1)
     if (streakTotal > 365) break
   }
 
