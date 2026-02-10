@@ -56,10 +56,8 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ EVENT Badge with blink/pulse
- * - REWARD 글자 위(A 근처)에 뜨게:
- *   left를 퍼센트로 잡고 translateX(-50%)로 가운데 맞춤
- * - 텍스트와 약 3px 여백: top 값으로 컨트롤
+ * ✅ Mini Badge with blink/pulse
+ * - TEAM 글자 중앙 위에 띄우는 용도로 사용
  * - Reduce Motion이면 애니메이션 OFF
  */
 function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
@@ -70,7 +68,7 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
           'nav-badge',
           'absolute',
           'rounded-full',
-          'px-[5px]',
+          'px-[6px]',
           'py-[1px]',
           'text-[9px]',
           'font-extrabold',
@@ -87,7 +85,7 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
 
       <style jsx>{`
         .nav-badge {
-          left: 62%;
+          left: 50%;
           top: -11px;
           transform: translateX(-50%);
           transform-origin: center;
@@ -124,73 +122,6 @@ function NavMiniBadge({ text = 'EVENT' }: { text?: string }) {
   )
 }
 
-/**
- * ✅ TEAM BETA Badge (EVENT와 동일한 pulse)
- * - 배경: 검정, 글씨: 흰색
- * - 위치: TEAM 글자 중앙 위
- */
-function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
-  return (
-    <>
-      <span
-        className={[
-          'beta-badge',
-          'absolute',
-          'rounded-full',
-          'px-[6px]',
-          'py-[1px]',
-          'text-[9px]',
-          'font-extrabold',
-          'leading-none',
-          'text-white',
-          'select-none',
-          'pointer-events-none',
-          'whitespace-nowrap',
-        ].join(' ')}
-        style={{ backgroundColor: '#000000' }}
-      >
-        {text}
-      </span>
-
-      <style jsx>{`
-        .beta-badge {
-          left: 50%;
-          top: -11px;
-          transform: translateX(-50%);
-          transform-origin: center;
-
-          animation: beta-badge-pulse 1.2s ease-in-out infinite;
-          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.18);
-        }
-
-        @keyframes beta-badge-pulse {
-          0% {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.22);
-          }
-          50% {
-            opacity: 0.6;
-            transform: translateX(-50%) scale(1.06);
-            box-shadow: 0 0 0 6px rgba(0, 0, 0, 0);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .beta-badge {
-            animation: none !important;
-          }
-        }
-      `}</style>
-    </>
-  )
-}
-
 export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
@@ -203,12 +134,13 @@ export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
+  // ✅ REWARD 메뉴는 히든 처리 (네비에서 제거)
   const items: NavItem[] = useMemo(
     () => [
       { label: 'COACH', href: '/coach' },
       { label: 'NEWS', href: '/news' },
       { label: 'TEAM', href: '/team' },
-      { label: 'REWARD', href: '/reward' },
+      // { label: 'REWARD', href: '/reward' }, // hidden
     ],
     []
   )
@@ -303,11 +235,9 @@ export default function NavBar() {
     } catch {}
   }, [supabase])
 
-  // ✅ 여기서 뱃지 ON/OFF 및 텍스트 관리 가능
-  const rewardBadgeText = 'EVENT'
-  const showRewardBadge = true
-
-  const teamBadgeText = 'BETA'
+  // ✅ TEAM 위 뱃지: EVENT → "Comming Soon"
+  // (원문 요청대로 철자 Comming 유지)
+  const teamBadgeText = 'Comming Soon'
   const showTeamBadge = true
 
   return (
@@ -316,7 +246,6 @@ export default function NavBar() {
         {/* Left: menu */}
         <nav className="flex items-center gap-4">
           {items.map((it) => {
-            const isReward = it.href === '/reward'
             const isTeam = it.href === '/team'
 
             return (
@@ -325,13 +254,12 @@ export default function NavBar() {
                 href={it.href}
                 className={[
                   'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                  isReward || isTeam ? 'relative inline-flex items-center' : '',
+                  isTeam ? 'relative inline-flex items-center' : '',
                 ].join(' ')}
               >
                 <span>{it.label}</span>
 
-                {isTeam && showTeamBadge ? <NavBetaBadge text={teamBadgeText} /> : null}
-                {isReward && showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
+                {isTeam && showTeamBadge ? <NavMiniBadge text={teamBadgeText} /> : null}
               </Link>
             )
           })}
@@ -343,12 +271,12 @@ export default function NavBar() {
             <span className="text-[12px] text-gray-500">Loading…</span>
           ) : user ? (
             <>
-              {/* ✅ Points 영역: 폰트/영역 1px씩 축소 */}
+              {/* ✅ Points 영역: 폰트/영역 1px씩 축소 유지 */}
               <span
                 className={[
                   'flex items-center gap-1 whitespace-nowrap',
-                  'text-[11px] font-semibold', // 12 -> 11
-                  'px-[7px] py-[3px] rounded-md', // (px-2 py-1)보다 1px 정도 작게
+                  'text-[11px] font-semibold',
+                  'px-[7px] py-[3px] rounded-md',
                   'bg-[#F2F7FF] text-[#0B4DD6] border border-[#D6E6FF]',
                 ].join(' ')}
               >

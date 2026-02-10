@@ -15,7 +15,13 @@ type ChatMessage = {
   createdAt: number
 }
 
-type ApiChatOk = { answer?: string; requestId?: string; sessionId?: string; insertOk?: boolean; insertError?: string | null }
+type ApiChatOk = {
+  answer?: string
+  requestId?: string
+  sessionId?: string
+  insertOk?: boolean
+  insertError?: string | null
+}
 type ApiChatErr = { error?: string; requestId?: string; message?: string; body?: string; status?: number }
 
 function uuid() {
@@ -59,7 +65,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [dots, setDots] = useState(0)
 
   const [error, setError] = useState('')
-  const [debug, setDebug] = useState('')
 
   const [sessionId, setSessionId] = useState('')
 
@@ -128,7 +133,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return `${base}/auth/callback?next=/coach`
   }, [])
 
-  // (기존 유지) 로그인 버튼/플로우가 다른 곳에서 쓸 수도 있어서 함수는 남김
+  // (유지) 다른 UI에서 로그인 버튼을 쓸 수도 있어서 함수는 남김
   const loginGoogle = useCallback(async () => {
     const redirectTo = getAuthRedirectTo()
     await supabase.auth.signInWithOAuth({
@@ -160,7 +165,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       setInput('')
       setLoading(true)
       setError('')
-      setDebug('')
 
       try {
         const res = await fetch('/api/chat', {
@@ -181,7 +185,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           const rid = errJson?.requestId ? ` (requestId: ${errJson.requestId})` : ''
           const core = `Error ${res.status}${rid}\n\n${errJson?.error || errJson?.message || 'api/chat failed'}`
           setError(core)
-          setDebug(raw.slice(0, 1200))
           push('assistant', core)
           return
         }
@@ -197,31 +200,34 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           } catch {}
         }
 
+        // ✅ 저장 실패는 화면에 노출하지 않고 콘솔로만 남김
+        if (okJson?.insertOk === false) {
+          console.warn('[chat_logs insert failed]', {
+            requestId: okJson?.requestId,
+            sessionId: okJson?.sessionId ?? sid,
+            userId: user?.id ?? null,
+            insertError: okJson?.insertError ?? null,
+          })
+        }
+
         if (!answer) {
           const rid = okJson?.requestId ? ` (requestId: ${okJson.requestId})` : ''
           const msg = `Empty answer from server${rid}`
           setError(msg)
-          setDebug(raw.slice(0, 1200))
           push('assistant', msg)
           return
-        }
-
-        // 저장 실패를 사용자에게 노출하지는 않되, debug에는 남김
-        if (okJson?.insertOk === false) {
-          setDebug((d) => `${d ? d + '\n\n' : ''}insertError: ${okJson.insertError ?? 'unknown'}`)
         }
 
         push('assistant', answer)
       } catch (e) {
         const msg = 'The response is delayed. Please try again.'
         setError(msg)
-        setDebug(String(e))
         push('assistant', msg)
       } finally {
         setLoading(false)
       }
     },
-    [input, sessionId, push, systemPrompt]
+    [input, sessionId, push, systemPrompt, user?.id]
   )
 
   useEffect(() => {
@@ -324,21 +330,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           </div>
 
           {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
-
-          {/* (선택) 문제 생길 때만 확인용 */}
-          {debug ? (
-            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-left text-xs text-gray-600">
-              user: {user?.id ?? 'null'}
-              {'\n'}
-              sessionId: {sessionId || 'null'}
-              {'\n'}
-              {debug}
-            </pre>
-          ) : null}
         </div>
       </div>
 
-      {/* ✅ 로그인 강제/모달 제거: 비로그인도 그대로 사용 */}
+      {/* ✅ 아래 디버그 표시(<pre>)는 완전히 제거됨 */}
       {/* loginGoogle 함수는 유지(다른 UI에서 재사용 가능) */}
     </div>
   )
