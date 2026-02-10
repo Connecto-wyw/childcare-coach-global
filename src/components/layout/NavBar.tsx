@@ -56,16 +56,17 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ Red badge (pulse)
- * - 2줄 텍스트 지원: \n 포함 가능
+ * ✅ Red badge (pulse) - BELOW the label (no overlap)
  */
-function NavMiniBadge({ text }: { text: string }) {
+function NavSoonBadge({ text }: { text: string }) {
   return (
     <>
       <span
         className={[
-          'nav-badge',
-          'absolute',
+          'soon-badge',
+          'inline-flex',
+          'items-center',
+          'justify-center',
           'rounded-full',
           'px-[6px]',
           'py-[2px]',
@@ -84,12 +85,7 @@ function NavMiniBadge({ text }: { text: string }) {
       </span>
 
       <style jsx>{`
-        .nav-badge {
-          left: 50%;
-          top: -16px;
-          transform: translateX(-50%);
-          transform-origin: center;
-
+        .soon-badge {
           animation: indianbob-badge-pulse 1.2s ease-in-out infinite;
           box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.25);
         }
@@ -97,23 +93,23 @@ function NavMiniBadge({ text }: { text: string }) {
         @keyframes indianbob-badge-pulse {
           0% {
             opacity: 1;
-            transform: translateX(-50%) scale(1);
+            transform: scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0.28);
           }
           50% {
             opacity: 0.6;
-            transform: translateX(-50%) scale(1.06);
+            transform: scale(1.06);
             box-shadow: 0 0 0 6px rgba(159, 29, 35, 0);
           }
           100% {
             opacity: 1;
-            transform: translateX(-50%) scale(1);
+            transform: scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .nav-badge {
+          .soon-badge {
             animation: none !important;
           }
         }
@@ -123,8 +119,7 @@ function NavMiniBadge({ text }: { text: string }) {
 }
 
 /**
- * ✅ TEAM BETA Badge (black pulse)
- * - 위치: TEAM 글자 중앙 위
+ * ✅ TEAM BETA Badge (black pulse) - above TEAM
  */
 function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
   return (
@@ -219,15 +214,13 @@ export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
 
-  const [nickname, setNickname] = useState<string>('') // profiles.nickname (fallback)
+  const [nickname, setNickname] = useState<string>('')
   const [points, setPoints] = useState<number>(0)
   const [loadingPoints, setLoadingPoints] = useState(false)
 
-  // 드롭다운(계정 메뉴)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  // ✅ REWARD 유지 (TEAM 옆)
   const items: NavItem[] = useMemo(
     () => [
       { label: 'COACH', href: '/coach' },
@@ -238,7 +231,6 @@ export default function NavBar() {
     []
   )
 
-  // ✅ REWARD 클릭 시 "Opening soon." 모달
   const [soonOpen, setSoonOpen] = useState(false)
 
   useEffect(() => {
@@ -250,7 +242,6 @@ export default function NavBar() {
     }
   }, [user])
 
-  // 바깥 클릭 시 메뉴 닫기
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (!menuOpen) return
@@ -276,7 +267,6 @@ export default function NavBar() {
   const loadProfileNickname = useCallback(async () => {
     if (!user) return
     const { data, error } = await supabase.from('profiles').select('nickname').eq('id', user.id).maybeSingle()
-
     if (error) {
       console.error('[profiles.nickname] error:', error)
       setNickname('')
@@ -331,13 +321,11 @@ export default function NavBar() {
     } catch {}
   }, [supabase])
 
-  // ✅ 뱃지 컨트롤
   const showTeamBadge = true
   const teamBadgeText = 'BETA'
 
   const showRewardBadge = true
-  // 요청대로 철자 "Comming" 유지 + 2줄
-  const rewardBadgeText = 'Comming\nSoon'
+  const rewardBadgeText = 'Comming\nSoon' // 요청 철자 유지, 2줄
 
   const onClickReward = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -348,15 +336,15 @@ export default function NavBar() {
     <>
       <SoonModal open={soonOpen} title="REWARD" message="Opening soon." onClose={() => setSoonOpen(false)} />
 
+      {/* ✅ 헤더 높이 늘림: py-4 -> py-5 */}
       <header className="w-full bg-white border-b border-[#eeeeee]">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          {/* Left: menu */}
+        <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-4">
+          {/* Left */}
           <nav className="flex items-center gap-4">
             {items.map((it) => {
               const isTeam = it.href === '/team'
               const isReward = it.href === '/reward'
 
-              // ✅ REWARD는 링크 이동 막고 모달로 처리
               if (isReward) {
                 return (
                   <a
@@ -365,12 +353,13 @@ export default function NavBar() {
                     onClick={onClickReward}
                     className={[
                       'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                      'relative inline-flex items-center',
+                      'inline-flex flex-col items-center justify-center',
+                      'leading-tight',
                       'cursor-pointer',
                     ].join(' ')}
                   >
                     <span>{it.label}</span>
-                    {showRewardBadge ? <NavMiniBadge text={rewardBadgeText} /> : null}
+                    {showRewardBadge ? <span className="mt-[2px]"><NavSoonBadge text={rewardBadgeText} /></span> : null}
                   </a>
                 )
               }
@@ -397,7 +386,6 @@ export default function NavBar() {
               <span className="text-[12px] text-gray-500">Loading…</span>
             ) : user ? (
               <>
-                {/* Points (1px 축소 유지) */}
                 <span
                   className={[
                     'flex items-center gap-1 whitespace-nowrap',
