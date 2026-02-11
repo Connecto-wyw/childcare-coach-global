@@ -2,6 +2,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAuthUser } from '@/app/providers'
 
 type Keyword = {
   id: string
@@ -20,8 +21,6 @@ type AdminGetOk = {
   ok: boolean
   data: Array<{ id: string; keyword: string; order: number | null | undefined }>
 }
-
-const STORAGE_KEY = 'admin_uuid_keywords'
 
 async function readError(res: Response): Promise<ApiErr> {
   const status = res.status
@@ -55,12 +54,13 @@ function normalize(rows: AdminGetOk['data']): Keyword[] {
 }
 
 export default function KeywordAdminPage() {
-  const [adminUuid, setAdminUuid] = useState('')
-  const [savedUuid, setSavedUuid] = useState<string | null>(null)
+  const { user, loading } = useAuthUser() as any
+  const authed = !!user
 
   const [keywords, setKeywords] = useState<Keyword[]>([])
   const [newKeyword, setNewKeyword] = useState('')
-  const [loading, setLoading] = useState(false)
+
+  const [loadingList, setLoadingList] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -69,42 +69,18 @@ export default function KeywordAdminPage() {
   const [editKeyword, setEditKeyword] = useState('')
   const [editOrder, setEditOrder] = useState<string>('')
 
-  useEffect(() => {
-    const v = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null
-    setSavedUuid(v && v.trim() ? v.trim() : null)
-  }, [])
-
-  const isLoggedIn = !!savedUuid
-
-  function logout() {
-    if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY)
-    setSavedUuid(null)
-    setAdminUuid('')
-    setKeywords([])
-    setErrorMsg(null)
-    setEditId(null)
-  }
-
-  function login() {
-    const v = adminUuid.trim()
-    if (!v) {
-      setErrorMsg('Admin UUID 입력해.')
-      return
-    }
-    if (typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEY, v)
-    setSavedUuid(v)
-    setErrorMsg(null)
-  }
+  const canInteract = authed && !loadingList && !busyId
 
   const fetchKeywords = useCallback(async () => {
-    if (!savedUuid) return
+    if (!authed) return
+
+    setLoadingList(true)
     setErrorMsg(null)
 
     try {
       const res = await fetch('/api/keywords', {
         method: 'GET',
         cache: 'no-store',
-        headers: { 'x-admin-uuid': savedUuid },
       })
 
       if (!res.ok) {
@@ -124,20 +100,22 @@ export default function KeywordAdminPage() {
     } catch (e: any) {
       setKeywords([])
       setErrorMsg(`네트워크 오류(GET): ${e?.message ?? String(e)}`)
+    } finally {
+      setLoadingList(false)
     }
-  }, [savedUuid])
+  }, [authed])
 
   useEffect(() => {
-    if (!savedUuid) return
+    if (!authed) return
     fetchKeywords()
-  }, [savedUuid, fetchKeywords])
+  }, [authed, fetchKeywords])
 
   async function addKeyword() {
-    if (!savedUuid) return
+    if (!authed) return
     const value = newKeyword.trim()
     if (!value) return
 
-    setLoading(true)
+    setLoadingList(true)
     setErrorMsg(null)
 
     const nextOrder = keywords.length > 0 ? Math.max(...keywords.map((k) => k.order)) + 1 : 0
@@ -145,10 +123,7 @@ export default function KeywordAdminPage() {
     try {
       const res = await fetch('/api/keywords', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-admin-uuid': savedUuid,
-        },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ keyword: value, order: nextOrder }),
       })
 
@@ -167,7 +142,7 @@ export default function KeywordAdminPage() {
     } catch (e: any) {
       setErrorMsg(`네트워크 오류(ADD): ${e?.message ?? String(e)}`)
     } finally {
-      setLoading(false)
+      setLoadingList(false)
     }
   }
 
@@ -185,18 +160,13 @@ export default function KeywordAdminPage() {
   }
 
   async function saveEdit() {
-    if (!savedUuid || !editId) return
+    if (!authed || !editId) return
+
     const kw = editKeyword.trim()
     const ord = Number(editOrder)
 
-    if (!kw) {
-      setErrorMsg('키워드 비어있음.')
-      return
-    }
-    if (Number.isNaN(ord)) {
-      setErrorMsg('order 숫자여야 함.')
-      return
-    }
+    if (!kw) return setErrorMsg('키워드 비어있음.')
+    if (Number.isNaN(ord)) return setErrorMsg('order 숫자여야 함.')
 
     setBusyId(editId)
     setErrorMsg(null)
@@ -204,10 +174,7 @@ export default function KeywordAdminPage() {
     try {
       const res = await fetch('/api/keywords', {
         method: 'PUT',
-        headers: {
-          'content-type': 'application/json',
-          'x-admin-uuid': savedUuid,
-        },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: editId, keyword: kw, order: ord }),
       })
 
@@ -231,14 +198,14 @@ export default function KeywordAdminPage() {
   }
 
   async function deleteKeyword(id: string) {
-    if (!savedUuid) return
+    if (!authed) return
+
     setBusyId(id)
     setErrorMsg(null)
 
     try {
       const res = await fetch(`/api/keywords?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { 'x-admin-uuid': savedUuid },
       })
 
       if (!res.ok) {
@@ -259,41 +226,27 @@ export default function KeywordAdminPage() {
     }
   }
 
-  // --- UI ---
-  if (!isLoggedIn) {
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#333333] text-[#eae3de]">
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
+          <div className="mt-4 p-4 rounded bg-[#2b2b2b] text-gray-200">Checking login…</div>
+        </div>
+      </main>
+    )
+  }
+
+  if (!authed) {
     return (
       <main className="min-h-screen bg-[#333333] text-[#eae3de]">
         <div className="max-w-3xl mx-auto px-4 py-12">
           <h1 className="text-2xl font-bold">Popular Keywords (Admin)</h1>
           <p className="mt-2 text-sm text-gray-300">
-            매직링크 로그인 없음. Admin UUID로만 접근.
+            이제 Admin UUID 로그인 방식 제거했고, <b>로그인된 계정</b> + <b>허용된 이메일</b>만 접근 가능.
           </p>
-
-          <div className="mt-6 max-w-lg">
-            <label className="block text-sm text-gray-300 mb-2">Admin UUID</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="flex-1 rounded border border-gray-600 bg-[#2b2b2b] p-2 text-[#eae3de] placeholder-gray-400"
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={adminUuid}
-                onChange={(e) => setAdminUuid(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') login()
-                }}
-              />
-              <button
-                onClick={login}
-                className="px-4 py-2 bg-[#3EB6F1] text-black rounded hover:opacity-90"
-              >
-                Login
-              </button>
-            </div>
-
-            {errorMsg && <div className="mt-3 text-sm text-red-300 whitespace-pre-wrap">{errorMsg}</div>}
-            <div className="mt-4 text-xs text-gray-400">
-              서버는 <code className="text-gray-200">ADMIN_UUIDS</code> 환경변수에 등록된 UUID만 허용.
-            </div>
+          <div className="mt-4 p-4 rounded bg-[#2b2b2b] text-gray-200">
+            먼저 상단 메뉴에서 로그인 해.
           </div>
         </div>
       </main>
@@ -307,15 +260,9 @@ export default function KeywordAdminPage() {
           <div>
             <h1 className="text-2xl font-bold mb-1">Popular Keywords (Admin)</h1>
             <p className="text-xs text-gray-400">
-              Admin UUID: <span className="text-gray-200">{savedUuid?.slice(0, 8)}…</span>
+              Logged in as <span className="text-gray-200">{user?.email ?? user?.id ?? 'unknown'}</span>
             </p>
           </div>
-          <button
-            onClick={logout}
-            className="px-3 py-1 bg-[#3EB6F1] text-black rounded hover:opacity-90 text-sm"
-          >
-            Sign out
-          </button>
         </div>
 
         <div className="flex gap-2 mb-2">
@@ -326,33 +273,34 @@ export default function KeywordAdminPage() {
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && newKeyword.trim() && !loading) addKeyword()
+              if (e.key === 'Enter' && newKeyword.trim() && !loadingList && !busyId) addKeyword()
             }}
           />
           <button
             onClick={addKeyword}
-            disabled={loading || !newKeyword.trim()}
+            disabled={loadingList || !!busyId || !newKeyword.trim()}
             className="px-4 py-2 bg-[#3EB6F1] text-black rounded disabled:opacity-50"
           >
-            {loading ? 'Adding…' : 'Add'}
+            {loadingList ? 'Adding…' : 'Add'}
           </button>
         </div>
 
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={fetchKeywords}
-            className="px-3 py-1 bg-[#555] text-white rounded hover:opacity-90 text-sm"
+            disabled={loadingList || !!busyId}
+            className="px-3 py-1 bg-[#555] text-white rounded hover:opacity-90 text-sm disabled:opacity-60"
           >
             Refresh
           </button>
-          <span className="text-xs text-gray-400">목록 로딩은 GET /api/keywords (x-admin-uuid 헤더 필요)</span>
+          <span className="text-xs text-gray-400">목록 로딩은 GET /api/keywords (로그인+허용이메일 필요)</span>
         </div>
 
         {errorMsg && <div className="mb-4 text-sm text-red-300 whitespace-pre-wrap">{errorMsg}</div>}
 
         <div className="rounded-2xl border border-gray-700 bg-[#3a3a3a]">
           {keywords.length === 0 ? (
-            <div className="p-4 text-sm text-gray-300">No keywords yet.</div>
+            <div className="p-4 text-sm text-gray-300">{loadingList ? 'Loading…' : 'No keywords yet.'}</div>
           ) : (
             <ul className="divide-y divide-gray-700">
               {keywords.map((k) => {
@@ -382,7 +330,8 @@ export default function KeywordAdminPage() {
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="px-3 py-1 bg-[#666] text-white rounded hover:opacity-90 text-sm"
+                          disabled={busyId === k.id}
+                          className="px-3 py-1 bg-[#666] text-white rounded hover:opacity-90 text-sm disabled:opacity-50"
                         >
                           Cancel
                         </button>
@@ -392,13 +341,14 @@ export default function KeywordAdminPage() {
                         <span className="flex-1 break-words">{k.keyword}</span>
                         <button
                           onClick={() => startEdit(k)}
-                          className="px-3 py-1 bg-[#666] text-white rounded hover:opacity-90 text-sm"
+                          disabled={loadingList || !!busyId}
+                          className="px-3 py-1 bg-[#666] text-white rounded hover:opacity-90 text-sm disabled:opacity-60"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => deleteKeyword(k.id)}
-                          disabled={busyId === k.id}
+                          disabled={busyId === k.id || loadingList}
                           className="px-3 py-1 bg-[#8a1a1d] text-white rounded hover:opacity-90 text-sm disabled:opacity-50"
                         >
                           {busyId === k.id ? 'Deleting…' : 'Delete'}

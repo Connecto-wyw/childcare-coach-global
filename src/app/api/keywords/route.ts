@@ -1,138 +1,180 @@
 // src/app/api/keywords/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const TABLE = 'popular_keywords'
+const TABLE = 'popular_keywords' as const
+// columns: id (uuid), keyword (text), order (int)
 
-function jsonError(status: number, error: string, detail?: string) {
+function jsonErr(status: number, error: string, detail?: string) {
   return NextResponse.json({ ok: false, error, detail }, { status })
 }
 
-function getServiceClient(): { client: SupabaseClient | null; error?: string } {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url) return { client: null, error: 'missing_env_url' }
-  if (!key) return { client: null, error: 'missing_env_service_role' }
-  return { client: createClient(url, key, { auth: { persistSession: false } }) }
-}
-
-function getAdminUuidAllowlist(): Set<string> {
-  const raw = process.env.ADMIN_UUIDS || ''
+function parseAllowEmails() {
+  const raw = process.env.ADMIN_EMAILS || ''
   const list = raw
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
-  return new Set(list)
+  return list
 }
 
-function isAdmin(req: NextRequest): boolean {
-  const allow = getAdminUuidAllowlist()
-  if (allow.size === 0) return false
-  const uuid = (req.headers.get('x-admin-uuid') || '').trim()
-  if (!uuid) return false
-  return allow.has(uuid)
-}
+async function requireAdminEmail() {
+  const cookieStore = await cookies()
 
-type Row = { id: string; keyword: string; order: number }
-type PostBody = { keyword?: string; order?: number }
-type PutBody = { id?: string; keyword?: string; order?: number }
+  // ✅ 로그인(세션) 확인용: user client
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+          } catch {
+            // server component/setAll 제한 케이스 무시
+          }
+        },
+      },
+    }
+  )
 
-export async function GET(req: NextRequest) {
-  const { client, error } = getServiceClient()
-  if (!client) return jsonError(500, error ?? 'missing_env')
+  const { data, error } = await supabase.auth.getUser()
+  if (error) return { ok: false as const, status: 401, error: 'not_authenticated', detail: error.message }
+  const user = data?.user
+  if (!user) return { ok: false as const, status: 401, error: 'not_authenticated', detail: 'No user session.' }
 
-  const admin = isAdmin(req)
-
-  if (admin) {
-    const { data, error: dbError } = await client
-      .from(TABLE)
-      .select('id, keyword, "order"')
-      .order('order', { ascending: true })
-
-    if (dbError) return jsonError(500, 'db_error', dbError.message)
-
-    const rows: Row[] = (data ?? []).map((r: any, idx: number) => ({
-      id: String(r.id),
-      keyword: String(r.keyword),
-      order: Number.isFinite(Number(r.order)) ? Number(r.order) : idx,
-    }))
-
-    return NextResponse.json({ ok: true, data: rows })
+  const allow = parseAllowEmails()
+  if (allow.length === 0) {
+    return {
+      ok: false as const,
+      status: 403,
+      error: 'admin_emails_not_configured',
+      detail: 'Set ADMIN_EMAILS env (comma-separated).',
+    }
   }
 
-  // public: top 4 only (id 없이)
-  const { data, error: dbError } = await client
-    .from(TABLE)
-    .select('keyword, "order"')
-    .order('order', { ascending: true })
-    .limit(4)
+  const email = (user.email || '').toLowerCase()
+  if (!email || !allow.includes(email)) {
+    return {
+      ok: false as const,
+      status: 403,
+      error: 'not_allowed_email',
+      detail: `Email not allowed: ${user.email ?? '(no email)'}`,
+    }
+  }
 
-  if (dbError) return jsonError(500, 'db_error', dbError.message)
-
-  const keywords = (data ?? []).map((r: any) => String(r.keyword)).filter(Boolean)
-  return NextResponse.json({ ok: true, keywords, data: [] })
+  return { ok: true as const, user }
 }
 
-export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return jsonError(401, 'unauthorized')
-
-  const { client, error } = getServiceClient()
-  if (!client) return jsonError(500, error ?? 'missing_env')
-
-  const body = (await req.json().catch(() => ({}))) as PostBody
-  const keyword = (body.keyword ?? '').trim()
-  const order = Number(body.order)
-
-  if (!keyword || Number.isNaN(order)) return jsonError(400, 'bad_request')
-
-  const { error: dbError } = await client.from(TABLE).insert([{ keyword, order }])
-  if (dbError) return jsonError(500, 'db_error', dbError.message)
-
-  return NextResponse.json({ ok: true })
+function adminDb() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+  }
+  return createClient<Database>(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
 }
 
-export async function PUT(req: NextRequest) {
-  if (!isAdmin(req)) return jsonError(401, 'unauthorized')
+export async function GET() {
+  const gate = await requireAdminEmail()
+  if (!gate.ok) return jsonErr(gate.status, gate.error, gate.detail)
 
-  const { client, error } = getServiceClient()
-  if (!client) return jsonError(500, error ?? 'missing_env')
+  try {
+    const admin = adminDb()
+    const { data, error } = await admin
+      .from(TABLE)
+      .select('id, keyword, order')
+      .order('order', { ascending: true })
 
-  const body = (await req.json().catch(() => ({}))) as PutBody
-  const id = (body.id ?? '').trim()
-  const keyword = body.keyword !== undefined ? String(body.keyword).trim() : undefined
-  const order = body.order !== undefined ? Number(body.order) : undefined
-
-  if (!id) return jsonError(400, 'bad_request', 'missing id')
-  if (keyword !== undefined && !keyword) return jsonError(400, 'bad_request', 'empty keyword')
-  if (order !== undefined && Number.isNaN(order)) return jsonError(400, 'bad_request', 'invalid order')
-
-  const patch: any = {}
-  if (keyword !== undefined) patch.keyword = keyword
-  if (order !== undefined) patch.order = order
-
-  if (Object.keys(patch).length === 0) return jsonError(400, 'bad_request', 'nothing to update')
-
-  const { error: dbError } = await client.from(TABLE).update(patch).eq('id', id)
-  if (dbError) return jsonError(500, 'db_error', dbError.message)
-
-  return NextResponse.json({ ok: true })
+    if (error) return jsonErr(500, 'db_error', error.message)
+    return NextResponse.json({ ok: true, data: data ?? [] })
+  } catch (e: any) {
+    return jsonErr(500, 'server_error', e?.message ?? String(e))
+  }
 }
 
-export async function DELETE(req: NextRequest) {
-  if (!isAdmin(req)) return jsonError(401, 'unauthorized')
+export async function POST(req: Request) {
+  const gate = await requireAdminEmail()
+  if (!gate.ok) return jsonErr(gate.status, gate.error, gate.detail)
 
-  const { client, error } = getServiceClient()
-  if (!client) return jsonError(500, error ?? 'missing_env')
+  let body: any = null
+  try {
+    body = await req.json()
+  } catch {
+    body = null
+  }
 
-  const id = req.nextUrl.searchParams.get('id')
-  if (!id) return jsonError(400, 'bad_request', 'missing id')
+  const keyword = String(body?.keyword ?? '').trim()
+  const order = Number(body?.order)
 
-  const { error: dbError } = await client.from(TABLE).delete().eq('id', id)
-  if (dbError) return jsonError(500, 'db_error', dbError.message)
+  if (!keyword) return jsonErr(400, 'bad_request', 'keyword is required')
+  if (Number.isNaN(order)) return jsonErr(400, 'bad_request', 'order must be a number')
 
-  return NextResponse.json({ ok: true })
+  try {
+    const admin = adminDb()
+    const { error } = await admin.from(TABLE).insert([{ keyword, order } as any])
+    if (error) return jsonErr(500, 'db_error', error.message)
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return jsonErr(500, 'server_error', e?.message ?? String(e))
+  }
+}
+
+export async function PUT(req: Request) {
+  const gate = await requireAdminEmail()
+  if (!gate.ok) return jsonErr(gate.status, gate.error, gate.detail)
+
+  let body: any = null
+  try {
+    body = await req.json()
+  } catch {
+    body = null
+  }
+
+  const id = String(body?.id ?? '').trim()
+  const keyword = String(body?.keyword ?? '').trim()
+  const order = Number(body?.order)
+
+  if (!id) return jsonErr(400, 'bad_request', 'id is required')
+  if (!keyword) return jsonErr(400, 'bad_request', 'keyword is required')
+  if (Number.isNaN(order)) return jsonErr(400, 'bad_request', 'order must be a number')
+
+  try {
+    const admin = adminDb()
+    const { error } = await admin.from(TABLE).update({ keyword, order } as any).eq('id', id)
+    if (error) return jsonErr(500, 'db_error', error.message)
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return jsonErr(500, 'server_error', e?.message ?? String(e))
+  }
+}
+
+export async function DELETE(req: Request) {
+  const gate = await requireAdminEmail()
+  if (!gate.ok) return jsonErr(gate.status, gate.error, gate.detail)
+
+  const url = new URL(req.url)
+  const id = (url.searchParams.get('id') ?? '').trim()
+  if (!id) return jsonErr(400, 'bad_request', 'id is required')
+
+  try {
+    const admin = adminDb()
+    const { error } = await admin.from(TABLE).delete().eq('id', id)
+    if (error) return jsonErr(500, 'db_error', error.message)
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return jsonErr(500, 'server_error', e?.message ?? String(e))
+  }
 }
