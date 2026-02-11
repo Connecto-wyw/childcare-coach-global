@@ -20,50 +20,61 @@ type PopularKeywordRow = {
 
 function withEmoji(label: string, idx: number) {
   const trimmed = (label ?? '').trim()
+  // 이미 이모지로 시작하면 그대로
   if (/^\p{Extended_Pictographic}/u.test(trimmed)) return trimmed
 
-  // ✅ 여기서 1번 키워드(한국맘 픽)는 쇼핑/아이템 느낌으로 더 강하게
-  // (문구 자체에 이모지가 이미 들어오면 그대로 유지됨)
-  const presets = ['🛍️', '🧠', '🌱', '✨']
+  const presets = ['🎯', '🧠', '🌱', '✨']
   const emoji = presets[idx] ?? '✨'
   return `${emoji} ${trimmed}`
 }
 
+// ✅ 비교를 “진짜 빡세게” 정규화: smart quote/공백/대소문자 모두 흡수
 function normalizeKw(s: string) {
   return (s ?? '')
     .trim()
-    .replace(/[’‘]/g, "'") // smart quote -> '
+    .replace(/[’‘]/g, "'")
+    .replace(/[“”]/g, '"')
     .replace(/\s+/g, ' ')
     .toLowerCase()
 }
 
-// ✅ 서버에서 "고정 텍스트 100% 그대로 출력" 트리거
-const K_MOM_TAG = '[K_MOM_PICKS]'
+// ✅ 앞에 붙는 이모지/변형자/ZWJ/공백/구분자까지 최대한 제거
+function stripLeadingEmojiAndSpaces(s: string) {
+  return (s ?? '')
+    .replace(/^[\p{Extended_Pictographic}\uFE0F\u200D]+/gu, '') // emoji + variation selector + zwj
+    .replace(/^[\s\-–—•]+/g, '') // 공백/구분자
+    .trim()
+}
 
-// ✅ 키워드 매칭을 넉넉하게(따옴표/복수형/철자 흔들림)
-function isKMomPicksKeyword(normalized: string) {
-  const candidates = new Set([
+// ✅ “해당 키워드” 판별을 넓게 잡음 (이모지 포함/표기 흔들림 모두 커버)
+function isKMomPicksKeyword(rawKw: string) {
+  const n = normalizeKw(rawKw)
+  const n2 = stripLeadingEmojiAndSpaces(n)
+
+  // exact match(기존 후보)도 유지
+  const candidates = [
     "korean moms' favorite picks",
     "korean mom's favorite picks",
-    'korean moms favorite picks',
-    'korean mom favorite picks',
     "korea moms' favorite picks",
     "korea mom's favorite picks",
-    'korea moms favorite picks',
-    'korea mom favorite picks',
-  ])
-  return candidates.has(normalized)
+  ]
+  if (candidates.includes(n2)) return true
+
+  // ✅ 포함(contains) 매칭: 표기 흔들려도 무조건 잡힘
+  const hasKorea = n2.includes('korea') || n2.includes('korean')
+  const hasMom =
+    n2.includes("mom's") || n2.includes("moms'") || n2.includes('moms') || n2.includes('mom')
+  const hasPicks = n2.includes('favorite picks') || (n2.includes('favorite') && n2.includes('picks'))
+
+  return hasKorea && hasMom && hasPicks
 }
 
 function buildMessageForKeyword(rawKw: string) {
   const kw = (rawKw ?? '').trim()
-  const normalized = normalizeKw(kw)
 
-  // ✅ 이 키워드를 누르면 서버가 OpenAI를 호출하지 않고
-  // ✅ "사용자가 준 고정 본문"을 1글자도 안 바꾸고 그대로 반환하도록 트리거
-  if (isKMomPicksKeyword(normalized)) {
-    // 서버에서 태그만 감지하면 되므로, question은 짧게 유지
-    return `${K_MOM_TAG}\nKorean Moms’ Favorite Picks`
+  // ✅ 이 키워드면 무조건 태그를 붙여 서버에서 “고정문 모드”로 처리
+  if (isKMomPicksKeyword(kw)) {
+    return `[K_MOM_PICKS]\nKorean Moms’ Favorite Picks`
   }
 
   return kw
@@ -77,7 +88,6 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // ✅ 서버에서 이미 keywords를 내려주면 DB 조회 안 함
     if (keywords && keywords.length > 0) return
 
     let cancelled = false
@@ -90,9 +100,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
           .order('order', { ascending: true })
 
         if (!error && data) {
-          const arr = (data as PopularKeywordRow[])
-            .map((r) => (r?.keyword ?? '').trim())
-            .filter(Boolean)
+          const arr = (data as PopularKeywordRow[]).map((r) => r.keyword).filter(Boolean)
           if (!cancelled) setDbKeywords(arr)
         }
       } finally {
@@ -107,7 +115,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
 
   const items = useMemo(() => {
     const source = keywords && keywords.length > 0 ? keywords : dbKeywords
-    const deduped = Array.from(new Set((source ?? []).map((x) => (x ?? '').trim()).filter(Boolean)))
+    const deduped = Array.from(new Set((source ?? []).filter(Boolean)))
     return deduped.slice(0, Math.max(1, max))
   }, [keywords, dbKeywords, max])
 
@@ -118,10 +126,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
 
     const listVariants: Variants = {
       hidden: { opacity: 1 },
-      show: {
-        opacity: 1,
-        transition: { staggerChildren: stagger },
-      },
+      show: { opacity: 1, transition: { staggerChildren: stagger } },
     }
 
     const rowVariants: Variants = {
@@ -153,7 +158,7 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
         const label = withEmoji(kw, i)
         return (
           <motion.button
-            key={`${kw}-${i}`}
+            key={kw}
             variants={row}
             type="button"
             onClick={() => fill(kw)}
