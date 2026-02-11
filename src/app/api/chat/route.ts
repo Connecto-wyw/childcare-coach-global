@@ -29,24 +29,11 @@ function getIp(h: any) {
   return h.get('x-real-ip') || null
 }
 
-// ✅ Vercel / Proxy 헤더에서 국가/도시 추출
+// ✅ Vercel / proxy geo headers
 function getGeo(h: any) {
-  // Vercel 표준
-  const country =
-    h.get('x-vercel-ip-country') ||
-    h.get('cf-ipcountry') || // Cloudflare fallback
-    null
-
-  const region =
-    h.get('x-vercel-ip-country-region') ||
-    h.get('x-vercel-ip-region') || // 혹시 다른 프록시
-    null
-
-  const city =
-    h.get('x-vercel-ip-city') ||
-    h.get('x-vercel-ip-country-city') || // 케이스 대비
-    null
-
+  const country = h.get('x-vercel-ip-country') || h.get('cf-ipcountry') || null
+  const region = h.get('x-vercel-ip-country-region') || h.get('x-vercel-ip-region') || null
+  const city = h.get('x-vercel-ip-city') || h.get('x-vercel-ip-country-city') || null
   return { country, region, city }
 }
 
@@ -114,16 +101,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'missing_service_role_key', requestId, stage }, { status: 500 })
     }
 
-    // ✅ sessionId: 클라이언트(localStorage) -> 쿠키 -> 서버 생성 순
+    // ✅ sessionId: client -> cookie -> server create
     const cookieStore = await cookies()
     const SESSION_COOKIE = 'cc_session_id'
     let sessionId = sessionIdFromClient || cookieStore.get(SESSION_COOKIE)?.value
+    if (!sessionId) sessionId = randomUUID()
 
-    if (!sessionId) {
-      sessionId = randomUUID()
-    }
-
-    // 쿠키는 항상 세팅(있어도 갱신)
     cookieStore.set({
       name: SESSION_COOKIE,
       value: sessionId,
@@ -134,7 +117,7 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 365,
     })
 
-    // ✅ 일반 서버클라이언트(anon): auth/조회용 (RLS 적용)
+    // ✅ anon server client (RLS)
     const supabase = createServerClient<Database>(url, anon, {
       cookies: {
         get(name: string) {
@@ -149,7 +132,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // ✅ admin client(service role): 저장용 (RLS 무시)
+    // ✅ admin client (service role) - insert용
     const admin = createClient<Database>(url, serviceKey, {
       auth: { persistSession: false },
     })
@@ -159,10 +142,10 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    // 로그인/비로그인 모두 허용
     const userId = user?.id ?? null
+    const email = user?.email ?? null // ✅ 로그인 유저 이메일
 
-    // ✅ prevContext: 로그인 유저면 user_id로, 아니면 session_id로
+    // ✅ prev context
     stage = 'load_prev_context'
     let prevContext = ''
     try {
@@ -176,18 +159,14 @@ export async function POST(req: NextRequest) {
 
       if (data && data.length) {
         prevContext = data
-          .map((r: any) => {
-            const qq = r?.question ?? ''
-            const aa = r?.answer ?? ''
-            return `Q: ${qq}\nA: ${aa}`
-          })
+          .map((r: any) => `Q: ${r?.question ?? ''}\nA: ${r?.answer ?? ''}`)
           .join('\n\n')
       }
     } catch {
       prevContext = ''
     }
 
-    // ✅ greetedToday: 로그인 유저면 user_id 기준, 아니면 session_id 기준
+    // ✅ greetedToday
     stage = 'count_today'
     const today = new Date().toISOString().slice(0, 10)
     let greetedToday = false
@@ -221,7 +200,6 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
 
     let answer = String(part || '').replace(/\s*\[END\]\s*$/, '')
 
-    // 이어쓰기 1회(필요 시)
     if (finish !== 'stop') {
       stage = 'openai_continue'
       try {
@@ -232,29 +210,29 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         )
         const tail = (cont.part || '').replace(/\s*\[END\]\s*$/, '')
         if (tail) answer += tail
-      } catch {
-        // 이어쓰기 실패는 무시
-      }
+      } catch {}
     }
 
     stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // ✅ chat_logs 저장: admin(service role)로 저장 => 비로그인/광고 유입 포함 100% 저장 시도
+    // ✅ insert chat_logs with geo + created_at + email
     stage = 'insert_logs'
     let insertOk = false
     let insertError: string | null = null
 
     const h = await headers()
     const { country, region, city } = getGeo(h)
-
-    // ✅ created_at 강제 세팅 (DB default now()가 깨졌을 때도 시간 저장되게)
     const createdAt = new Date().toISOString()
 
     const { error: insErr } = await admin.from('chat_logs').insert({
-      created_at: createdAt,   // ✅ 추가 (시간 컬럼/디폴트 깨져도 시간 들어감)
-      user_id: userId,         // 로그인 유저면 저장, 아니면 null
-      session_id: sessionId,   // 비로그인 식별자 (필수)
+      created_at: createdAt,
+
+      // ✅ 로그인/비로그인 모두 저장
+      user_id: userId,        // 로그인 유저면 uuid 들어감, 비로그인은 null
+      email,                  // ✅ 로그인 유저 이메일(비로그인은 null)
+      session_id: sessionId,  // 항상 존재
+
       question,
       answer,
       model,
@@ -265,7 +243,6 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
       referer: h.get('referer'),
       path: req.nextUrl.pathname,
 
-      // ✅ 추가: 국가/도시
       country,
       region,
       city,
@@ -276,7 +253,7 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
       insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}${
         (insErr as any)?.details ? ` | ${(insErr as any).details}` : ''
       }`
-      console.error('[chat_logs insert error]', { requestId, userId, sessionId, insErr })
+      console.error('[chat_logs insert error]', { requestId, userId, email, sessionId, insErr })
     } else {
       insertOk = true
     }
@@ -288,11 +265,10 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         requestId,
         ms: Date.now() - startedAt,
         userId,
+        email,
         sessionId,
         insertOk,
         insertError,
-
-        // ✅ 디버그 확인용(원하면 나중에 빼)
         geo: { country, region, city },
       },
       { status: 200 }
