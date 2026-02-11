@@ -29,6 +29,27 @@ function getIp(h: any) {
   return h.get('x-real-ip') || null
 }
 
+// ✅ Vercel / Proxy 헤더에서 국가/도시 추출
+function getGeo(h: any) {
+  // Vercel 표준
+  const country =
+    h.get('x-vercel-ip-country') ||
+    h.get('cf-ipcountry') || // Cloudflare fallback
+    null
+
+  const region =
+    h.get('x-vercel-ip-country-region') ||
+    h.get('x-vercel-ip-region') || // 혹시 다른 프록시
+    null
+
+  const city =
+    h.get('x-vercel-ip-city') ||
+    h.get('x-vercel-ip-country-city') || // 케이스 대비
+    null
+
+  return { country, region, city }
+}
+
 async function openAIChat(model: string, system: string, question: string) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('MISSING_OPENAI_API_KEY')
@@ -225,22 +246,36 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     let insertError: string | null = null
 
     const h = await headers()
+    const { country, region, city } = getGeo(h)
+
+    // ✅ created_at 강제 세팅 (DB default now()가 깨졌을 때도 시간 저장되게)
+    const createdAt = new Date().toISOString()
+
     const { error: insErr } = await admin.from('chat_logs').insert({
-      user_id: userId,        // 로그인 유저면 저장, 아니면 null
-      session_id: sessionId,  // 비로그인 식별자 (필수)
+      created_at: createdAt,   // ✅ 추가 (시간 컬럼/디폴트 깨져도 시간 들어감)
+      user_id: userId,         // 로그인 유저면 저장, 아니면 null
+      session_id: sessionId,   // 비로그인 식별자 (필수)
       question,
       answer,
       model,
       lang: 'en',
+
       ip: getIp(h),
       user_agent: h.get('user-agent'),
       referer: h.get('referer'),
       path: req.nextUrl.pathname,
+
+      // ✅ 추가: 국가/도시
+      country,
+      region,
+      city,
     } as any)
 
     if (insErr) {
       insertOk = false
-      insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}${(insErr as any)?.details ? ` | ${(insErr as any).details}` : ''}`
+      insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}${
+        (insErr as any)?.details ? ` | ${(insErr as any).details}` : ''
+      }`
       console.error('[chat_logs insert error]', { requestId, userId, sessionId, insErr })
     } else {
       insertOk = true
@@ -256,6 +291,9 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         sessionId,
         insertOk,
         insertError,
+
+        // ✅ 디버그 확인용(원하면 나중에 빼)
+        geo: { country, region, city },
       },
       { status: 200 }
     )
