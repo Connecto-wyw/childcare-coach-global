@@ -28,7 +28,6 @@ function parseAllowEmails() {
 async function requireAdminEmail() {
   const cookieStore = await cookies()
 
-  // ✅ 로그인(세션) 확인용: user client
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,9 +39,7 @@ async function requireAdminEmail() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {
-            // server component/setAll 제한 케이스 무시
-          }
+          } catch {}
         },
       },
     }
@@ -87,10 +84,12 @@ function adminDb() {
   })
 }
 
+/**
+ * ✅ PUBLIC READ
+ * - Coach 페이지에서 인기 키워드를 보여주려면 GET은 공개로 두는 게 맞음.
+ * - 대신 write(POST/PUT/DELETE)는 관리자만 허용.
+ */
 export async function GET() {
-  const gate = await requireAdminEmail()
-  if (!gate.ok) return jsonErr(gate.status, gate.error, gate.detail)
-
   try {
     const admin = adminDb()
     const { data, error } = await admin

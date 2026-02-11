@@ -88,27 +88,28 @@ async function createSupabaseServer() {
   })
 }
 
+/**
+ * ✅ Coach에서 보여줄 키워드는 "어드민에서 등록한 것"만 사용.
+ * - GET /api/keywords 는 공개 읽기(추천)
+ * - 응답 형식: { ok: true, data: [{ id, keyword, order }, ...] }
+ */
 async function getPopularKeywords() {
   try {
     const origin = await getRequestOrigin()
     if (!origin) return null
 
     const res = await fetch(`${origin}/api/keywords`, { cache: 'no-store' })
-    const json = (await res.json().catch(() => ({}))) as any
     if (!res.ok) return null
 
-    if (Array.isArray(json.keywords) && json.keywords.length > 0) {
-      return json.keywords.map((k: any) => String(k)).filter(Boolean).slice(0, 4)
-    }
+    const json = (await res.json().catch(() => null)) as any
+    const rows = json && Array.isArray(json.data) ? json.data : []
 
-    if (Array.isArray(json.data) && json.data.length > 0) {
-      return json.data
-        .map((row: any) => String(row.keyword))
-        .filter(Boolean)
-        .slice(0, 4)
-    }
+    const list = rows
+      .map((row: any) => String(row.keyword ?? '').trim())
+      .filter(Boolean)
+      .slice(0, 4)
 
-    return null
+    return list.length > 0 ? list : null
   } catch {
     return null
   }
@@ -129,12 +130,12 @@ async function getOngoingTeams(supabase: Awaited<ReturnType<typeof createSupabas
 export default async function CoachPage() {
   const supabase = await createSupabaseServer()
 
+  // ✅ 어드민 등록 키워드만 사용 (없으면 섹션 숨김)
   const kw = await getPopularKeywords()
-  const keywords = kw && kw.length > 0 ? kw : ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
+  const keywords = kw && kw.length > 0 ? kw : []
 
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
-    // ✅ cover_image_url 컬럼이 있으면 같이 가져오고, 없으면 DB 타입에 따라 빼도 됨
     .select('id, title, slug, created_at, cover_image_url')
     .order('created_at', { ascending: false })
     .limit(3)
@@ -159,10 +160,13 @@ export default async function CoachPage() {
           </div>
         </section>
 
-        <section className="mb-3">
-          <div className="text-[15px] font-medium text-[#0e0e0e] mb-3">People are also asking</div>
-          <KeywordButtons keywords={keywords} />
-        </section>
+        {/* ✅ 키워드가 있을 때만 노출 */}
+        {keywords.length > 0 ? (
+          <section className="mb-3">
+            <div className="text-[15px] font-medium text-[#0e0e0e] mb-3">People are also asking</div>
+            <KeywordButtons keywords={keywords} />
+          </section>
+        ) : null}
 
         <section className="mb-8">
           <ChatBox />
@@ -173,10 +177,6 @@ export default async function CoachPage() {
           <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
 
-        {/* ✅ 여기만 “완전히” 위치 바꿈:
-            기존: Tips(왼쪽) / News(오른쪽)
-            변경: News(왼쪽) / Tips(오른쪽)
-        */}
         <section>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             {/* (1) K-Parenting News -> 왼쪽 */}
@@ -190,7 +190,6 @@ export default async function CoachPage() {
                   <ul className="space-y-3">
                     {news.map((n) => (
                       <li key={n.id} className="flex items-start gap-3">
-                        {/* ✅ 썸네일(있으면) */}
                         {n.cover_image_url ? (
                           <img
                             src={String(n.cover_image_url)}
