@@ -37,26 +37,12 @@ function getCountry(h: Headers) {
 }
 
 /* -----------------------------
- * ✅ 강제 고정 출력 모드: Korea Mom's Favorite Picks
- * - "프롬프트"가 아니라 "서버에서 고정 텍스트 그대로 반환"
- * - 1글자도 바뀌면 안 되는 요구사항에 대한 유일한 안전한 방법
+ * ✅ 강제 고정 출력 모드: Korean Moms’ Favorite Picks
  * ---------------------------- */
 const K_MOM_TAG = '[K_MOM_PICKS]'
 
-function extractKMomMode(input: string) {
-  const text = input ?? ''
-  if (!text.includes(K_MOM_TAG)) return { isMode: false, cleaned: text }
-  const cleaned = text.replaceAll(K_MOM_TAG, '').trim()
-  return { isMode: true, cleaned }
-}
-
-/**
- * ✅ 사용자가 준 텍스트를 "단 한 글자도 수정하지 않고" 그대로 반환
- * - 아래 문자열은 사용자가 준 본문을 그대로 복붙한 것
- * - 개행 포함 (ReactMarkdown에서 문단 구분되도록 원문 그대로 유지)
- */
-function kMomPicksFixedAnswerExact() {
-  return `Let me share a few things that many Korean moms genuinely love.
+// ✅ “한 글자도 빠지지 않고” 그대로 출력해야 하는 고정 본문 (사용자 제공 원문 그대로)
+const K_MOM_PICKS_TEXT = `Let me share a few things that many Korean moms genuinely love.
 It’s not just about what’s trending — it means more to understand why they choose them.
 
 1️⃣ Mommy & Child Beauty Essentials
@@ -103,6 +89,9 @@ If you would like to explore more trending parenting items from Korea,
 👉 Visit the TEAM menu.
 
 You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
+
+function isKMomPicksMode(raw: string) {
+  return (raw ?? '').includes(K_MOM_TAG)
 }
 
 type OpenAIParams = {
@@ -166,8 +155,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid_question', requestId, stage }, { status: 400 })
     }
 
-    const { isMode: isKMomMode, cleaned: cleanedQuestion } = extractKMomMode(rawQuestion)
-    const question = cleanedQuestion || rawQuestion
+    const kmomMode = isKMomPicksMode(rawQuestion)
 
     stage = 'init_supabase'
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
@@ -227,33 +215,30 @@ export async function POST(req: NextRequest) {
     const userId = user?.id ?? null
     const email = user?.email ?? null
 
-    // 공통 헤더
+    // ✅ 공통 로그 메타
     const h = await headers()
     const ip = getIp(h)
     const country = getCountry(h)
     const userAgent = h.get('user-agent')
     const referer = h.get('referer')
 
-    /**
-     * ✅ 여기서 "그대로 출력" 확정
-     */
-    if (isKMomMode) {
-      stage = 'k_mom_fixed_answer_exact'
-      let answer = kMomPicksFixedAnswerExact()
+    /* -----------------------------------------
+     * ✅ 여기서 “무조건 고정문 출력” (OpenAI 호출 금지)
+     * ----------------------------------------- */
+    if (kmomMode) {
+      stage = 'kmom_fixed_answer'
 
-      // 혹시라도 바이트 제한 걸릴까봐 안전장치 (지금 텍스트는 보통 2000바이트 넘을 수 있음)
-      // ✅ 너는 "한 글자도 빠지면 안 됨"이므로, 여기 limit을 넉넉히 키워야 함.
-      // -> 기존 2000 유지하면 텍스트가 잘릴 수 있다. 아래처럼 8000 정도로 올려.
-      answer = trimToBytes(answer, 8000)
+      const answer = K_MOM_PICKS_TEXT // ✅ 절대 가공/trim/bytes 제한 금지
 
+      // 저장은 하되, question은 원문(태그 포함) 저장해서 트리거 검증 가능
       stage = 'insert_logs'
       const { error: insErr } = await admin.from('chat_logs').insert({
         user_id: userId,
         email,
         session_id: sessionId,
-        question: rawQuestion, // 태그 포함 원문 저장
+        question: rawQuestion,
         answer,
-        model: 'fixed:k_mom_picks_exact',
+        model: 'fixed:k_mom_picks',
         lang: 'en',
         ip,
         country,
@@ -264,11 +249,12 @@ export async function POST(req: NextRequest) {
 
       const insertOk = !insErr
       const insertError = insErr
-        ? `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}` +
-          ((insErr as any)?.details ? ` | ${(insErr as any).details}` : '')
+        ? `${(insErr as any).code ?? ''}:${(insErr as any).message ?? 'insert_failed'}${
+            (insErr as any)?.details ? ` | ${(insErr as any).details}` : ''
+          }`
         : null
 
-      stage = 'ok'
+      stage = 'ok_fixed'
       return NextResponse.json(
         {
           answer,
@@ -287,7 +273,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ------- 일반 모드(OpenAI) -------
+    /* -----------------------------------------
+     * ✅ 일반 모드(기존 OpenAI 흐름)
+     * ----------------------------------------- */
+
     stage = 'load_prev_context'
     let prevContext = ''
     try {
@@ -299,7 +288,9 @@ export async function POST(req: NextRequest) {
 
       const { data } = userId ? await q.eq('user_id', userId) : await q.eq('session_id', sessionId)
       if (data && data.length) {
-        prevContext = data.map((r: any) => `Q: ${r?.question ?? ''}\nA: ${r?.answer ?? ''}`).join('\n\n')
+        prevContext = data
+          .map((r: any) => `Q: ${r?.question ?? ''}\nA: ${r?.answer ?? ''}`)
+          .join('\n\n')
       }
     } catch {
       prevContext = ''
@@ -322,7 +313,6 @@ export async function POST(req: NextRequest) {
 
     stage = 'compose_system'
     const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext })
-
     const kParentingRule = `
 You answer in **English only**.
 If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
@@ -335,11 +325,10 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
 
     stage = 'openai_first'
     const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
-
     const { part, finish } = await openAIChat({
       model,
       system,
-      question,
+      question: rawQuestion,
       temperature: 0.4,
       max_tokens: 1100,
       stop: ['[END]'],
@@ -353,7 +342,7 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         const cont = await openAIChat({
           model,
           system,
-          question: `${question}\n\n(Continue. Do not repeat prior text. Conclude succinctly. End with [END].)`,
+          question: `${rawQuestion}\n\n(Continue. Do not repeat prior text. Conclude succinctly. End with [END].)`,
           temperature: 0.4,
           max_tokens: 700,
           stop: ['[END]'],
@@ -369,9 +358,6 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     answer = trimToBytes(answer, 2000)
 
     stage = 'insert_logs'
-    let insertOk = false
-    let insertError: string | null = null
-
     const { error: insErr } = await admin.from('chat_logs').insert({
       user_id: userId,
       email,
@@ -387,15 +373,12 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
       path: req.nextUrl.pathname,
     } as any)
 
-    if (insErr) {
-      insertOk = false
-      insertError =
-        `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}` +
-        ((insErr as any)?.details ? ` | ${(insErr as any).details}` : '')
-      console.error('[chat_logs insert error]', { requestId, stage, userId, email, sessionId, ip, country, insErr })
-    } else {
-      insertOk = true
-    }
+    const insertOk = !insErr
+    const insertError = insErr
+      ? `${(insErr as any).code ?? ''}:${(insErr as any).message ?? 'insert_failed'}${
+          (insErr as any)?.details ? ` | ${(insErr as any).details}` : ''
+        }`
+      : null
 
     stage = 'ok'
     return NextResponse.json(
@@ -416,7 +399,12 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     )
   } catch (e: any) {
     return NextResponse.json(
-      { error: 'server_error', requestId, stage, message: String(e?.message ?? e).slice(0, 800) },
+      {
+        error: 'server_error',
+        requestId,
+        stage,
+        message: String(e?.message ?? e).slice(0, 800),
+      },
       { status: 500 }
     )
   }
