@@ -23,18 +23,21 @@ function safeString(v: unknown) {
   return typeof v === 'string' ? v : ''
 }
 
-function getIp(h: any) {
+function getIp(h: Headers) {
   const xf = h.get('x-forwarded-for')
   if (xf) return xf.split(',')[0].trim()
   return h.get('x-real-ip') || null
 }
 
-// ✅ Vercel / proxy geo headers
-function getGeo(h: any) {
-  const country = h.get('x-vercel-ip-country') || h.get('cf-ipcountry') || null
-  const region = h.get('x-vercel-ip-country-region') || h.get('x-vercel-ip-region') || null
-  const city = h.get('x-vercel-ip-city') || h.get('x-vercel-ip-country-city') || null
-  return { country, region, city }
+// Vercel / Cloudflare / etc
+function getCountry(h: Headers) {
+  return (
+    h.get('x-vercel-ip-country') ||
+    h.get('cf-ipcountry') ||
+    h.get('x-country') ||
+    h.get('x-geo-country') ||
+    null
+  )
 }
 
 async function openAIChat(model: string, system: string, question: string) {
@@ -101,10 +104,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'missing_service_role_key', requestId, stage }, { status: 500 })
     }
 
-    // ✅ sessionId: client -> cookie -> server create
+    // ✅ sessionId: 클라이언트(localStorage) -> 쿠키 -> 서버 생성 순
     const cookieStore = await cookies()
     const SESSION_COOKIE = 'cc_session_id'
     let sessionId = sessionIdFromClient || cookieStore.get(SESSION_COOKIE)?.value
+
     if (!sessionId) sessionId = randomUUID()
 
     cookieStore.set({
@@ -117,22 +121,26 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 365,
     })
 
-    // ✅ anon server client (RLS)
+    // ✅ anon server client: auth/조회용 (RLS 적용)
     const supabase = createServerClient<Database>(url, anon, {
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch {}
         },
         remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+          try {
+            cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+          } catch {}
         },
       },
     })
 
-    // ✅ admin client (service role) - insert용
+    // ✅ admin client(service role): 저장/유저조회용 (RLS 무시)
     const admin = createClient<Database>(url, serviceKey, {
       auth: { persistSession: false },
     })
@@ -140,12 +148,27 @@ export async function POST(req: NextRequest) {
     stage = 'auth_get_user'
     const {
       data: { user },
+      error: authErr,
     } = await supabase.auth.getUser()
 
+    // 로그인/비로그인 모두 허용
     const userId = user?.id ?? null
-    const email = user?.email ?? null // ✅ 로그인 유저 이메일
 
-    // ✅ prev context
+    // ✅ 로그인 유저 email은 service-role로 확실하게 가져오기
+    stage = 'resolve_email'
+    let email: string | null = null
+    if (userId) {
+      try {
+        const { data, error } = await admin.auth.admin.getUserById(userId)
+        if (!error) email = (data?.user?.email ?? null) as string | null
+      } catch {
+        email = user?.email ?? null
+      }
+    } else {
+      email = null
+    }
+
+    // ✅ prevContext: 로그인 유저면 user_id로, 아니면 session_id로
     stage = 'load_prev_context'
     let prevContext = ''
     try {
@@ -216,44 +239,37 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // ✅ insert chat_logs with geo + created_at + email
+    // ✅ chat_logs 저장: service role로 저장 (로그인/비로그인 모두)
     stage = 'insert_logs'
     let insertOk = false
     let insertError: string | null = null
 
     const h = await headers()
-    const { country, region, city } = getGeo(h)
-    const createdAt = new Date().toISOString()
 
-    const { error: insErr } = await admin.from('chat_logs').insert({
-      created_at: createdAt,
-
-      // ✅ 로그인/비로그인 모두 저장
-      user_id: userId,        // 로그인 유저면 uuid 들어감, 비로그인은 null
-      email,                  // ✅ 로그인 유저 이메일(비로그인은 null)
-      session_id: sessionId,  // 항상 존재
-
+    const payload: any = {
+      user_id: userId,        // 로그인 유저면 uuid, 아니면 null
+      email,                  // 로그인 유저면 email, 아니면 null
+      session_id: sessionId,  // 비로그인/로그인 공통 식별자
       question,
       answer,
       model,
       lang: 'en',
-
       ip: getIp(h),
+      country: getCountry(h), // ✅ DB에 country 컬럼 있어야 보임
       user_agent: h.get('user-agent'),
       referer: h.get('referer'),
       path: req.nextUrl.pathname,
+      created_at: new Date().toISOString(), // ✅ 시간 빠지는 케이스 방지
+    }
 
-      country,
-      region,
-      city,
-    } as any)
+    const { error: insErr } = await admin.from('chat_logs').insert(payload)
 
     if (insErr) {
       insertOk = false
       insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}${
         (insErr as any)?.details ? ` | ${(insErr as any).details}` : ''
       }`
-      console.error('[chat_logs insert error]', { requestId, userId, email, sessionId, insErr })
+      console.error('[chat_logs insert error]', { requestId, stage, userId, sessionId, insErr, payload })
     } else {
       insertOk = true
     }
@@ -269,7 +285,9 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         sessionId,
         insertOk,
         insertError,
-        geo: { country, region, city },
+        // 디버깅용: 로그인 감지 실패하면 여기서 바로 보임
+        authUserDetected: Boolean(userId),
+        authError: authErr ? String((authErr as any)?.message ?? authErr) : null,
       },
       { status: 200 }
     )
