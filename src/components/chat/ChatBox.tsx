@@ -55,6 +55,80 @@ function getOrCreateSessionId() {
   }
 }
 
+/* -----------------------------------------
+ * ✅ "라벨" 기반 강제 출력 모드 (K_MOM_TAG 제거)
+ * - KeywordButtons가 보낸 메시지(detail)가
+ *   "💛 Korean Moms’ Favorite Picks" 이면
+ *   API 호출 없이 하드코딩 답변을 100% 그대로 출력
+ * ---------------------------------------- */
+const K_MOM_USER_LABEL = '💛 Korean Moms’ Favorite Picks'
+
+// ✅ 라벨 비교를 최대한 안 깨지게(이모지/따옴표/공백/대소문자 흡수)
+function normalizeForMatch(s: string) {
+  return (s ?? '')
+    .trim()
+    .replace(/[’‘]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+}
+
+function isKMomLabel(text: string) {
+  // 앞 이모지/기호가 붙어도 비교되게 처리
+  const n = normalizeForMatch(text).replace(/^\p{Extended_Pictographic}\s*/u, '').trim()
+  const target = normalizeForMatch(K_MOM_USER_LABEL).replace(/^\p{Extended_Pictographic}\s*/u, '').trim()
+  return n === target
+}
+
+// ✅ 너가 준 문구 "한 글자도 빠지지 않게" 그대로
+const K_MOM_FIXED_ANSWER = `Let me share a few things that many Korean moms genuinely love.
+It’s not just about what’s trending — it means more to understand why they choose them.
+
+1️⃣ Mommy & Child Beauty Essentials
+
+In Korea, many families are moving away from strictly separate “kids-only” products.
+Instead, there is a growing preference for gentle, clean beauty items that mothers and children can safely use together.
+
+Cushion-style sunscreen compacts make it easier for children to apply sunscreen on their own, while water-washable play cosmetics combine safety with a touch of fun.
+
+More than the product itself, many parents value the shared experience of daily routines done together.
+
+2️⃣ Play-Based Learning Tools
+
+Rather than focusing heavily on memorization, Korean early education increasingly emphasizes tools that stimulate thinking through play.
+
+Magnetic blocks paired with structured activity sheets are especially popular.
+Instead of simply stacking pieces, children are guided to recreate shapes or solve simple building challenges, naturally strengthening spatial awareness and problem-solving skills.
+
+Talking pen systems are also widely used. By touching the pages of compatible books, children can hear stories and pronunciation, making language exposure feel interactive and self-directed.
+
+It feels less like formal studying — and more like “thinking through play.”
+
+3️⃣ Korean Postpartum Care Starter Kit
+
+In Korea, postpartum recovery is treated as an essential stage of care.
+This starter kit focuses on:
+
+Maintaining warmth
+
+Gentle, steady daily recovery routines
+
+Practical self-care that can be done at home
+
+It is not about intensive treatment, but about creating a calm and supportive recovery environment.
+
+4️⃣ K-Kids Silicone Tableware Set
+
+Designed to support independent eating, this set emphasizes suction stability, food-grade silicone safety, and easy cleaning.
+
+Korean parents often prioritize both safe materials and reducing mealtime stress.
+It is a practical choice that balances functionality with clean, modern design.
+
+If you would like to explore more trending parenting items from Korea,
+👉 Visit the TEAM menu.
+
+You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
+
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const { user } = useAuthUser()
   const supabase = useSupabase()
@@ -161,6 +235,16 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       const sid = sessionId || getOrCreateSessionId()
 
+      // ✅ 라벨 강제 모드: API 호출 없이 하드코딩 답변만 출력
+      if (isKMomLabel(q)) {
+        push('user', K_MOM_USER_LABEL)
+        setInput('')
+        setError('')
+        setLoading(false)
+        push('assistant', K_MOM_FIXED_ANSWER)
+        return
+      }
+
       push('user', q)
       setInput('')
       setLoading(true)
@@ -260,20 +344,17 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
               ].join(' ')}
             >
               {m.role === 'assistant' ? (
-                // ✅ 문단/리스트 간격이 “정상”으로 보이도록 prose 마진을 0으로 죽이지 않는다
+                // ✅ 문단/리스트 간격이 “정상”으로 보이도록: p/ul/ol 마진을 살린다
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown
                     components={{
-                      // ✅ 문단은 여백을 줘야 문단이 문단처럼 보임
                       p: ({ children }) => <p className="my-2 whitespace-pre-wrap">{children}</p>,
 
-                      // ✅ 헤딩도 간격/크기 정리
                       h1: ({ children }) => <h1 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h1>,
                       h2: ({ children }) => <h2 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h2>,
                       h3: ({ children }) => <h3 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h3>,
                       h4: ({ children }) => <h4 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h4>,
 
-                      // ✅ 리스트가 붙어 보이지 않게 기본 여백/들여쓰기
                       ul: ({ children }) => <ul className="my-2 pl-5 list-disc">{children}</ul>,
                       ol: ({ children }) => <ol className="my-2 pl-5 list-decimal">{children}</ol>,
                       li: ({ children }) => <li className="my-1">{children}</li>,
