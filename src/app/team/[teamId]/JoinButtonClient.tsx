@@ -37,10 +37,25 @@ export default function JoinButtonClient({ teamId }: Props) {
 
     setSubmitting(true)
 
+    // ✅ 로그인 유저 이메일 확보(확실히)
+    // - useAuthUser의 user.email이 항상 들어있다고 보장 못 해서,
+    //   auth.getUser()로 한 번 더 안전하게 가져옴
+    const {
+      data: { user: freshUser },
+      error: userErr,
+    } = await supabase.auth.getUser()
+
+    if (userErr) {
+      console.error('[auth.getUser] error:', userErr)
+    }
+
+    const email = freshUser?.email ?? null
+
     const { error } = await supabase.from('team_members').insert([
       {
         team_id: teamId,
         user_id: user.id,
+        email, // ✅ 추가: 이메일 저장
       },
     ])
 
@@ -64,6 +79,7 @@ export default function JoinButtonClient({ teamId }: Props) {
 
     setSubmitting(false)
     router.refresh()
+    showModal('Joined', 'Joined successfully. We will notify you by email.')
   }
 
   return (
@@ -85,10 +101,7 @@ export default function JoinButtonClient({ teamId }: Props) {
           aria-labelledby="join-modal-title"
         >
           {/* overlay */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={closeModal}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
 
           {/* panel */}
           <div className="relative w-full max-w-sm rounded-2xl bg-white shadow-xl">
@@ -96,9 +109,7 @@ export default function JoinButtonClient({ teamId }: Props) {
               <h3 id="join-modal-title" className="text-[16px] font-semibold text-[#0e0e0e]">
                 {modalTitle}
               </h3>
-              <p className="mt-2 text-[14px] leading-6 text-[#444]">
-                {modalMessage}
-              </p>
+              <p className="mt-2 text-[14px] leading-6 text-[#444]">{modalMessage}</p>
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#eee] px-5 py-3">

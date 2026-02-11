@@ -123,19 +123,13 @@ export default function TeamPage() {
               >
                 <div className="w-full overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={t.imageSrc}
-                    alt={t.name}
-                    className="h-[220px] w-full object-cover md:h-[260px]"
-                  />
+                  <img src={t.imageSrc} alt={t.name} className="h-[220px] w-full object-cover md:h-[260px]" />
                 </div>
 
                 <div className="p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">
-                        {t.name}
-                      </div>
+                      <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">{t.name}</div>
                     </div>
 
                     <div
