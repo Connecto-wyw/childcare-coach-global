@@ -29,15 +29,20 @@ function getIp(h: Headers) {
   return h.get('x-real-ip') || null
 }
 
-// Vercel / Cloudflare / etc
 function getCountry(h: Headers) {
+  // Vercel / Cloudflare / 기타 프록시에서 흔히 주는 국가 코드 헤더들
   return (
     h.get('x-vercel-ip-country') ||
     h.get('cf-ipcountry') ||
     h.get('x-country') ||
-    h.get('x-geo-country') ||
     null
   )
+}
+
+function getBearerTokenFromRequest(req: NextRequest) {
+  const auth = req.headers.get('authorization') || ''
+  const m = auth.match(/^Bearer\s+(.+)$/i)
+  return m?.[1]?.trim() || ''
 }
 
 async function openAIChat(model: string, system: string, question: string) {
@@ -66,9 +71,7 @@ async function openAIChat(model: string, system: string, question: string) {
   })
 
   const text = await resp.text()
-  if (!resp.ok) {
-    throw new Error(`OPENAI_${resp.status}:${text.slice(0, 800)}`)
-  }
+  if (!resp.ok) throw new Error(`OPENAI_${resp.status}:${text.slice(0, 800)}`)
 
   const data = JSON.parse(text) as any
   const part = (data?.choices?.[0]?.message?.content ?? '') as string
@@ -84,9 +87,13 @@ export async function POST(req: NextRequest) {
   try {
     stage = 'parse_body'
     const body = await req.json().catch(() => ({} as any))
+
     const question = safeString(body.question).trim()
     const systemFromClient = safeString(body.system)
     const sessionIdFromClient = safeString(body.sessionId).trim()
+
+    // ✅ (추가) 클라이언트가 body로 보내는 토큰도 허용
+    const accessTokenFromBody = safeString(body.accessToken).trim()
 
     if (!question) {
       return NextResponse.json({ error: 'invalid_question', requestId, stage }, { status: 400 })
@@ -111,6 +118,7 @@ export async function POST(req: NextRequest) {
 
     if (!sessionId) sessionId = randomUUID()
 
+    // 쿠키는 항상 세팅(있어도 갱신)
     cookieStore.set({
       name: SESSION_COOKIE,
       value: sessionId,
@@ -121,51 +129,63 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 365,
     })
 
-    // ✅ anon server client: auth/조회용 (RLS 적용)
+    // ✅ 일반 서버클라이언트(anon): auth/조회용 (RLS 적용)
     const supabase = createServerClient<Database>(url, anon, {
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({ name, value, ...options })
-          } catch {}
+          cookieStore.set({ name, value, ...options })
         },
         remove(name: string, options: any) {
-          try {
-            cookieStore.set({ name, value: '', ...options, maxAge: 0 })
-          } catch {}
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
         },
       },
     })
 
-    // ✅ admin client(service role): 저장/유저조회용 (RLS 무시)
+    // ✅ admin client(service role): 저장용 (RLS 무시)
     const admin = createClient<Database>(url, serviceKey, {
       auth: { persistSession: false },
     })
 
+    // ---------------------------------------
+    // ✅ 로그인 유저 확정 로직(핵심 수정)
+    // 1) Authorization: Bearer <access_token> 우선
+    // 2) body.accessToken 우선
+    // 3) 마지막으로 쿠키 기반 supabase.auth.getUser()
+    // ---------------------------------------
     stage = 'auth_get_user'
-    const {
-      data: { user },
-      error: authErr,
-    } = await supabase.auth.getUser()
 
-    // 로그인/비로그인 모두 허용
-    const userId = user?.id ?? null
+    const bearer = getBearerTokenFromRequest(req)
+    const token = bearer || accessTokenFromBody
 
-    // ✅ 로그인 유저 email은 service-role로 확실하게 가져오기
-    stage = 'resolve_email'
+    let userId: string | null = null
     let email: string | null = null
-    if (userId) {
-      try {
-        const { data, error } = await admin.auth.admin.getUserById(userId)
-        if (!error) email = (data?.user?.email ?? null) as string | null
-      } catch {
-        email = user?.email ?? null
+    let authUserDetected = false
+    let authError: string | null = null
+
+    try {
+      if (token) {
+        // ✅ 토큰이 있으면 이게 제일 확실함
+        const { data, error } = await admin.auth.getUser(token)
+        if (error) {
+          authError = `${error.status ?? ''}:${error.message ?? 'auth_getUser_failed'}`
+        } else {
+          authUserDetected = Boolean(data?.user?.id)
+          userId = data?.user?.id ?? null
+          email = data?.user?.email ?? null
+        }
+      } else {
+        // ✅ 토큰이 없으면 쿠키 기반(불안정)
+        const { data, error } = await supabase.auth.getUser()
+        if (error) authError = `${error.status ?? ''}:${error.message ?? 'auth_getUser_failed'}`
+        authUserDetected = Boolean(data?.user?.id)
+        userId = data?.user?.id ?? null
+        email = (data?.user as any)?.email ?? null
       }
-    } else {
-      email = null
+    } catch (e: any) {
+      authError = String(e?.message ?? e).slice(0, 200)
     }
 
     // ✅ prevContext: 로그인 유저면 user_id로, 아니면 session_id로
@@ -189,7 +209,7 @@ export async function POST(req: NextRequest) {
       prevContext = ''
     }
 
-    // ✅ greetedToday
+    // ✅ greetedToday: 로그인 유저면 user_id 기준, 아니면 session_id 기준
     stage = 'count_today'
     const today = new Date().toISOString().slice(0, 10)
     let greetedToday = false
@@ -233,43 +253,44 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         )
         const tail = (cont.part || '').replace(/\s*\[END\]\s*$/, '')
         if (tail) answer += tail
-      } catch {}
+      } catch {
+        // 이어쓰기 실패는 무시
+      }
     }
 
     stage = 'trim'
     answer = trimToBytes(answer, 2000)
 
-    // ✅ chat_logs 저장: service role로 저장 (로그인/비로그인 모두)
+    // ✅ chat_logs 저장: admin(service role)로 저장 => 로그인/비로그인 모두 저장
     stage = 'insert_logs'
     let insertOk = false
     let insertError: string | null = null
 
     const h = await headers()
 
-    const payload: any = {
+    const payload = {
       user_id: userId,        // 로그인 유저면 uuid, 아니면 null
-      email,                  // 로그인 유저면 email, 아니면 null
-      session_id: sessionId,  // 비로그인/로그인 공통 식별자
+      email: email,           // ✅ 로그인 유저면 email, 아니면 null
+      session_id: sessionId,  // ✅ 항상 저장
       question,
       answer,
       model,
       lang: 'en',
       ip: getIp(h),
-      country: getCountry(h), // ✅ DB에 country 컬럼 있어야 보임
+      country: getCountry(h), // ✅ 국가 저장(있으면)
       user_agent: h.get('user-agent'),
       referer: h.get('referer'),
       path: req.nextUrl.pathname,
-      created_at: new Date().toISOString(), // ✅ 시간 빠지는 케이스 방지
-    }
+    } as any
 
     const { error: insErr } = await admin.from('chat_logs').insert(payload)
 
     if (insErr) {
       insertOk = false
-      insertError = `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}${
-        (insErr as any)?.details ? ` | ${(insErr as any).details}` : ''
-      }`
-      console.error('[chat_logs insert error]', { requestId, stage, userId, sessionId, insErr, payload })
+      insertError =
+        `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}` +
+        ((insErr as any)?.details ? ` | ${(insErr as any).details}` : '')
+      console.error('[chat_logs insert error]', { requestId, userId, email, sessionId, insErr })
     } else {
       insertOk = true
     }
@@ -285,9 +306,8 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         sessionId,
         insertOk,
         insertError,
-        // 디버깅용: 로그인 감지 실패하면 여기서 바로 보임
-        authUserDetected: Boolean(userId),
-        authError: authErr ? String((authErr as any)?.message ?? authErr) : null,
+        authUserDetected,
+        authError,
       },
       { status: 200 }
     )
