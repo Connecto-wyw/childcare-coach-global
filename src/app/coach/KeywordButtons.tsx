@@ -28,6 +28,48 @@ function withEmoji(label: string, idx: number) {
   return `${emoji} ${trimmed}`
 }
 
+/**
+ * ✅ A안: 특정 키워드 버튼을 눌렀을 때 "그대로 키워드만" 보내지 말고,
+ *       원하는 답변 형식을 유도하는 프롬프트(질문)로 치환해서 ChatBox로 보낸다.
+ *
+ * - Korean Moms’ Favorite Picks 클릭 시:
+ *   1) 한국 엄마들이 많이 쓰는 아이템 추천
+ *   2) 아이와 함께 쓰는 뷰티 아이템 + 아이를 위한 아이템
+ *   3) 마지막에 TEAM 메뉴 CTA
+ */
+function buildMessageForKeyword(rawKw: string) {
+  const kw = (rawKw ?? '').trim()
+
+  // 여러 표기(’ / ') 대응
+  const normalized = kw
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+
+  if (normalized === "korean moms' favorite picks") {
+    return [
+      `Please recommend popular items that Korean moms love and commonly use.`,
+      ``,
+      `Include BOTH categories:`,
+      `1) Beauty items moms can use together with their kids (gentle, family-friendly).`,
+      `2) Items for kids (daily essentials or helpful products).`,
+      ``,
+      `For each item, give:`,
+      `- Item name`,
+      `- 1 short reason why Korean moms like it`,
+      `- A simple age note if relevant`,
+      ``,
+      `Recommend 8–10 items total.`,
+      ``,
+      `Finish with this call-to-action line (exactly as written):`,
+      `"Visit our TEAM menu to discover Korean moms’ favorite items and buy great quality at a more reasonable price."`,
+    ].join('\n')
+  }
+
+  // 기본: 기존처럼 키워드 그대로 전송
+  return kw
+}
+
 export default function KeywordButtons({ keywords, className, max = 12 }: Props) {
   const supabase = useSupabase()
 
@@ -62,15 +104,17 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   }, [keywords, supabase])
 
   const items = useMemo(() => {
-    const fallback = ['Focus Boosters in Korea', 'Understanding ADHD', 'Gentle Discipline']
+    // ✅ fallback 제거: 어드민 등록 없으면 아무것도 안 보여주고 싶으면 []로 두면 됨
+    // (현재는 안전하게 최소 1개는 나오도록 유지하고 싶다면 기존 fallback을 살려도 됨)
+    const fallback: string[] = []
     const source =
       keywords && keywords.length > 0 ? keywords : dbKeywords.length > 0 ? dbKeywords : fallback
+
     const deduped = Array.from(new Set(source.filter(Boolean)))
     return deduped.slice(0, Math.max(1, max))
   }, [keywords, dbKeywords, max])
 
   const { list, row } = useMemo(() => {
-    // ✅ PC/모바일 공통으로 느린 속도 고정
     const stagger = reduced ? 0 : 0.14
     const duration = reduced ? 0 : 0.55
     const yFrom = 14
@@ -97,7 +141,8 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
 
   const fill = useCallback((kw: string) => {
     if (typeof window === 'undefined') return
-    window.dispatchEvent(new CustomEvent<string>(COACH_SET_MESSAGE_EVENT, { detail: kw }))
+    const message = buildMessageForKeyword(kw)
+    window.dispatchEvent(new CustomEvent<string>(COACH_SET_MESSAGE_EVENT, { detail: message }))
   }, [])
 
   return (
