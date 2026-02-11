@@ -74,7 +74,7 @@ function buildMessageForKeyword(rawKw: string) {
 
   // ✅ 이 키워드면 무조건 태그를 붙여 서버에서 “고정문 모드”로 처리
   if (isKMomPicksKeyword(kw)) {
-    return `[K_MOM_PICKS]\nKorean Moms’ Favorite Picks`
+    return `💛 Korean Moms’ Favorite Picks`
   }
 
   return kw

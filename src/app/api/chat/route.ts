@@ -42,7 +42,7 @@ function getCountry(h: Headers) {
 const K_MOM_TAG = '[K_MOM_PICKS]'
 
 // ✅ “한 글자도 빠지지 않고” 그대로 출력해야 하는 고정 본문 (사용자 제공 원문 그대로)
-const K_MOM_PICKS_TEXT = `Let me share a few things that many Korean moms genuinely love.
+const K_MOM_PICKS_TEXT = `Hello—I'm your AI Parenting Coach. Let me share a few things that many Korean moms genuinely love.
 It’s not just about what’s trending — it means more to understand why they choose them.
 
 1️⃣ Mommy & Child Beauty Essentials
@@ -70,11 +70,9 @@ It feels less like formal studying — and more like “thinking through play.�
 In Korea, postpartum recovery is treated as an essential stage of care.
 This starter kit focuses on:
 
-Maintaining warmth
-
-Gentle, steady daily recovery routines
-
-Practical self-care that can be done at home
+✔ Maintaining warmth
+✔ Gentle, steady daily recovery routines
+✔ Practical self-care that can be done at home
 
 It is not about intensive treatment, but about creating a calm and supportive recovery environment.
 
