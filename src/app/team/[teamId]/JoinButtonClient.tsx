@@ -118,7 +118,7 @@ export default function JoinButtonClient({ teamId }: Props) {
         disabled={loading || submitting}
         className="rounded-full bg-[#0e0e0e] px-8 py-3 text-[15px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
       >
-        {submitting ? 'Joining…' : 'Join now'}
+        {submitting ? 'Joining..' : 'Join now'}
       </button>
 
       {open && (
