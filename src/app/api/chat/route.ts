@@ -34,11 +34,7 @@ function getIp(h: Headers) {
 // - Cloudflare: cf-ipcountry
 // - 기타: x-country-code (커스텀)
 function getCountry(h: Headers) {
-  const v =
-    h.get('x-vercel-ip-country') ||
-    h.get('cf-ipcountry') ||
-    h.get('x-country-code') ||
-    ''
+  const v = h.get('x-vercel-ip-country') || h.get('cf-ipcountry') || h.get('x-country-code') || ''
   const cc = v.trim().toUpperCase()
   if (!cc || cc === 'XX') return null
   // 보통 2자리 국가코드
@@ -49,12 +45,43 @@ function getCountry(h: Headers) {
  * ✅ 강제 모드: Korean Moms’ Favorite Picks
  * ---------------------------- */
 const K_MOM_TAG = '[K_MOM_PICKS]'
+const K_MOM_FINAL_LINE =
+  'Visit our TEAM menu to discover Korean moms’ favorite items and buy great quality at a more reasonable price.'
 
 function extractKMomMode(input: string) {
-  const text = (input ?? '')
+  const text = input ?? ''
   if (!text.includes(K_MOM_TAG)) return { isMode: false, cleaned: text }
   const cleaned = text.replaceAll(K_MOM_TAG, '').trim()
   return { isMode: true, cleaned }
+}
+
+/**
+ * ✅ 가장 강력한 방식: OpenAI가 말 새면 무조건 깨짐.
+ * 버튼 질문([K_MOM_PICKS])은 아예 고정 텍스트로 반환한다.
+ * - 형식/문단/개행 100% 고정
+ * - 마지막 TEAM 문구 100% 보장
+ */
+function kMomPicksFixedAnswer() {
+  // Markdown + 섹션 사이 빈 줄(\n\n) 확실히 넣어서 ChatBox에서 문단이 정상 분리되게 함
+  return [
+    `### Korean Moms’ Favorite Picks`,
+    ``,
+    `#### A) Beauty items moms use together with kids`,
+    `- Mineral family sunscreen — gentle daily protection for sensitive skin. (6m+ if needed)`,
+    `- Fragrance-free body wash — simple, non-stripping cleanser for everyone. (newborn+ options exist)`,
+    `- Barrier cream/ointment — quick support for dry patches and irritation. (newborn+)`,
+    `- Gentle moisturizer — daily hydration that works for both mom and child. (newborn+)`,
+    `- Mild lip balm — easy “together use” for cold/windy days. (3y+ if needed)`,
+    ``,
+    `#### B) Items for kids (daily essentials)`,
+    `- Kids toothbrush + fluoride toothpaste — the most consistent routine Korean moms keep. (age-appropriate)`,
+    `- Stainless steel water bottle — durable, leak-resistant, and easy to clean. (3y+ spout/straw)`,
+    `- Thick unscented wet wipes — everyday essential for outings and quick cleanups. (all ages)`,
+    `- Kids vitamins — commonly used as a simple daily support routine. (age-appropriate)`,
+    `- Small humidifier — popular for dry seasons to support comfort at home. (all ages)`,
+    ``,
+    K_MOM_FINAL_LINE,
+  ].join('\n')
 }
 
 function kMomPicksSystemPrompt(baseSystem: string) {
@@ -76,7 +103,7 @@ function kMomPicksSystemPrompt(baseSystem: string) {
     `- Items must be realistic and commonly used by Korean moms. Avoid rare luxury/niche items.`,
     `- No questions. No disclaimers. No extra paragraphs. No extra sections.`,
     `- After the 10 bullets, add exactly ONE final line, and NOTHING after it, exact text:`,
-    `"Visit our TEAM menu to discover Korean moms’ favorite items and buy great quality at a more reasonable price."`,
+    `"${K_MOM_FINAL_LINE}"`,
   ].join('\n')
 
   return `${baseSystem}\n\n${forced}`.trim()
@@ -224,9 +251,7 @@ export async function POST(req: NextRequest) {
       const { data } = userId ? await q.eq('user_id', userId) : await q.eq('session_id', sessionId)
 
       if (data && data.length) {
-        prevContext = data
-          .map((r: any) => `Q: ${r?.question ?? ''}\nA: ${r?.answer ?? ''}`)
-          .join('\n\n')
+        prevContext = data.map((r: any) => `Q: ${r?.question ?? ''}\nA: ${r?.answer ?? ''}`).join('\n\n')
       }
     } catch {
       prevContext = ''
@@ -248,6 +273,64 @@ export async function POST(req: NextRequest) {
       greetedToday = false
     }
 
+    // ✅ 공통 헤더 정보(로그 저장용)
+    const h = await headers()
+    const ip = getIp(h)
+    const country = getCountry(h)
+    const userAgent = h.get('user-agent')
+    const referer = h.get('referer')
+
+    /**
+     * ✅ (핵심) K-MOM 모드면 OpenAI를 태우지 않고, 고정 답변으로 바로 반환
+     * - 너가 원하는 "그대로 출력" 100% 보장
+     * - 문단/리스트/마지막 문구 100% 고정
+     */
+    if (isKMomMode) {
+      stage = 'k_mom_fixed_answer'
+      let answer = kMomPicksFixedAnswer()
+      answer = trimToBytes(answer, 2000)
+
+      stage = 'insert_logs'
+      const { error: insErr } = await admin.from('chat_logs').insert({
+        user_id: userId,
+        email,
+        session_id: sessionId,
+        question: rawQuestion, // ✅ 원문(태그 포함) 저장
+        answer,
+        model: 'fixed:k_mom_picks',
+        lang: 'en',
+        ip,
+        country,
+        user_agent: userAgent,
+        referer,
+        path: req.nextUrl.pathname,
+      } as any)
+
+      const insertOk = !insErr
+      const insertError = insErr
+        ? `${insErr.code ?? ''}:${insErr.message ?? 'insert_failed'}` +
+          ((insErr as any)?.details ? ` | ${(insErr as any).details}` : '')
+        : null
+
+      stage = 'ok'
+      return NextResponse.json(
+        {
+          answer,
+          requestId,
+          ms: Date.now() - startedAt,
+          userId,
+          email,
+          sessionId,
+          insertOk,
+          insertError,
+          authUserDetected,
+          authError,
+          kMomMode: true,
+        },
+        { status: 200 }
+      )
+    }
+
     stage = 'compose_system'
     const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext })
 
@@ -262,24 +345,18 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     // ✅ 기본 system
     let system = `${base}\n\n${kParentingRule}`.trim()
 
-    // ✅ 강제 모드면 system을 "강제 템플릿"으로 교체/강화
-    if (isKMomMode) {
-      system = kMomPicksSystemPrompt(system)
-    }
+    // (참고) 만약 나중에 K-MOM을 OpenAI로 다시 돌리고 싶으면 여기서만 켜면 됨
+    // if (isKMomMode) system = kMomPicksSystemPrompt(system)
 
     stage = 'openai_first'
     const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
-
-    // ✅ 강제 모드면 더 보수적으로: 말 안 새고 형식 준수 유도
-    const temperature = isKMomMode ? 0.2 : 0.4
-    const max_tokens = isKMomMode ? 900 : 1100
 
     const { part, finish } = await openAIChat({
       model,
       system,
       question,
-      temperature,
-      max_tokens,
+      temperature: 0.4,
+      max_tokens: 1100,
       stop: ['[END]'],
     })
 
@@ -292,36 +369,14 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
           model,
           system,
           question: `${question}\n\n(Continue. Do not repeat prior text. Conclude succinctly. End with [END].)`,
-          temperature,
-          max_tokens: Math.min(700, max_tokens),
+          temperature: 0.4,
+          max_tokens: 700,
           stop: ['[END]'],
         })
         const tail = (cont.part || '').replace(/\s*\[END\]\s*$/, '')
         if (tail) answer += tail
       } catch {
         // ignore
-      }
-    }
-
-    // ✅ 강제 모드면 마지막 TEAM 문구가 누락될 가능성 대비: 마지막 줄 강제 보정
-    // (모델이 규칙을 어길 때를 대비한 서버-side 안전장치)
-    if (isKMomMode) {
-      const must =
-        'Visit our TEAM menu to discover Korean moms’ favorite items and buy great quality at a more reasonable price.'
-      const normalizedAnswer = answer.replace(/\r\n/g, '\n').trim()
-      const hasMust = normalizedAnswer.includes(must)
-
-      if (!hasMust) {
-        // 혹시라도 다른 텍스트가 마지막에 붙어있으면 제거하지는 않고, 마지막 줄로 붙인다
-        answer = `${normalizedAnswer}\n${must}`
-      } else {
-        // must가 중간에 있고 마지막 줄이 아니면 마지막 줄로 강제 이동
-        // (너무 공격적으로 지우면 위험하니, "마지막 줄에 없으면 추가"만 수행)
-        const lines = normalizedAnswer.split('\n').filter(Boolean)
-        const last = lines[lines.length - 1]
-        if (last !== must) {
-          answer = `${normalizedAnswer}\n${must}`
-        }
       }
     }
 
@@ -333,17 +388,11 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
     let insertOk = false
     let insertError: string | null = null
 
-    const h = await headers()
-    const ip = getIp(h)
-    const country = getCountry(h)
-    const userAgent = h.get('user-agent')
-    const referer = h.get('referer')
-
     const { error: insErr } = await admin.from('chat_logs').insert({
-      user_id: userId,        // 로그인 유저면 uuid, 아니면 null
-      email,                 // ✅ 로그인 유저 이메일 저장 (컬럼 있어야 함)
+      user_id: userId, // 로그인 유저면 uuid, 아니면 null
+      email, // ✅ 로그인 유저 이메일 저장 (컬럼 있어야 함)
       session_id: sessionId, // 비로그인 식별자 (필수)
-      question: rawQuestion, // ✅ 원문(태그 포함) 저장해서 추후 분석/트리거 확인 가능
+      question: rawQuestion, // ✅ 원문(태그 포함) 저장
       answer,
       model,
       lang: 'en',
@@ -386,8 +435,7 @@ If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
         insertError,
         authUserDetected,
         authError,
-        // 디버깅용 (원치 않으면 빼도 됨)
-        kMomMode: isKMomMode,
+        kMomMode: false,
       },
       { status: 200 }
     )

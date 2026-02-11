@@ -260,11 +260,23 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
               ].join(' ')}
             >
               {m.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none prose-p:my-0 prose-li:my-0">
+                // ✅ 문단/리스트 간격이 “정상”으로 보이도록 prose 마진을 0으로 죽이지 않는다
+                <div className="prose prose-sm max-w-none">
                   <ReactMarkdown
                     components={{
-                      p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
-                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      // ✅ 문단은 여백을 줘야 문단이 문단처럼 보임
+                      p: ({ children }) => <p className="my-2 whitespace-pre-wrap">{children}</p>,
+
+                      // ✅ 헤딩도 간격/크기 정리
+                      h1: ({ children }) => <h1 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h1>,
+                      h2: ({ children }) => <h2 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h2>,
+                      h3: ({ children }) => <h3 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h3>,
+                      h4: ({ children }) => <h4 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h4>,
+
+                      // ✅ 리스트가 붙어 보이지 않게 기본 여백/들여쓰기
+                      ul: ({ children }) => <ul className="my-2 pl-5 list-disc">{children}</ul>,
+                      ol: ({ children }) => <ol className="my-2 pl-5 list-decimal">{children}</ol>,
+                      li: ({ children }) => <li className="my-1">{children}</li>,
                     }}
                   >
                     {m.content}
