@@ -20,7 +20,6 @@ type PopularKeywordRow = {
 
 function withEmoji(label: string, idx: number) {
   const trimmed = (label ?? '').trim()
-  // 이미 이모지로 시작하면 그대로
   if (/^\p{Extended_Pictographic}/u.test(trimmed)) return trimmed
 
   const presets = ['🎯', '🧠', '🌱', '✨']
@@ -28,45 +27,24 @@ function withEmoji(label: string, idx: number) {
   return `${emoji} ${trimmed}`
 }
 
-/**
- * ✅ A안: 특정 키워드 버튼을 눌렀을 때 "그대로 키워드만" 보내지 말고,
- *       원하는 답변 형식을 유도하는 프롬프트(질문)로 치환해서 ChatBox로 보낸다.
- *
- * - Korean Moms’ Favorite Picks 클릭 시:
- *   1) 한국 엄마들이 많이 쓰는 아이템 추천
- *   2) 아이와 함께 쓰는 뷰티 아이템 + 아이를 위한 아이템
- *   3) 마지막에 TEAM 메뉴 CTA
- */
-function buildMessageForKeyword(rawKw: string) {
-  const kw = (rawKw ?? '').trim()
-
-  // 여러 표기(’ / ') 대응
-  const normalized = kw
+function normalizeKw(s: string) {
+  return (s ?? '')
+    .trim()
     .replace(/[’‘]/g, "'")
     .replace(/\s+/g, ' ')
     .toLowerCase()
+}
 
+function buildMessageForKeyword(rawKw: string) {
+  const kw = (rawKw ?? '').trim()
+  const normalized = normalizeKw(kw)
+
+  // ✅ 서버에서 강제 템플릿을 적용하기 위한 트리거 태그
   if (normalized === "korean moms' favorite picks") {
-    return [
-      `Please recommend popular items that Korean moms love and commonly use.`,
-      ``,
-      `Include BOTH categories:`,
-      `1) Beauty items moms can use together with their kids (gentle, family-friendly).`,
-      `2) Items for kids (daily essentials or helpful products).`,
-      ``,
-      `For each item, give:`,
-      `- Item name`,
-      `- 1 short reason why Korean moms like it`,
-      `- A simple age note if relevant`,
-      ``,
-      `Recommend 8–10 items total.`,
-      ``,
-      `Finish with this call-to-action line (exactly as written):`,
-      `"Visit our TEAM menu to discover Korean moms’ favorite items and buy great quality at a more reasonable price."`,
-    ].join('\n')
+    // 태그 + 짧은 질문만 보냄 (강제 형식은 서버에서)
+    return `[K_MOM_PICKS]\nKorean Moms’ Favorite Picks`
   }
 
-  // 기본: 기존처럼 키워드 그대로 전송
   return kw
 }
 
@@ -104,13 +82,8 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   }, [keywords, supabase])
 
   const items = useMemo(() => {
-    // ✅ fallback 제거: 어드민 등록 없으면 아무것도 안 보여주고 싶으면 []로 두면 됨
-    // (현재는 안전하게 최소 1개는 나오도록 유지하고 싶다면 기존 fallback을 살려도 됨)
-    const fallback: string[] = []
-    const source =
-      keywords && keywords.length > 0 ? keywords : dbKeywords.length > 0 ? dbKeywords : fallback
-
-    const deduped = Array.from(new Set(source.filter(Boolean)))
+    const source = keywords && keywords.length > 0 ? keywords : dbKeywords
+    const deduped = Array.from(new Set((source ?? []).filter(Boolean)))
     return deduped.slice(0, Math.max(1, max))
   }, [keywords, dbKeywords, max])
 
