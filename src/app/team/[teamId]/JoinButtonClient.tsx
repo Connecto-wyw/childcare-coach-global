@@ -97,9 +97,14 @@ export default function JoinButtonClient({ teamId }: Props) {
 
       setSubmitting(false)
       router.refresh()
-      showModal('Joined', 'Joined successfully. We will notify you by email.', 'close')
+
+      // ✅ 문구 변경 (Joined 성공)
+      showModal(
+        'Thanks for joining!',
+        'Thank you for joining. You won’t be charged right now, and nothing will be shipped yet. When the official sale begins, we’ll notify you by email.',
+        'close'
+      )
     } catch (e: any) {
-      // ✅ 여기로 오면 진짜 네트워크/환경/차단 케이스가 많음
       console.error('[join] unexpected error:', e)
       setSubmitting(false)
       showModal('Error', String(e?.message ?? e ?? 'Failed to fetch'), 'close')
