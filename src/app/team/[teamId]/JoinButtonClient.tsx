@@ -18,28 +18,64 @@ export default function JoinButtonClient({ teamId }: Props) {
   const [modalTitle, setModalTitle] = useState('Sign in required')
   const [modalMessage, setModalMessage] = useState('You must be signed in to join.')
 
-  const showModal = (title: string, message: string) => {
+  // ✅ when modal is "sign in required", OK should trigger Google login
+  const [modalAction, setModalAction] = useState<'close' | 'google_login'>('close')
+
+  const showModal = (title: string, message: string, action: 'close' | 'google_login' = 'close') => {
     setModalTitle(title)
     setModalMessage(message)
+    setModalAction(action)
     setOpen(true)
   }
 
   const closeModal = () => setOpen(false)
 
+  const startGoogleLogin = async () => {
+    // 모달은 닫고 진행(UX)
+    setOpen(false)
+
+    // ✅ 구글 계정 선택 화면 강제: prompt=select_account
+    // ✅ 로그인 후 다시 이 팀 상세 페이지로 돌아오게: redirectTo=현재 URL
+    const redirectTo =
+      typeof window !== 'undefined' ? window.location.href : undefined
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
+    })
+
+    if (error) {
+      console.error('[signInWithOAuth] error:', error)
+      // 로그인 자체가 실패하면 다시 모달로 에러 보여주기
+      showModal('Error', String((error as any)?.message ?? 'Login failed.'), 'close')
+    }
+  }
+
+  const onModalOk = async () => {
+    if (modalAction === 'google_login') {
+      await startGoogleLogin()
+      return
+    }
+    closeModal()
+  }
+
   const join = async () => {
     if (!teamId) return
 
-    // ✅ not logged in → modal
+    // ✅ not logged in → modal (OK 누르면 구글 로그인으로)
     if (!user) {
-      showModal('Sign in required', 'You must be signed in to join.')
+      showModal('Sign in required', 'You must be signed in to join.', 'google_login')
       return
     }
 
     setSubmitting(true)
 
     // ✅ 로그인 유저 이메일 확보(확실히)
-    // - useAuthUser의 user.email이 항상 들어있다고 보장 못 해서,
-    //   auth.getUser()로 한 번 더 안전하게 가져옴
     const {
       data: { user: freshUser },
       error: userErr,
@@ -55,7 +91,7 @@ export default function JoinButtonClient({ teamId }: Props) {
       {
         team_id: teamId,
         user_id: user.id,
-        email, // ✅ 추가: 이메일 저장
+        email,
       },
     ])
 
@@ -64,22 +100,20 @@ export default function JoinButtonClient({ teamId }: Props) {
       const code = (error as any)?.code
 
       if (code === '23505' || msg.toLowerCase().includes('duplicate')) {
-        // ✅ already joined → modal
-        showModal('Already joined', 'You have already joined this team.')
+        showModal('Already joined', 'You have already joined this team.', 'close')
         setSubmitting(false)
         router.refresh()
         return
       }
 
-      // ✅ generic error → modal
-      showModal('Error', msg || 'Something went wrong.')
+      showModal('Error', msg || 'Something went wrong.', 'close')
       setSubmitting(false)
       return
     }
 
     setSubmitting(false)
     router.refresh()
-    showModal('Joined', 'Joined successfully. We will notify you by email.')
+    showModal('Joined', 'Joined successfully. We will notify you by email.', 'close')
   }
 
   return (
@@ -109,13 +143,15 @@ export default function JoinButtonClient({ teamId }: Props) {
               <h3 id="join-modal-title" className="text-[16px] font-semibold text-[#0e0e0e]">
                 {modalTitle}
               </h3>
-              <p className="mt-2 text-[14px] leading-6 text-[#444]">{modalMessage}</p>
+              <p className="mt-2 text-[14px] leading-6 text-[#444]">
+                {modalMessage}
+              </p>
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#eee] px-5 py-3">
               <button
                 type="button"
-                onClick={closeModal}
+                onClick={onModalOk}
                 className="h-9 rounded-lg border border-[#ddd] bg-white px-3 text-[14px] font-semibold text-[#111] hover:bg-[#f7f7f7]"
               >
                 OK
