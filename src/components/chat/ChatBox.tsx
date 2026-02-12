@@ -74,7 +74,6 @@ function normalizeForMatch(s: string) {
 }
 
 function isKMomLabel(text: string) {
-  // 앞 이모지/기호가 붙어도 비교되게 처리
   const n = normalizeForMatch(text).replace(/^\p{Extended_Pictographic}\s*/u, '').trim()
   const target = normalizeForMatch(K_MOM_USER_LABEL).replace(/^\p{Extended_Pictographic}\s*/u, '').trim()
   return n === target
@@ -217,8 +216,37 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   }, [supabase, getAuthRedirectTo])
 
   const push = useCallback((role: ChatRole, content: string) => {
-    setMessages((prev) => [...prev, { id: uuid(), role, content, createdAt: Date.now() }])
+    const id = uuid()
+    setMessages((prev) => [...prev, { id, role, content, createdAt: Date.now() }])
+    return id
   }, [])
+
+  // ✅ 특정 메시지 content만 갱신 (타이핑 효과용)
+  const updateMessage = useCallback((id: string, content: string) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, content } : m)))
+  }, [])
+
+  function sleep(ms: number) {
+    return new Promise((r) => setTimeout(r, ms))
+  }
+
+  // ✅ “타이핑” 효과: fullText를 조금씩 쌓아가며 updateMessage
+  const typewriterAppend = useCallback(
+    async (messageId: string, fullText: string, opts?: { cps?: number; chunk?: number }) => {
+      const cps = Math.max(10, opts?.cps ?? 45) // chars per second (대략적인 속도)
+      const chunk = Math.max(1, opts?.chunk ?? 2) // 한 번에 추가할 문자 수
+      const delay = Math.max(8, Math.floor((1000 / cps) * chunk))
+
+      let i = 0
+      while (i < fullText.length) {
+        i += chunk
+        const next = fullText.slice(0, i)
+        updateMessage(messageId, next)
+        await sleep(delay)
+      }
+    },
+    [updateMessage]
+  )
 
   async function safeJsonParse<T>(raw: string): Promise<T | null> {
     try {
@@ -235,13 +263,24 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       const sid = sessionId || getOrCreateSessionId()
 
-      // ✅ 라벨 강제 모드: API 호출 없이 하드코딩 답변만 출력
+      // ✅ 라벨 강제 모드: Thinking → 타이핑으로 출력
       if (isKMomLabel(q)) {
         push('user', K_MOM_USER_LABEL)
         setInput('')
         setError('')
+
+        // 1) Thinking 먼저 보여주기
+        setLoading(true)
+
+        // 2) “API 호출하는 느낌”으로 약간 대기
+        await sleep(650)
+
+        // 3) Thinking 끄고, 빈 assistant 메시지 만든 다음 타이핑 시작
         setLoading(false)
-        push('assistant', K_MOM_FIXED_ANSWER)
+
+        const mid = push('assistant', '')
+        // 줄바꿈/문단 유지되게 그대로 타이핑
+        void typewriterAppend(mid, K_MOM_FIXED_ANSWER, { cps: 55, chunk: 2 })
         return
       }
 
@@ -302,6 +341,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           return
         }
 
+        // (선택) API 답도 타이핑으로 보이게 하고 싶으면 여기서도 typewriter로 바꾸면 됨
         push('assistant', answer)
       } catch (e) {
         const msg = 'The response is delayed. Please try again.'
@@ -311,7 +351,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         setLoading(false)
       }
     },
-    [input, sessionId, push, systemPrompt, user?.id]
+    [input, sessionId, push, systemPrompt, user?.id, typewriterAppend]
   )
 
   useEffect(() => {
@@ -344,17 +384,14 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
               ].join(' ')}
             >
               {m.role === 'assistant' ? (
-                // ✅ 문단/리스트 간격이 “정상”으로 보이도록: p/ul/ol 마진을 살린다
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => <p className="my-2 whitespace-pre-wrap">{children}</p>,
-
                       h1: ({ children }) => <h1 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h1>,
                       h2: ({ children }) => <h2 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h2>,
                       h3: ({ children }) => <h3 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h3>,
                       h4: ({ children }) => <h4 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h4>,
-
                       ul: ({ children }) => <ul className="my-2 pl-5 list-disc">{children}</ul>,
                       ol: ({ children }) => <ol className="my-2 pl-5 list-decimal">{children}</ol>,
                       li: ({ children }) => <li className="my-1">{children}</li>,
