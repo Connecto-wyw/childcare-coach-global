@@ -282,7 +282,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
         const mid = push('assistant', '')
         // 줄바꿈/문단 유지되게 그대로 타이핑
-        void typewriterAppend(mid, K_MOM_FIXED_ANSWER, { cps: 70, chunk: 2 })
+        void typewriterAppend(mid, K_MOM_FIXED_ANSWER, { cps: 75, chunk: 3 })
         return
       }
 
