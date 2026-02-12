@@ -422,7 +422,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       <div ref={chatBarRef} className="fixed left-0 right-0 bottom-0 z-50 bg-white border-t border-[#eeeeee]">
         <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="border border-[#dcdcdc] bg-white shadow-sm">
+          <div className="border-2 border-[#9F1D23] bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#9F1D23] focus-within:ring-offset-2">
             <div className="flex items-stretch gap-2">
               <textarea
                 value={input}
@@ -441,7 +441,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   'bg-[#f5f5f5]',
                   'px-4 py-3',
                   'text-[15px] font-bold text-[#0e0e0e]',
-                  'placeholder:text-[#dcdcdc] placeholder:font-normal',
+                  'placeholder:text-[#9F1D23] placeholder:opacity-60 placeholder:font-normal',
                   'leading-[24px]',
                 ].join(' ')}
               />
@@ -450,7 +450,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 disabled={loading || !input.trim()}
                 className={[
                   'w-[92px]',
-                  'bg-[#DA3632] text-white',
+                  'bg-[#9F1D23] text-white',
                   'text-[15px] font-semibold',
                   'cursor-pointer',
                   'disabled:cursor-not-allowed',
