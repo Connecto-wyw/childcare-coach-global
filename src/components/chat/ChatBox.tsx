@@ -80,7 +80,9 @@ function isKMomLabel(text: string) {
 }
 
 // ✅ 너가 준 문구 "한 글자도 빠지지 않게" 그대로
-const K_MOM_FIXED_ANSWER = `Let me share a few things that many Korean moms genuinely love.
+const K_MOM_FIXED_ANSWER = `Hello—I'm your AI Parenting Coach.
+
+Let me share a few things that many Korean moms genuinely love.
 It’s not just about what’s trending — it means more to understand why they choose them.
 
 1️⃣ Mommy & Child Beauty Essentials
@@ -280,7 +282,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
         const mid = push('assistant', '')
         // 줄바꿈/문단 유지되게 그대로 타이핑
-        void typewriterAppend(mid, K_MOM_FIXED_ANSWER, { cps: 55, chunk: 2 })
+        void typewriterAppend(mid, K_MOM_FIXED_ANSWER, { cps: 70, chunk: 2 })
         return
       }
 
