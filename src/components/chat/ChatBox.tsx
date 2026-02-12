@@ -1,212 +1,157 @@
 // src/components/chat/ChatBox.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { useAuthUser, useSupabase } from '@/app/providers'
 
 type ChatBoxProps = { systemPrompt?: string }
-type AskRes = { answer?: string; error?: string; message?: string; status?: number; body?: string }
+type ChatRole = 'user' | 'assistant'
 
-function sleep(ms: number, signal?: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    const t = setTimeout(() => resolve(), ms)
-    if (signal) {
-      signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(t)
-          reject(new DOMException('Aborted', 'AbortError'))
-        },
-        { once: true }
-      )
-    }
-  })
+type ChatMessage = {
+  id: string
+  role: ChatRole
+  content: string
+  createdAt: number
 }
 
-/** 하드코딩/응답 텍스트를 "타이핑"처럼 출력 */
-async function typewrite(opts: {
-  text: string
-  onStart?: () => void
-  onChunk: (chunk: string) => void
-  onDone?: () => void
-  onError?: (err: unknown) => void
-  signal?: AbortSignal
-  initialDelayMs?: number // Thinking... 유지 시간
-  chunkSize?: number
-  chunkDelayMs?: number
-}) {
-  const {
-    text,
-    onStart,
-    onChunk,
-    onDone,
-    onError,
-    signal,
-    initialDelayMs = 450,
-    chunkSize = 8,
-    chunkDelayMs = 16,
-  } = opts
+type ApiChatOk = {
+  answer?: string
+  requestId?: string
+  sessionId?: string
+  insertOk?: boolean
+  insertError?: string | null
+}
+type ApiChatErr = { error?: string; requestId?: string; message?: string; body?: string; status?: number }
 
+function uuid() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`
+}
+
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/$/, '')
+}
+
+function getSiteOrigin() {
+  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+  if (envSite) return stripTrailingSlash(envSite)
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
+}
+
+// ✅ 비로그인 유저도 안정적으로 식별하기 위한 localStorage sessionId
+const SESSION_KEY = 'cc_session_id'
+function getOrCreateSessionId() {
+  if (typeof window === 'undefined') return uuid()
   try {
-    onStart?.()
-    if (initialDelayMs > 0) await sleep(initialDelayMs, signal)
-
-    for (let i = 0; i < text.length; i += chunkSize) {
-      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-      onChunk(text.slice(i, i + chunkSize))
-      await sleep(chunkDelayMs, signal)
-    }
-
-    onDone?.()
-  } catch (err) {
-    if ((err as any)?.name === 'AbortError') return
-    onError?.(err)
+    const existing = window.localStorage.getItem(SESSION_KEY)
+    if (existing && existing.trim()) return existing.trim()
+    const created = uuid()
+    window.localStorage.setItem(SESSION_KEY, created)
+    return created
+  } catch {
+    return uuid()
   }
 }
 
-export default function ChatBox({ systemPrompt }: ChatBoxProps) {
-  const user = useUser()
-  const supabase = useSupabaseClient()
+/* -----------------------------------------
+ * ✅ "라벨" 기반 강제 출력 모드 (K_MOM_TAG 제거)
+ * - KeywordButtons가 보낸 메시지(detail)가
+ *   "💛 Korean Moms’ Favorite Picks" 이면
+ *   API 호출 없이 하드코딩 답변을 100% 그대로 출력
+ * ---------------------------------------- */
+const K_MOM_USER_LABEL = '💛 Korean Moms’ Favorite Picks'
 
-  const [message, setMessage] = useState('')
+// ✅ 라벨 비교를 최대한 안 깨지게(이모지/따옴표/공백/대소문자 흡수)
+function normalizeForMatch(s: string) {
+  return (s ?? '')
+    .trim()
+    .replace(/[’‘]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+}
 
-  // ✅ reply를 "한 번에" 꽂지 않고, 타이핑으로 누적 출력할 거라서 두 상태로 분리
-  const [reply, setReply] = useState('') // 화면에 보여줄 최종/누적 reply
-  const [thinking, setThinking] = useState(false) // "Thinking..." 노출용
+function isKMomLabel(text: string) {
+  // 앞 이모지/기호가 붙어도 비교되게 처리
+  const n = normalizeForMatch(text).replace(/^\p{Extended_Pictographic}\s*/u, '').trim()
+  const target = normalizeForMatch(K_MOM_USER_LABEL).replace(/^\p{Extended_Pictographic}\s*/u, '').trim()
+  return n === target
+}
 
-  const [error, setError] = useState('')
-  const [debug, setDebug] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  // ⬇️ 로딩 점 애니메이션용 상태
-  const [dots, setDots] = useState(0)
-
-  // 게스트 2회 제한
-  const [guestCount, setGuestCount] = useState(0)
-  const [showLoginModal, setShowLoginModal] = useState(false)
-  const LS_KEY = 'guest_q_count'
-  const LS_DAY = 'guest_q_day'
-  const GUEST_LIMIT = 2
-  const today = () => new Date().toISOString().slice(0, 10)
-
-  // ✅ 타이핑(스트리밍) 중단용
-  const typingAbortRef = useRef<AbortController | null>(null)
-
-  // ✅ 프리셋(하드코딩) 답변: 여기만 원하는 문구로 계속 늘리면 됨
-  const PRESETS: Record<string, string> = {
-    "💛 Korean Moms’ Favorite Picks": `Let me share a few things that many Korean moms genuinely love.
-It’s not just about what's trending — it means more to understand why they choose them.
+// ✅ 너가 준 문구 "한 글자도 빠지지 않게" 그대로
+const K_MOM_FIXED_ANSWER = `Let me share a few things that many Korean moms genuinely love.
+It’s not just about what’s trending — it means more to understand why they choose them.
 
 1️⃣ Mommy & Child Beauty Essentials
-In Korea, many families are moving away from strictly separate "kids-only" products.
+
+In Korea, many families are moving away from strictly separate “kids-only” products.
 Instead, there is a growing preference for gentle, clean beauty items that mothers and children can safely use together.
 
-2️⃣ Playful Learning Tools
-Rather than rote memorization, parents prefer playful tools that spark thinking — blocks, activity books, speaking pens, and hands-on kits.
+Cushion-style sunscreen compacts make it easier for children to apply sunscreen on their own, while water-washable play cosmetics combine safety with a touch of fun.
 
-3️⃣ Simple Home Routines
-Small daily rituals (meal rhythm, bedtime routines, short tidy-up games) are chosen because they reduce conflict and increase cooperation.`,
-  }
+More than the product itself, many parents value the shared experience of daily routines done together.
 
-  const stopTyping = () => {
-    typingAbortRef.current?.abort()
-    typingAbortRef.current = null
-  }
+2️⃣ Play-Based Learning Tools
 
-  const startTypingReply = async (text: string) => {
-    stopTyping()
-    const ac = new AbortController()
-    typingAbortRef.current = ac
+Rather than focusing heavily on memorization, Korean early education increasingly emphasizes tools that stimulate thinking through play.
 
-    setReply('')
-    setThinking(true)
+Magnetic blocks paired with structured activity sheets are especially popular.
+Instead of simply stacking pieces, children are guided to recreate shapes or solve simple building challenges, naturally strengthening spatial awareness and problem-solving skills.
 
-    await typewrite({
-      text,
-      signal: ac.signal,
-      initialDelayMs: 450, // Thinking... 잠깐 보여주기
-      chunkSize: 8,
-      chunkDelayMs: 16,
-      onStart: () => {
-        // 이미 setThinking(true) 해둠
-      },
-      onChunk: (chunk) => {
-        setThinking(false) // 첫 chunk부터 Thinking 숨김
-        setReply((prev) => prev + chunk)
-      },
-      onDone: () => {
-        setThinking(false)
-      },
-      onError: (err) => {
-        setThinking(false)
-        setError('응답 표시 중 문제가 발생했습니다. 다시 시도해 주세요.')
-        setDebug(String(err))
-      },
-    })
-  }
+Talking pen systems are also widely used. By touching the pages of compatible books, children can hear stories and pronunciation, making language exposure feel interactive and self-directed.
+
+It feels less like formal studying — and more like “thinking through play.”
+
+3️⃣ Korean Postpartum Care Starter Kit
+
+In Korea, postpartum recovery is treated as an essential stage of care.
+This starter kit focuses on:
+
+Maintaining warmth
+
+Gentle, steady daily recovery routines
+
+Practical self-care that can be done at home
+
+It is not about intensive treatment, but about creating a calm and supportive recovery environment.
+
+4️⃣ K-Kids Silicone Tableware Set
+
+Designed to support independent eating, this set emphasizes suction stability, food-grade silicone safety, and easy cleaning.
+
+Korean parents often prioritize both safe materials and reducing mealtime stress.
+It is a practical choice that balances functionality with clean, modern design.
+
+If you would like to explore more trending parenting items from Korea,
+👉 Visit the TEAM menu.
+
+You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
+
+export default function ChatBox({ systemPrompt }: ChatBoxProps) {
+  const { user } = useAuthUser()
+  const supabase = useSupabase()
+
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [loading, setLoading] = useState(false)
+  const [dots, setDots] = useState(0)
+
+  const [error, setError] = useState('')
+
+  const [sessionId, setSessionId] = useState('')
+
+  const endRef = useRef<HTMLDivElement | null>(null)
+  const chatBarRef = useRef<HTMLDivElement | null>(null)
+
+  const didMountRef = useRef(false)
+  const prevMsgLenRef = useRef(0)
 
   useEffect(() => {
-    const d = localStorage.getItem(LS_DAY)
-    const c = parseInt(localStorage.getItem(LS_KEY) || '0', 10)
-    if (d !== today()) {
-      localStorage.setItem(LS_DAY, today())
-      localStorage.setItem(LS_KEY, '0')
-      setGuestCount(0)
-    } else {
-      setGuestCount(Number.isFinite(c) ? c : 0)
-    }
+    setSessionId(getOrCreateSessionId())
   }, [])
 
-  // 키워드 → 입력창 자동 채우기
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const text = (e as CustomEvent<string>).detail
-      setMessage(text ?? '')
-    }
-    window.addEventListener('coach:setMessage', handler as EventListener)
-    return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [])
-
-  // ✅ 프리셋 버튼 클릭 → "바로 출력" 이벤트도 지원 (원하면 너희 버튼에서 이 이벤트만 쏘면 됨)
-  // window.dispatchEvent(new CustomEvent('coach:showPreset', { detail: "💛 Korean Moms’ Favorite Picks" }))
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const key = (e as CustomEvent<string>).detail
-      const preset = PRESETS[key]
-      if (!preset) return
-
-      // 프리셋은 게스트 제한에 포함할지 말지 선택인데,
-      // "질문" 경험과 동일하게 제한에 포함시키고 싶으면 아래 로직을 살려.
-      if (!user && guestCount >= GUEST_LIMIT) {
-        setShowLoginModal(true)
-        return
-      }
-
-      setLoading(false)
-      setError('')
-      setDebug('')
-
-      void startTypingReply(preset)
-
-      if (!user) bumpGuest()
-      setMessage('')
-    }
-
-    window.addEventListener('coach:showPreset', handler as EventListener)
-    return () => window.removeEventListener('coach:showPreset', handler as EventListener)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, guestCount])
-
-  // 로그인 완료되면 모달 닫기
-  useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) setShowLoginModal(false)
-    })
-    return () => data.subscription.unsubscribe()
-  }, [supabase])
-
-  // ⬇️ 로딩 중 버튼 "함께 고민 중..." 점 애니메이션
   useEffect(() => {
     if (!loading) {
       setDots(0)
@@ -216,179 +161,273 @@ Small daily rituals (meal rhythm, bedtime routines, short tidy-up games) are cho
     return () => clearInterval(id)
   }, [loading])
 
-  const bumpGuest = () => {
-    const next = guestCount + 1
-    setGuestCount(next)
-    localStorage.setItem(LS_KEY, String(next))
-    localStorage.setItem(LS_DAY, today())
-  }
+  useEffect(() => {
+    const el = chatBarRef.current
+    if (!el) return
 
-  const loginKakao = async () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const set = () => {
+      const h = el.getBoundingClientRect().height
+      document.documentElement.style.setProperty('--chatbar-h', `${Math.ceil(h)}px`)
+    }
+
+    set()
+
+    const ro = new ResizeObserver(() => set())
+    ro.observe(el)
+
+    window.addEventListener('resize', set)
+    window.addEventListener('orientationchange', set)
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', set)
+      window.removeEventListener('orientationchange', set)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true
+      prevMsgLenRef.current = messages.length
+      return
+    }
+
+    const prevLen = prevMsgLenRef.current
+    const nowLen = messages.length
+    prevMsgLenRef.current = nowLen
+
+    const shouldScroll = nowLen > prevLen || loading
+    if (!shouldScroll) return
+
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages.length, loading])
+
+  const getAuthRedirectTo = useCallback(() => {
+    const base = getSiteOrigin()
+    return `${base}/auth/callback?next=/coach`
+  }, [])
+
+  // (유지) 다른 UI에서 로그인 버튼을 쓸 수도 있어서 함수는 남김
+  const loginGoogle = useCallback(async () => {
+    const redirectTo = getAuthRedirectTo()
     await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: { redirectTo: `${origin}/auth/callback?next=/coach` },
+      provider: 'google',
+      options: { redirectTo },
     })
+  }, [supabase, getAuthRedirectTo])
+
+  const push = useCallback((role: ChatRole, content: string) => {
+    setMessages((prev) => [...prev, { id: uuid(), role, content, createdAt: Date.now() }])
+  }, [])
+
+  async function safeJsonParse<T>(raw: string): Promise<T | null> {
+    try {
+      return raw ? (JSON.parse(raw) as T) : null
+    } catch {
+      return null
+    }
   }
 
-  const ask = async () => {
-    const q = message.trim()
-    if (!q) return
-    if (!user && guestCount >= GUEST_LIMIT) {
-      setShowLoginModal(true)
-      return
-    }
+  const ask = useCallback(
+    async (override?: string) => {
+      const q = (override ?? input).trim()
+      if (!q) return
 
-    // ✅ 이전 타이핑 중이면 중단
-    stopTyping()
+      const sid = sessionId || getOrCreateSessionId()
 
-    setLoading(true)
-    setError('')
-    setDebug('')
-    setReply('')
-    setThinking(false)
-
-    // ✅ 1) (선택) 질문이 프리셋 키랑 같으면 API 안 타고 바로 "Thinking+타이핑"으로 출력
-    // - 만약 버튼이 "프리셋 클릭 즉시 출력"이라면 위의 coach:showPreset 이벤트를 쓰면 되고,
-    // - "입력창에 채우고 질문하기 눌렀을 때도" 같은 UX를 원하면 아래를 유지하면 됨.
-    if (PRESETS[q]) {
-      setLoading(false)
-      setError('')
-      setDebug('')
-      void startTypingReply(PRESETS[q])
-      if (!user) bumpGuest()
-      setMessage('')
-      return
-    }
-
-    try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: systemPrompt ?? '', question: q, user_id: user?.id ?? null }),
-        cache: 'no-store',
-      })
-
-      const raw = await res.text()
-      let data: AskRes = {}
-      try {
-        data = raw ? JSON.parse(raw) : {}
-      } catch {}
-
-      if (!res.ok) {
-        if (res.status === 403) setShowLoginModal(true)
-        const friendly = '일시적으로 응답이 지연되었어요. 잠시 후 다시 시도해 주세요.'
-        const tech = `${res.status} ${res.statusText} ${data.error || ''} ${(data.body || '').slice(0, 500)}`
-        setError(friendly)
-        setDebug(tech.trim())
+      // ✅ 라벨 강제 모드: API 호출 없이 하드코딩 답변만 출력
+      if (isKMomLabel(q)) {
+        push('user', K_MOM_USER_LABEL)
+        setInput('')
+        setError('')
+        setLoading(false)
+        push('assistant', K_MOM_FIXED_ANSWER)
         return
       }
 
-      const ans = (data.answer || '').trim()
+      push('user', q)
+      setInput('')
+      setLoading(true)
+      setError('')
 
-      // ✅ 2) API 응답도 “한 번에 꽂지 말고” 타이핑으로 출력 (원하면 이 라인만 setReply로 바꿔도 됨)
-      await startTypingReply(ans)
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: systemPrompt ?? '',
+            question: q,
+            sessionId: sid, // ✅ 비로그인도 식별자 전달
+          }),
+          cache: 'no-store',
+        })
 
-      if (!user) bumpGuest()
-      setMessage('')
-    } catch (e) {
-      setError('네트워크 상태가 불안정합니다. 다시 시도해 주세요.')
-      setDebug(String(e))
-    } finally {
-      setLoading(false)
+        const raw = await res.text()
+
+        if (!res.ok) {
+          const errJson = await safeJsonParse<ApiChatErr>(raw)
+          const rid = errJson?.requestId ? ` (requestId: ${errJson.requestId})` : ''
+          const core = `Error ${res.status}${rid}\n\n${errJson?.error || errJson?.message || 'api/chat failed'}`
+          setError(core)
+          push('assistant', core)
+          return
+        }
+
+        const okJson = await safeJsonParse<ApiChatOk>(raw)
+        const answer = (okJson?.answer || '').trim()
+
+        // 서버가 sessionId를 돌려주면 동기화(선택)
+        if (okJson?.sessionId && okJson.sessionId !== sid) {
+          try {
+            window.localStorage.setItem(SESSION_KEY, okJson.sessionId)
+            setSessionId(okJson.sessionId)
+          } catch {}
+        }
+
+        // ✅ 저장 실패는 화면에 노출하지 않고 콘솔로만 남김
+        if (okJson?.insertOk === false) {
+          console.warn('[chat_logs insert failed]', {
+            requestId: okJson?.requestId,
+            sessionId: okJson?.sessionId ?? sid,
+            userId: user?.id ?? null,
+            insertError: okJson?.insertError ?? null,
+          })
+        }
+
+        if (!answer) {
+          const rid = okJson?.requestId ? ` (requestId: ${okJson.requestId})` : ''
+          const msg = `Empty answer from server${rid}`
+          setError(msg)
+          push('assistant', msg)
+          return
+        }
+
+        push('assistant', answer)
+      } catch (e) {
+        const msg = 'The response is delayed. Please try again.'
+        setError(msg)
+        push('assistant', msg)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [input, sessionId, push, systemPrompt, user?.id]
+  )
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail
+      const q = (text ?? '').trim()
+      if (!q) return
+
+      setInput(q)
+      if (loading) return
+      void ask(q)
     }
-  }
 
-  const onEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      void ask()
-    }
-  }
+    window.addEventListener('coach:setMessage', handler as EventListener)
+    return () => window.removeEventListener('coach:setMessage', handler as EventListener)
+  }, [loading, ask])
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4">
-      {/* 입력 영역 */}
-      <div className="mt-2">
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={onEnter}
-          placeholder="요즘 육아 고민을 AI 육아코치에게 질문해보세요."
-          className="w-full min-h-[120px] rounded-md border border-gray-600 bg-[#111] text-[#eae3de] px-3 py-3 outline-none"
-          disabled={loading}
-        />
-        <div className="flex items-center justify-center mt-3">
-          <button
-            onClick={ask}
-            disabled={loading}
-            className="h-10 rounded-md bg-[#3EB6F1] text-white px-8 text-base hover:bg-[#299ed9] disabled:opacity-60"
-          >
-            {loading ? `함께 고민 중${'.'.repeat(dots)}` : '질문하기'}
-          </button>
-        </div>
+    <div className="w-full">
+      <div className="space-y-3 pb-[calc(var(--chatbar-h,96px)+16px)]">
+        {messages.map((m) => (
+          <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              className={[
+                'max-w-[80%] rounded-xl px-4 py-3',
+                'text-[15px] leading-relaxed',
+                m.role === 'user'
+                  ? 'bg-[#f0f1f6] text-[#0e0e0e] font-bold'
+                  : 'bg-white border border-[#dcdcdc] text-[#0e0e0e] font-medium',
+              ].join(' ')}
+            >
+              {m.role === 'assistant' ? (
+                // ✅ 문단/리스트 간격이 “정상”으로 보이도록: p/ul/ol 마진을 살린다
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="my-2 whitespace-pre-wrap">{children}</p>,
 
-        {/* 게스트 무료 횟수 표시 */}
-        {!user && (
-          <p className="mt-1 text-xs text-gray-400 text-center">
-            오늘 {guestCount}/{GUEST_LIMIT}개 질문 사용
-          </p>
-        )}
+                      h1: ({ children }) => <h1 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h1>,
+                      h2: ({ children }) => <h2 className="mt-3 mb-2 text-[16px] font-semibold">{children}</h2>,
+                      h3: ({ children }) => <h3 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h3>,
+                      h4: ({ children }) => <h4 className="mt-3 mb-2 text-[15px] font-semibold">{children}</h4>,
 
-        {error && (
-          <div className="mt-3 text-sm">
-            <div className="rounded-md bg-[#422] text-[#fbb] p-2 text-center">{error}</div>
-            {debug && (
-              <details className="mt-2 text-xs text-gray-400">
-                <summary>자세히</summary>
-                <pre className="whitespace-pre-wrap">{debug}</pre>
-              </details>
-            )}
+                      ul: ({ children }) => <ul className="my-2 pl-5 list-disc">{children}</ul>,
+                      ol: ({ children }) => <ol className="my-2 pl-5 list-decimal">{children}</ol>,
+                      li: ({ children }) => <li className="my-1">{children}</li>,
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <span className="whitespace-pre-wrap">{m.content}</span>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div className="rounded-xl bg-white border border-[#dcdcdc] px-4 py-3 text-[15px] font-medium text-[#0e0e0e]">
+              Thinking{'.'.repeat(dots)}
+            </div>
           </div>
         )}
+
+        <div ref={endRef} />
       </div>
 
-      {/* 응답 */}
-      {(thinking || reply) && (
-        <div className="mt-6 rounded-2xl border border-gray-700 p-4 text-[#eae3de] prose prose-invert max-w-none leading-7 space-y-3">
-          {/* ✅ Thinking... */}
-          {thinking && <div className="text-xs text-gray-400 mb-2">Thinking...</div>}
-
-          <ReactMarkdown
-            components={{
-              p: ({ children }) => <p className="whitespace-pre-wrap">{children}</p>,
-              li: ({ children }) => <li className="mb-1">{children}</li>,
-            }}
-          >
-            {reply}
-          </ReactMarkdown>
-        </div>
-      )}
-
-      {/* 게스트 초과 모달 */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#191919] p-6 text-center">
-            <h3 className="text-base font-semibold text-[#eae3de]">
-              카카오톡 로그인하고 <br /> AI육아코치 무제한으로 사용하세요.
-            </h3>
-            <div className="mt-5 grid gap-2">
+      <div ref={chatBarRef} className="fixed left-0 right-0 bottom-0 z-50 bg-white border-t border-[#eeeeee]">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="border border-[#dcdcdc] bg-white shadow-sm">
+            <div className="flex items-stretch gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    void ask()
+                  }
+                }}
+                placeholder="Anything on your mind?"
+                rows={1}
+                disabled={loading}
+                className={[
+                  'flex-1 resize-none outline-none',
+                  'bg-[#f5f5f5]',
+                  'px-4 py-3',
+                  'text-[15px] font-bold text-[#0e0e0e]',
+                  'placeholder:text-[#dcdcdc] placeholder:font-normal',
+                  'leading-[24px]',
+                ].join(' ')}
+              />
               <button
-                onClick={loginKakao}
-                className="rounded-lg bg-[#FEE500] py-2.5 text-sm font-medium text-black hover:bg-[#F2D000] transition"
+                onClick={() => void ask()}
+                disabled={loading || !input.trim()}
+                className={[
+                  'w-[92px]',
+                  'bg-[#DA3632] text-white',
+                  'text-[15px] font-semibold',
+                  'cursor-pointer',
+                  'disabled:cursor-not-allowed',
+                ].join(' ')}
               >
-                카카오로 2초 로그인
-              </button>
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="rounded-lg border border-gray-600 py-2.5 text-sm text-[#eae3de] hover:bg-gray-800"
-              >
-                닫기
+                Send
               </button>
             </div>
           </div>
+
+          {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
         </div>
-      )}
+      </div>
+
+      {/* ✅ 아래 디버그 표시(<pre>)는 완전히 제거됨 */}
+      {/* loginGoogle 함수는 유지(다른 UI에서 재사용 가능) */}
     </div>
   )
 }
