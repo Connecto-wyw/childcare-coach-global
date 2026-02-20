@@ -21,7 +21,15 @@ function admin(): SupabaseClient {
 }
 
 // ---------- Types ----------
-type AskBody = { user_id?: string; question?: string; system?: string }
+type AskBody = {
+  user_id?: string | null
+  question?: string
+  system?: string
+  // ✅ preset 지원
+  preset_answer?: string | null // 프리셋 본문을 그대로 보내면 OpenAI 호출 없이 저장/응답
+  source?: 'user' | 'preset' | string
+}
+
 type Role = 'system' | 'user' | 'assistant'
 type ChatMessage = { role: Role; content: string }
 type ChatBody = { temperature?: number; max_tokens?: number; stop?: string[]; messages: ChatMessage[] }
@@ -102,8 +110,13 @@ function isLikelyCutOff(text: string) {
 // ---------- Handler ----------
 export async function POST(req: Request) {
   const body = (await req.json()) as AskBody
+
   const question = body.question
   const system = body.system
+
+  // ✅ preset이면 여기로 들어옴
+  const presetAnswer = (body.preset_answer ?? '').trim()
+  const source = (body.source ?? (presetAnswer ? 'preset' : 'user')) as string
 
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local'
   const ua = req.headers.get('user-agent') || 'ua'
@@ -133,9 +146,6 @@ export async function POST(req: Request) {
     }
     guestMap.set(k, used + 1)
   }
-
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-  if (!OPENAI_API_KEY) return NextResponse.json({ error: 'config', message: 'OPENAI_API_KEY 누락' }, { status: 500 })
 
   const primary = process.env.OPENAI_MODEL || 'gpt-4o-mini'
   const models = [primary, 'gpt-4o', 'gpt-5']
@@ -175,56 +185,68 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
 
   const finalSystem = `${baseSystem}\n\n${kParentingRule}`
 
-  const baseBody: ChatBody = {
-    temperature: 0.35,
-    max_tokens: 1100,
-    stop: ['[END]'],
-    messages: [
-      { role: 'system', content: finalSystem },
-      { role: 'user', content: question },
-    ],
-  }
-
   let answer = ''
   let firstPart = ''
   let usedModel = ''
 
-  // 1차 응답
-  for (const m of models) {
-    const resp = await callOpenAI(m, baseBody, OPENAI_API_KEY, 3)
-    if (resp.ok) {
-      const data = (await resp.json()) as ChatAPIResponse
-      firstPart = data.choices?.[0]?.message?.content ?? ''
-      answer = normalizeAnswer(firstPart)
-      usedModel = m
-      break
-    } else if (m === models[models.length - 1]) {
-      const bodyText = await resp.text().catch(() => '')
-      return NextResponse.json(
-        { error: 'upstream', status: resp.status, body: bodyText.slice(0, 2000) },
-        { status: resp.status }
-      )
+  // ✅ --------- preset 분기: OpenAI 호출 없이 저장/응답 ---------
+  if (presetAnswer) {
+    answer = presetAnswer
+    usedModel = 'preset'
+  } else {
+    // ✅ user 질문만 OpenAI key 필요
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'config', message: 'OPENAI_API_KEY 누락' }, { status: 500 })
     }
-  }
 
-  // 이어쓰기: 명백히 잘린 경우 1회 연장
-  if (firstPart && !/\[END\]\s*$/.test(firstPart) && isLikelyCutOff(firstPart)) {
-    const contBody: ChatBody = {
+    const baseBody: ChatBody = {
       temperature: 0.35,
-      max_tokens: 700,
+      max_tokens: 1100,
       stop: ['[END]'],
       messages: [
         { role: 'system', content: finalSystem },
         { role: 'user', content: question },
-        { role: 'assistant', content: firstPart },
-        { role: 'user', content: 'Do not repeat prior text. Conclude succinctly. End with [END].' },
       ],
     }
-    const cont = await callOpenAI(usedModel, contBody, OPENAI_API_KEY, 2)
-    if (cont.ok) {
-      const contData = (await cont.json()) as ChatAPIResponse
-      const tail = contData.choices?.[0]?.message?.content ?? ''
-      answer = normalizeAnswer(answer + (tail || ''))
+
+    // 1차 응답
+    for (const m of models) {
+      const resp = await callOpenAI(m, baseBody, OPENAI_API_KEY, 3)
+      if (resp.ok) {
+        const data = (await resp.json()) as ChatAPIResponse
+        firstPart = data.choices?.[0]?.message?.content ?? ''
+        answer = normalizeAnswer(firstPart)
+        usedModel = m
+        break
+      } else if (m === models[models.length - 1]) {
+        const bodyText = await resp.text().catch(() => '')
+        return NextResponse.json(
+          { error: 'upstream', status: resp.status, body: bodyText.slice(0, 2000) },
+          { status: resp.status }
+        )
+      }
+    }
+
+    // 이어쓰기: 명백히 잘린 경우 1회 연장
+    if (firstPart && !/\[END\]\s*$/.test(firstPart) && isLikelyCutOff(firstPart)) {
+      const contBody: ChatBody = {
+        temperature: 0.35,
+        max_tokens: 700,
+        stop: ['[END]'],
+        messages: [
+          { role: 'system', content: finalSystem },
+          { role: 'user', content: question },
+          { role: 'assistant', content: firstPart },
+          { role: 'user', content: 'Do not repeat prior text. Conclude succinctly. End with [END].' },
+        ],
+      }
+      const cont = await callOpenAI(usedModel, contBody, OPENAI_API_KEY, 2)
+      if (cont.ok) {
+        const contData = (await cont.json()) as ChatAPIResponse
+        const tail = contData.choices?.[0]?.message?.content ?? ''
+        answer = normalizeAnswer(answer + (tail || ''))
+      }
     }
   }
 
@@ -234,19 +256,25 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
   try {
     const sb = admin()
     const { error } = await sb.from('chat_logs').insert({
-      user_id: effectiveUserId, // ✅ 로그인 유저면 여기 들어감
+      user_id: effectiveUserId,
       device_id: deviceId,
       sid: sid.toString(),
       question,
       answer,
       summary,
+      // ✅ 있으면 같이 저장(테이블에 컬럼 없으면 아래 2줄은 삭제해)
+      source,
+      model: usedModel,
     })
     if (error) console.error('chat_logs insert error', error)
   } catch (e) {
     console.error('chat_logs insert exception', e)
   }
 
-  const res = NextResponse.json({ answer, model: usedModel, sid, device_id: deviceId }, { status: 200 })
+  const res = NextResponse.json(
+    { answer, model: usedModel, sid, device_id: deviceId, source },
+    { status: 200 }
+  )
 
   if (setCookie) res.cookies.set('coach_did', deviceId, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
   res.cookies.set('coach_sid', sid, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
