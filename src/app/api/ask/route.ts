@@ -130,9 +130,15 @@ export async function POST(req: Request) {
   const authSb = createRouteHandlerClient({ cookies })
   const {
     data: { user },
+    error: userErr,
   } = await authSb.auth.getUser()
 
+  // ✅ 추가: email 확보
   const effectiveUserId = user?.id ?? (body.user_id || null)
+  const email = user?.email ?? null
+
+  // (디버그 필요하면 켜)
+  // console.log('[api/ask auth.getUser]', { hasUser: !!user, id: user?.id, email: user?.email, userErr: userErr?.message })
 
   // guest rate limit: 로그인 유저면 제한 걸지 않음
   if (!effectiveUserId) {
@@ -255,24 +261,37 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
   // save log
   try {
     const sb = admin()
+
+    // ✅ email 컬럼에 저장 (테이블 컬럼명이 email이 아니면 여기 바꿔야 함)
     const { error } = await sb.from('chat_logs').insert({
       user_id: effectiveUserId,
+      email, // ✅ 추가
       device_id: deviceId,
       sid: sid.toString(),
       question,
       answer,
       summary,
-      // ✅ 있으면 같이 저장(테이블에 컬럼 없으면 아래 2줄은 삭제해)
       source,
       model: usedModel,
-    })
+    } as any)
+
     if (error) console.error('chat_logs insert error', error)
   } catch (e) {
     console.error('chat_logs insert exception', e)
   }
 
   const res = NextResponse.json(
-    { answer, model: usedModel, sid, device_id: deviceId, source },
+    {
+      answer,
+      model: usedModel,
+      sid,
+      device_id: deviceId,
+      source,
+      // ✅ 디버그용(필요 없으면 빼도 됨)
+      user_id: effectiveUserId,
+      email,
+      authError: userErr ? `${userErr.name}:${userErr.message}` : null,
+    },
     { status: 200 }
   )
 
