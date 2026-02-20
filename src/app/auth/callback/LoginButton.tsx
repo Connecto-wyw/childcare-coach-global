@@ -1,37 +1,18 @@
+// src/app/auth/callback/LoginButton.tsx
 'use client'
 
 import { useMemo } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/browser'
+import { googleSignInWithSelectAccount } from '@/lib/googleSignIn'
 
 export default function LoginButton() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
 
   const signIn = async () => {
-    // ✅ 1) 서버 쿠키 세션부터 강제 삭제
     try {
-      await fetch('/api/auth/signout', { method: 'POST' })
-    } catch {}
-
-    // ✅ 2) 클라이언트 세션도 삭제(이중 안전)
-    try {
-      await supabase.auth.signOut({ scope: 'global' })
-    } catch {}
-
-    const redirectTo = `${window.location.origin}/auth/callback`
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        // ✅ 계정 선택 강제
-        queryParams: {
-          prompt: 'select_account consent',
-        },
-      },
-    })
-
-    if (error) {
-      console.error('[signInWithOAuth] error:', error)
+      await googleSignInWithSelectAccount(supabase)
+    } catch (e) {
+      console.error('[googleSignIn] error:', e)
     }
   }
 

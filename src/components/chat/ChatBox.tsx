@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAuthUser, useSupabase } from '@/app/providers'
+import { googleSignInWithSelectAccount } from '@/lib/googleSignIn'
 
 type ChatBoxProps = { systemPrompt?: string }
 type ChatRole = 'user' | 'assistant'
@@ -57,13 +58,9 @@ function getOrCreateSessionId() {
 
 /* -----------------------------------------
  * ✅ "라벨" 기반 강제 출력 모드 (K_MOM_TAG 제거)
- * - KeywordButtons가 보낸 메시지(detail)가
- *   "💛 Korean Moms’ Favorite Picks" 이면
- *   API 호출 없이 하드코딩 답변을 100% 그대로 출력
  * ---------------------------------------- */
 const K_MOM_USER_LABEL = '💛 Korean Moms’ Favorite Picks'
 
-// ✅ 라벨 비교를 최대한 안 깨지게(이모지/따옴표/공백/대소문자 흡수)
 function normalizeForMatch(s: string) {
   return (s ?? '')
     .trim()
@@ -130,6 +127,32 @@ If you would like to explore more trending parenting items from Korea,
 
 You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
 
+// ✅ 로그인 유도 후, 돌아왔을 때 재실행할 “대기 액션” 저장 키
+const PENDING_KEY = 'cc_pending_action'
+type PendingAction = { type: 'ask'; text: string }
+
+function setPending(action: PendingAction) {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify(action))
+  } catch {}
+}
+
+function getPending(): PendingAction | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as PendingAction
+  } catch {
+    return null
+  }
+}
+
+function clearPending() {
+  try {
+    sessionStorage.removeItem(PENDING_KEY)
+  } catch {}
+}
+
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const { user } = useAuthUser()
   const supabase = useSupabase()
@@ -140,8 +163,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const [dots, setDots] = useState(0)
 
   const [error, setError] = useState('')
-
   const [sessionId, setSessionId] = useState('')
+
+  // ✅ 로그인 요구 모달
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   const endRef = useRef<HTMLDivElement | null>(null)
   const chatBarRef = useRef<HTMLDivElement | null>(null)
@@ -223,7 +248,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return id
   }, [])
 
-  // ✅ 특정 메시지 content만 갱신 (타이핑 효과용)
   const updateMessage = useCallback((id: string, content: string) => {
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, content } : m)))
   }, [])
@@ -232,11 +256,10 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     return new Promise((r) => setTimeout(r, ms))
   }
 
-  // ✅ “타이핑” 효과: fullText를 조금씩 쌓아가며 updateMessage
   const typewriterAppend = useCallback(
     async (messageId: string, fullText: string, opts?: { cps?: number; chunk?: number }) => {
-      const cps = Math.max(10, opts?.cps ?? 45) // chars per second (대략적인 속도)
-      const chunk = Math.max(1, opts?.chunk ?? 2) // 한 번에 추가할 문자 수
+      const cps = Math.max(10, opts?.cps ?? 45)
+      const chunk = Math.max(1, opts?.chunk ?? 2)
       const delay = Math.max(8, Math.floor((1000 / cps) * chunk))
 
       let i = 0
@@ -258,6 +281,36 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     }
   }
 
+  // ✅ 로그인 필요하면 모달 띄우고, pending 저장
+  const requireLoginThen = useCallback(
+    (textToAsk: string) => {
+      setPending({ type: 'ask', text: textToAsk })
+      setShowLoginModal(true)
+    },
+    []
+  )
+
+  // ✅ “로그인 체크 + 실행”
+  const guardedAsk = useCallback(
+    async (override?: string) => {
+      const q = (override ?? input).trim()
+      if (!q) return
+
+      // ✅ 여기에서 강제: 게스트면 모달
+      if (!user?.id) {
+        requireLoginThen(q)
+        return
+      }
+
+      // 로그인 유저면 정상 실행
+      await ask(q)
+    },
+    // ask는 아래에서 선언되지만, useCallback으로 안전하게 연결하려면 eslint 끄거나 순서 조정 필요.
+    // 여기서는 TS/React가 문제 없이 처리하는 패턴(아래 ask가 const로 정의)로 맞춰둠.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [input, user?.id, requireLoginThen]
+  )
+
   const ask = useCallback(
     async (override?: string) => {
       const q = (override ?? input).trim()
@@ -271,17 +324,11 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         setInput('')
         setError('')
 
-        // 1) Thinking 먼저 보여주기
         setLoading(true)
-
-        // 2) “API 호출하는 느낌”으로 약간 대기
         await sleep(650)
-
-        // 3) Thinking 끄고, 빈 assistant 메시지 만든 다음 타이핑 시작
         setLoading(false)
 
         const mid = push('assistant', '')
-        // 줄바꿈/문단 유지되게 그대로 타이핑
         void typewriterAppend(mid, K_MOM_FIXED_ANSWER, { cps: 75, chunk: 3 })
         return
       }
@@ -298,7 +345,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           body: JSON.stringify({
             system: systemPrompt ?? '',
             question: q,
-            sessionId: sid, // ✅ 비로그인도 식별자 전달
+            sessionId: sid,
           }),
           cache: 'no-store',
         })
@@ -317,7 +364,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         const okJson = await safeJsonParse<ApiChatOk>(raw)
         const answer = (okJson?.answer || '').trim()
 
-        // 서버가 sessionId를 돌려주면 동기화(선택)
         if (okJson?.sessionId && okJson.sessionId !== sid) {
           try {
             window.localStorage.setItem(SESSION_KEY, okJson.sessionId)
@@ -325,7 +371,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           } catch {}
         }
 
-        // ✅ 저장 실패는 화면에 노출하지 않고 콘솔로만 남김
         if (okJson?.insertOk === false) {
           console.warn('[chat_logs insert failed]', {
             requestId: okJson?.requestId,
@@ -343,7 +388,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           return
         }
 
-        // (선택) API 답도 타이핑으로 보이게 하고 싶으면 여기서도 typewriter로 바꾸면 됨
         push('assistant', answer)
       } catch (e) {
         const msg = 'The response is delayed. Please try again.'
@@ -356,6 +400,23 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     [input, sessionId, push, systemPrompt, user?.id, typewriterAppend]
   )
 
+  // ✅ 로그인 성공 후 /coach 로 돌아왔을 때 pending 자동 실행
+  useEffect(() => {
+    if (!user?.id) return
+    if (loading) return
+
+    const p = getPending()
+    if (!p) return
+
+    // 중복 실행 방지: 먼저 지우고 실행
+    clearPending()
+
+    // pending 질문 실행
+    void ask(p.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  // ✅ 프리셋 클릭 이벤트도 로그인 강제
   useEffect(() => {
     const handler = (e: Event) => {
       const text = (e as CustomEvent<string>).detail
@@ -364,12 +425,31 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       setInput(q)
       if (loading) return
-      void ask(q)
+
+      // ✅ 여기 중요: 바로 ask(q) 하지 말고 guardedAsk(q)
+      void guardedAsk(q)
     }
 
     window.addEventListener('coach:setMessage', handler as EventListener)
     return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [loading, ask])
+  }, [loading, guardedAsk])
+
+  // ✅ 모달 OK: 구글 로그인 시작
+  const onModalOk = useCallback(async () => {
+    setShowLoginModal(false)
+    try {
+      await googleSignInWithSelectAccount(supabase as any)
+    } catch (e) {
+      console.error('[googleSignInWithSelectAccount] error:', e)
+      // 실패하면 pending은 남아있으니 사용자가 다시 시도 가능
+      setError('Unable to start Google sign-in. Please try again.')
+    }
+  }, [supabase])
+
+  const onModalCancel = useCallback(() => {
+    setShowLoginModal(false)
+    clearPending()
+  }, [])
 
   return (
     <div className="w-full">
@@ -430,7 +510,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    void ask()
+                    void guardedAsk()
                   }
                 }}
                 placeholder="Anything on your mind?"
@@ -446,7 +526,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 ].join(' ')}
               />
               <button
-                onClick={() => void ask()}
+                onClick={() => void guardedAsk()}
                 disabled={loading || !input.trim()}
                 className={[
                   'w-[92px]',
@@ -465,7 +545,39 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         </div>
       </div>
 
-      {/* ✅ 아래 디버그 표시(<pre>)는 완전히 제거됨 */}
+      {/* ✅ 로그인 요구 모달 */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40" onClick={onModalCancel} />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white shadow-xl border border-[#e5e5e5]">
+            <div className="px-5 py-4 border-b border-[#eeeeee]">
+              <p className="text-[16px] font-semibold text-[#0e0e0e]">Google sign-in required</p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[14px] leading-relaxed text-[#222222]">
+                Please sign in with Google to continue.
+              </p>
+            </div>
+            <div className="px-5 py-4 border-t border-[#eeeeee] flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onModalCancel}
+                className="rounded-lg px-4 py-2 text-[14px] font-medium border border-[#d0d0d0] bg-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onModalOk}
+                className="rounded-lg px-4 py-2 text-[14px] font-semibold bg-black text-white"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* loginGoogle 함수는 유지(다른 UI에서 재사용 가능) */}
     </div>
   )
