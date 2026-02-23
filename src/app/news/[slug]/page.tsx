@@ -1,29 +1,47 @@
+// src/app/news/[slug]/page.tsx
+export const dynamic = 'force-dynamic'
+
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
-type PageProps = {
-  params: { slug: string }
-}
+type PageProps = { params: { slug: string } }
 
-function supabaseAnon() {
+function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  return createClient<Database>(url, anon, {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY! // ✅ 서버에서만
+  return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }
 
 export default async function NewsDetailPage({ params }: PageProps) {
-  const supabase = supabaseAnon()
+  const supabase = admin()
 
   const { data, error } = await supabase
     .from('news_posts')
     .select('id, title, slug, content, created_at')
     .eq('slug', params.slug)
-    .single()
+    .maybeSingle()
 
-  if (error || !data) return notFound()
+  // ✅ 404로 숨기지 말고, 일단 화면에 이유를 찍자
+  if (error) {
+    return (
+      <main style={{ padding: 24 }}>
+        <h1>News detail query error</h1>
+        <pre>{JSON.stringify({ slug: params.slug, error }, null, 2)}</pre>
+      </main>
+    )
+  }
+
+  if (!data) {
+    return (
+      <main style={{ padding: 24 }}>
+        <h1>News not found in DB</h1>
+        <pre>{JSON.stringify({ slug: params.slug }, null, 2)}</pre>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
