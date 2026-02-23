@@ -1,4 +1,3 @@
-// src/components/NewsSection.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -8,9 +7,7 @@ import type { Tables } from '@/lib/database.types'
 
 type NewsPostRow = Tables<'news_posts'>
 
-type NewsItem = Pick<NewsPostRow, 'id' | 'title' | 'created_at'> & {
-  slug?: string | null
-}
+type NewsItem = Pick<NewsPostRow, 'id' | 'title' | 'created_at' | 'slug'>
 
 export default function NewsSection() {
   const supabase = useSupabase()
@@ -23,6 +20,8 @@ export default function NewsSection() {
       const { data, error } = await supabase
         .from('news_posts')
         .select('id, title, created_at, slug')
+        .not('slug', 'is', null)          // ✅ slug null 제거
+        .neq('slug', '')                  // ✅ slug 빈값 제거
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -38,7 +37,6 @@ export default function NewsSection() {
     }
 
     fetchNews()
-
     return () => {
       alive = false
     }
@@ -53,9 +51,8 @@ export default function NewsSection() {
       ) : (
         <ul className="space-y-3">
           {newsList.map((item) => {
-            const href = item.slug ? `/news/${item.slug}` : `/news/${item.id}`
-            const created =
-              item.created_at ? new Date(item.created_at).toLocaleDateString() : ''
+            const href = `/news/${item.slug}`
+            const created = item.created_at ? new Date(item.created_at).toLocaleDateString() : ''
 
             return (
               <li key={item.id} className="border-b pb-2">
