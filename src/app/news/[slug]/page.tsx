@@ -26,12 +26,25 @@ export default async function NewsDetailPage({ params }: PageProps) {
     .eq('slug', slug)
     .single<NewsPostRow>()
 
-  if (error || !data) return notFound()
+  // ✅ Vercel 로그에서도 확인 가능
+  console.error('[news_detail]', { slug, error, hasData: !!data })
+
+  // ✅ 개발/디버깅용: 에러를 화면에 노출해서 원인 확정
+  if (error) {
+    return (
+      <main style={{ padding: 24 }}>
+        <h1>News detail error</h1>
+        <pre>{JSON.stringify({ slug, error }, null, 2)}</pre>
+      </main>
+    )
+  }
+
+  if (!data) return notFound()
 
   return (
     <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
-      <div className="max-w-l mx-auto px-4 py-12">
-        <h1 className="text-l font-bold mb-2">{data.title}</h1>
+      <div className="max-w-xl mx-auto px-4 py-12">
+        <h1 className="text-xl font-bold mb-2">{data.title}</h1>
 
         <p className="text-sm text-gray-400 mb-6">
           {data.created_at ? new Date(data.created_at).toLocaleString() : ''}
