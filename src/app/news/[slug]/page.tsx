@@ -18,9 +18,15 @@ function admin() {
   })
 }
 
+function formatDateTime(d: string | null) {
+  if (!d) return ''
+  const dt = new Date(d)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toLocaleString()
+}
+
 export default async function NewsDetailPage({ params }: PageProps) {
   const { slug } = await params // ✅ Next 15 핵심
-
   if (!slug || typeof slug !== 'string') return notFound()
 
   const supabase = admin()
@@ -33,32 +39,47 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
   if (error) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>News detail query error</h1>
-        <pre>{JSON.stringify({ slug, error }, null, 2)}</pre>
+      <main className="min-h-screen bg-white text-[#0e0e0e]">
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <h1 className="text-[22px] font-semibold">News detail query error</h1>
+          <pre className="mt-4 text-[12px] bg-[#f6f6f6] p-4 rounded overflow-auto">
+            {JSON.stringify({ slug, error }, null, 2)}
+          </pre>
+        </div>
       </main>
     )
   }
 
   if (!data) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>News not found in DB</h1>
-        <pre>{JSON.stringify({ slug }, null, 2)}</pre>
+      <main className="min-h-screen bg-white text-[#0e0e0e]">
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <h1 className="text-[22px] font-semibold">News not found in DB</h1>
+          <pre className="mt-4 text-[12px] bg-[#f6f6f6] p-4 rounded overflow-auto">
+            {JSON.stringify({ slug }, null, 2)}
+          </pre>
+        </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
-      <div className="max-w-xl mx-auto px-4 py-12">
-        <h1 className="text-xl font-bold mb-2">{data.title}</h1>
-        <p className="text-sm text-gray-400 mb-6">
-          {data.created_at ? new Date(data.created_at).toLocaleString() : ''}
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight">
+          {data.title}
+        </h1>
+
+        <p className="mt-2 text-[14px] text-[#8a8a8a]">
+          {formatDateTime(data.created_at)}
         </p>
-        <article className="prose prose-invert max-w-none leading-7">
-          {data.content ?? ''}
-        </article>
+
+        <div className="mt-8 border-t border-[#eeeeee] pt-8">
+          {/* ✅ plain text 줄바꿈/문단 살리기 */}
+          <article className="whitespace-pre-wrap leading-7 text-[16px]">
+            {data.content ?? ''}
+          </article>
+        </div>
       </div>
     </main>
   )
