@@ -17,7 +17,10 @@ type PageProps = {
 }
 
 export default async function NewsDetailPage({ params }: PageProps) {
-  const supabase = createServerComponentClient<Database>({ cookies })
+  // ✅ 핵심: cookies() 호출해서 cookieStore 전달
+  const cookieStore = cookies()
+  const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore })
+
   const slug = params.slug
 
   const { data, error } = await supabase
@@ -26,20 +29,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
     .eq('slug', slug)
     .single<NewsPostRow>()
 
-  // ✅ Vercel 로그에서도 확인 가능
-  console.error('[news_detail]', { slug, error, hasData: !!data })
-
-  // ✅ 개발/디버깅용: 에러를 화면에 노출해서 원인 확정
-  if (error) {
-    return (
-      <main style={{ padding: 24 }}>
-        <h1>News detail error</h1>
-        <pre>{JSON.stringify({ slug, error }, null, 2)}</pre>
-      </main>
-    )
-  }
-
-  if (!data) return notFound()
+  if (error || !data) return notFound()
 
   return (
     <main className="min-h-screen bg-[#282828] text-[#eae3de] font-sans">
