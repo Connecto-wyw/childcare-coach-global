@@ -20,8 +20,8 @@ export default function NewsSection() {
       const { data, error } = await supabase
         .from('news_posts')
         .select('id, title, created_at, slug')
-        .not('slug', 'is', null)          // ✅ slug null 제거
-        .neq('slug', '')                  // ✅ slug 빈값 제거
+        .not('slug', 'is', null)   // ✅ slug null 제외
+        .neq('slug', '')           // ✅ slug 빈값 제외
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -33,10 +33,13 @@ export default function NewsSection() {
         return
       }
 
-      setNewsList((data ?? []) as NewsItem[])
+      // ✅ 혹시 공백 slug가 들어오면 2차 방어
+      const cleaned = (data ?? []).filter((x) => (x.slug ?? '').trim().length > 0)
+      setNewsList(cleaned as NewsItem[])
     }
 
     fetchNews()
+
     return () => {
       alive = false
     }
@@ -51,7 +54,7 @@ export default function NewsSection() {
       ) : (
         <ul className="space-y-3">
           {newsList.map((item) => {
-            const href = `/news/${item.slug}`
+            const href = `/news/${item.slug}` // ✅ fallback 제거
             const created = item.created_at ? new Date(item.created_at).toLocaleDateString() : ''
 
             return (
