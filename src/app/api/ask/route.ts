@@ -3,15 +3,17 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { getSystemPrompt } from '@/lib/systemPrompt'
 import { randomUUID, createHash } from 'crypto'
 
+// ✅ 게스트 제한: 원하면 숫자 바꿔. 0이면 무제한
 const GUEST_LIMIT = 2
+
+// ⚠️ 서버리스 환경에서는 메모리 Map이 리셋될 수 있음(대략적인 제한용)
 const guestMap = new Map<string, number>()
-const keyOf = (ip: string) => `${new Date().toISOString().slice(0, 10)}:${ip}`
+const keyOf = (k: string) => `${new Date().toISOString().slice(0, 10)}:${k}`
 
 // ---------- Supabase Admin (Service Role) ----------
 function admin(): SupabaseClient {
@@ -25,8 +27,7 @@ type AskBody = {
   user_id?: string | null
   question?: string
   system?: string
-  // ✅ preset 지원
-  preset_answer?: string | null // 프리셋 본문을 그대로 보내면 OpenAI 호출 없이 저장/응답
+  preset_answer?: string | null
   source?: 'user' | 'preset' | string
 }
 
@@ -90,6 +91,7 @@ function normalizeAnswer(text: string) {
 function ipFingerprint(ip: string, ua: string) {
   return createHash('sha256').update(`${ip}|${ua}`).digest('hex').slice(0, 32)
 }
+
 type CookieStore = Awaited<ReturnType<typeof cookies>>
 function resolveDeviceId(jar: CookieStore, ip: string, ua: string) {
   const did = jar.get('coach_did')?.value
@@ -118,36 +120,29 @@ export async function POST(req: Request) {
   const presetAnswer = (body.preset_answer ?? '').trim()
   const source = (body.source ?? (presetAnswer ? 'preset' : 'user')) as string
 
-  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local'
-  const ua = req.headers.get('user-agent') || 'ua'
+  const h = await headers()
+  const ip = (h.get('x-forwarded-for') || '').split(',')[0].trim() || h.get('x-real-ip') || 'local'
+  const ua = h.get('user-agent') || 'ua'
 
   if (!question?.trim()) {
     return NextResponse.json({ error: 'bad_request', message: '질문이 비어 있습니다.' }, { status: 400 })
   }
 
-  // ✅ 여기서 로그인 유저면 서버에서 user를 읽어서 user_id를 강제로 세팅
-  const jar = await cookies()
-  const authSb = createRouteHandlerClient({ cookies })
-  const {
-    data: { user },
-    error: userErr,
-  } = await authSb.auth.getUser()
+  // ✅ 로그인 강제 제거:
+  // - 여기서는 절대 auth.getUser() 호출로 인해 실패/에러가 나도 “로그인 필요”로 처리하지 않음
+  // - 로그인 유저라면 프론트에서 user_id를 보내도록(선택)
+  const effectiveUserId = body.user_id ?? null
+  const email = null // (원하면 프론트에서 email도 보내게 하고 여기서 저장)
 
-  // ✅ 추가: email 확보
-  const effectiveUserId = user?.id ?? (body.user_id || null)
-  const email = user?.email ?? null
-
-  // (디버그 필요하면 켜)
-  // console.log('[api/ask auth.getUser]', { hasUser: !!user, id: user?.id, email: user?.email, userErr: userErr?.message })
-
-  // guest rate limit: 로그인 유저면 제한 걸지 않음
-  if (!effectiveUserId) {
-    const k = keyOf(ip)
+  // ✅ 게스트 rate limit: user_id가 없을 때만 적용
+  // ✅ IP 기반보단 deviceId/sessionId 기반이 낫지만, 일단 안전하게 ip+ua 해시로 제한
+  if (!effectiveUserId && GUEST_LIMIT > 0) {
+    const k = keyOf(`ipua_${ipFingerprint(ip, ua)}`)
     const used = guestMap.get(k) ?? 0
     if (used >= GUEST_LIMIT) {
       return NextResponse.json(
-        { error: 'guest_limit_exceeded', message: '게스트는 하루 2회까지 질문 가능합니다.' },
-        { status: 403 }
+        { error: 'guest_limit_exceeded', message: `게스트는 하루 ${GUEST_LIMIT}회까지 질문 가능합니다.` },
+        { status: 429 }
       )
     }
     guestMap.set(k, used + 1)
@@ -156,13 +151,14 @@ export async function POST(req: Request) {
   const primary = process.env.OPENAI_MODEL || 'gpt-4o-mini'
   const models = [primary, 'gpt-4o', 'gpt-5']
 
+  const jar = await cookies()
   const today = new Date().toISOString().slice(0, 10)
   const greetedToday = jar.get('coach_last_greet')?.value === today
 
   // stable device id + sid
   const { deviceId, setCookie } = resolveDeviceId(jar, ip, ua)
   let sid = jar.get('coach_sid')?.value
-  if (!sid) sid = effectiveUserId ?? randomUUID()
+  if (!sid) sid = randomUUID() // ✅ 로그인 여부와 무관하게 항상 랜덤 sid
 
   // prevContext: user 우선, 아니면 device 기반
   let prevContext = ''
@@ -200,7 +196,6 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
     answer = presetAnswer
     usedModel = 'preset'
   } else {
-    // ✅ user 질문만 OpenAI key 필요
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY
     if (!OPENAI_API_KEY) {
       return NextResponse.json({ error: 'config', message: 'OPENAI_API_KEY 누락' }, { status: 500 })
@@ -261,11 +256,9 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
   // save log
   try {
     const sb = admin()
-
-    // ✅ email 컬럼에 저장 (테이블 컬럼명이 email이 아니면 여기 바꿔야 함)
     const { error } = await sb.from('chat_logs').insert({
       user_id: effectiveUserId,
-      email, // ✅ 추가
+      email,
       device_id: deviceId,
       sid: sid.toString(),
       question,
@@ -287,10 +280,8 @@ When a query is about **K-parenting / Korean parenting / parenting in Korea**, y
       sid,
       device_id: deviceId,
       source,
-      // ✅ 디버그용(필요 없으면 빼도 됨)
+      // ✅ 로그인 강제 없애는 목적이면 이런 필드는 프론트에서 오판하기 쉬움. 최소화.
       user_id: effectiveUserId,
-      email,
-      authError: userErr ? `${userErr.name}:${userErr.message}` : null,
     },
     { status: 200 }
   )

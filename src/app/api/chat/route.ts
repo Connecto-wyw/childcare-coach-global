@@ -41,7 +41,6 @@ function getCountry(h: Headers) {
  * ---------------------------- */
 const K_MOM_TAG = '[K_MOM_PICKS]'
 
-// ✅ “한 글자도 빠지지 않고” 그대로 출력해야 하는 고정 본문 (사용자 제공 원문 그대로)
 const K_MOM_PICKS_TEXT = `Hello—I'm your AI Parenting Coach. Let me share a few things that many Korean moms genuinely love.
 It’s not just about what’s trending — it means more to understand why they choose them.
 
@@ -213,22 +212,17 @@ export async function POST(req: NextRequest) {
     const userId = user?.id ?? null
     const email = user?.email ?? null
 
-    // ✅ 공통 로그 메타
     const h = await headers()
     const ip = getIp(h)
     const country = getCountry(h)
     const userAgent = h.get('user-agent')
     const referer = h.get('referer')
 
-    /* -----------------------------------------
-     * ✅ 여기서 “무조건 고정문 출력” (OpenAI 호출 금지)
-     * ----------------------------------------- */
     if (kmomMode) {
       stage = 'kmom_fixed_answer'
 
-      const answer = K_MOM_PICKS_TEXT // ✅ 절대 가공/trim/bytes 제한 금지
+      const answer = K_MOM_PICKS_TEXT
 
-      // 저장은 하되, question은 원문(태그 포함) 저장해서 트리거 검증 가능
       stage = 'insert_logs'
       const { error: insErr } = await admin.from('chat_logs').insert({
         user_id: userId,
@@ -270,10 +264,6 @@ export async function POST(req: NextRequest) {
         { status: 200 }
       )
     }
-
-    /* -----------------------------------------
-     * ✅ 일반 모드(기존 OpenAI 흐름)
-     * ----------------------------------------- */
 
     stage = 'load_prev_context'
     let prevContext = ''
