@@ -27,6 +27,12 @@ type TeamCard = {
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=60'
 
+// ✅ 인디언밥 메인 컬러
+const INDIANBOB_RED = '#9F1D23'
+
+// ✅ 이벤트(무료응모) TEAM ID (Korean Daily Care Essential)
+const GIVEAWAY_TEAM_ID = 'e2c8be1a-31df-4554-890c-e2dde44c5aec' // HARDCODED.K_DAILY_CARE
+
 function stripTrailingSlash(s: string) {
   return s.replace(/\/$/, '')
 }
@@ -115,59 +121,66 @@ export default function TeamPage() {
           <p className="text-[13px] font-medium text-[#b4b4b4]">No teams available.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {teams.map((t) => (
-              <Link
-                key={t.id}
-                href={`/team/${t.id}`}
-                className="block overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#dcdcdc]"
-              >
-                <div className="w-full overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={t.imageSrc} alt={t.name} className="h-[220px] w-full object-cover md:h-[260px]" />
-                </div>
+            {teams.map((t) => {
+              const isGiveaway = t.id === GIVEAWAY_TEAM_ID
+              const ctaText = isGiveaway ? 'Enter for Free' : 'Join now'
+              const ctaBg = isGiveaway ? INDIANBOB_RED : '#1e1e1e'
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">{t.name}</div>
+              return (
+                <Link
+                  key={t.id}
+                  href={`/team/${t.id}`}
+                  className="block overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#dcdcdc]"
+                >
+                  <div className="w-full overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={t.imageSrc} alt={t.name} className="h-[220px] w-full object-cover md:h-[260px]" />
+                  </div>
+
+                  <div className="p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-[19px] font-semibold text-[#0e0e0e]">{t.name}</div>
+                      </div>
+
+                      <div
+                        className="shrink-0 rounded-full bg-[#9F1D23]/10 px-4 py-2 text-[13px] font-semibold text-[#9F1D23] flex items-center gap-2"
+                        aria-label={`Joined ${t.joined}`}
+                        title={`Joined ${t.joined}`}
+                      >
+                        <span className="inline-block h-4 w-4 rounded-full bg-[#9F1D23]" />
+                        Joined {t.joined}
+                      </div>
                     </div>
 
+                    <div className="mt-3 line-clamp-3 text-[15px] font-medium leading-relaxed text-[#8f8f8f]">
+                      {t.purpose || 'No description yet.'}
+                    </div>
+
+                    {t.tags.length > 0 && (
+                      <div className="mt-5 flex flex-wrap gap-3">
+                        {t.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-lg border border-[#d8e9ff] bg-[#f0f7fd] px-5 py-2 text-[15px] font-semibold text-[#3497f3]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* ✅ Link 안에 button을 두면 접근성/이벤트 꼬일 수 있어서 div로 처리 */}
                     <div
-                      className="shrink-0 rounded-full bg-[#9F1D23]/10 px-4 py-2 text-[13px] font-semibold text-[#9F1D23] flex items-center gap-2"
-                      aria-label={`Joined ${t.joined}`}
-                      title={`Joined ${t.joined}`}
+                      className="mt-6 w-full h-[40px] text-white text-[20px] font-semibold flex items-center justify-center"
+                      style={{ backgroundColor: ctaBg }}
                     >
-                      <span className="inline-block h-4 w-4 rounded-full bg-[#9F1D23]" />
-                      Joined {t.joined}
+                      {ctaText}
                     </div>
                   </div>
-
-                  <div className="mt-3 line-clamp-3 text-[15px] font-medium leading-relaxed text-[#8f8f8f]">
-                    {t.purpose || 'No description yet.'}
-                  </div>
-
-                  {t.tags.length > 0 && (
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      {t.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-lg border border-[#d8e9ff] bg-[#f0f7fd] px-5 py-2 text-[15px] font-semibold text-[#3497f3]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    className="mt-6 w-full h-[40px] bg-[#1e1e1e] text-white text-[20px] font-semibold"
-                  >
-                    Join now
-                  </button>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
