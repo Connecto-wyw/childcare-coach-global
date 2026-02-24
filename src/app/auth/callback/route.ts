@@ -7,16 +7,15 @@ import type { Database } from '@/lib/database.types'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function stripTrailingSlash(s: string) {
-  return s.replace(/\/$/, '')
-}
-
 export async function GET(req: Request) {
   const url = new URL(req.url)
 
   const code = url.searchParams.get('code')
   const error = url.searchParams.get('error')
   const errorDescription = url.searchParams.get('error_description')
+
+  // ✅ 로그인 완료 후 돌아갈 경로(기본 /coach)
+  const nextPath = url.searchParams.get('next') || '/coach'
 
   // Supabase에서 error 파라미터로 오면 바로 에러 페이지로
   if (error) {
@@ -37,16 +36,20 @@ export async function GET(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
   const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
 
+  // ✅ response에 Set-Cookie가 내려가야 브라우저에 세션 저장됨
+  const res = NextResponse.redirect(new URL(nextPath, url.origin))
+
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnon, {
     cookies: {
       getAll() {
         return cookieStore.getAll()
       },
       setAll(cookiesToSet) {
-        // NextResponse에서 Set-Cookie를 내려야 브라우저에 저장됨
-        // 여기서는 아래 NextResponse에 반영하기 위해 일단 store에 반영
         cookiesToSet.forEach(({ name, value, options }) => {
+          // ✅ cookieStore에도 반영
           cookieStore.set(name, value, options)
+          // ✅ 실제 응답에도 반영
+          res.cookies.set(name, value, options)
         })
       },
     },
@@ -63,6 +66,5 @@ export async function GET(req: Request) {
     )
   }
 
-  // 로그인 성공 후 이동 (너 메인 페이지가 /coach)
-  return NextResponse.redirect(new URL('/coach', url.origin))
+  return res
 }
