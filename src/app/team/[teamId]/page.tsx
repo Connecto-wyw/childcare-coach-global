@@ -32,10 +32,10 @@ const FALLBACK_DETAIL_TEXT = 'No additional details yet.'
 const SKY_BLUE = '#3EB6F1'
 const SKY_BLUE_LIGHT = '#EAF6FF'
 
-// ✅ 하드코딩 상세를 적용할 teamId들
 const HARDCODED = {
   K_TABLEWARE: 'eee3586c-2ffe-45c5-888d-0a98f4d0b0d9',
   POSTPARTUM_KIT: '91780f15-d69a-4a46-bcda-dfedd0dc2a46',
+  K_DAILY_CARE: 'e2c8be1a-31df-4554-890c-e2dde44c5aec',
 } as const
 
 function parseSteps(raw: any): DiscountStep[] {
