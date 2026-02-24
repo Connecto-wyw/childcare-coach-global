@@ -9,61 +9,70 @@ export const dynamic = 'force-dynamic'
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  if (!url || !key) throw new Error('Missing Supabase env (URL / SERVICE_ROLE_KEY)')
-
   return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }
 
-function isValidEmail(v: string) {
-  // 너무 빡세게 하지 말고 기본만
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+// (선택) 405/프리플라이트 방지
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({} as any))
+    const body = await req.json()
 
-    const teamId = String(body?.teamId ?? '').trim()
-    const emailRaw = String(body?.email ?? '').trim().toLowerCase()
+    const teamId = String(body.teamId ?? '').trim()
+    const email = String(body.email ?? '').trim().toLowerCase()
 
-    if (!teamId || !emailRaw || !isValidEmail(emailRaw)) {
-      return NextResponse.json(
-        { ok: false, code: 'INVALID_INPUT', message: 'Invalid teamId or email.' },
-        { status: 400 }
-      )
+    if (!teamId || !email) {
+      return NextResponse.json({ error: 'invalid_input' }, { status: 400 })
     }
 
     const sb = admin()
 
-    // ✅ insert
-    const { error } = await sb.from('giveaway_entries').insert({
-      team_id: teamId,
-      email: emailRaw,
-    } as any)
+    // ✅ 1) teamId에 연결된 "활성 이벤트" 찾기
+    const { data: ev, error: evErr } = await sb
+      .from('giveaway_events')
+      .select('id, ends_at, is_active')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .maybeSingle()
 
-    // ✅ 중복 응모: 유니크 제약(23505) 전제
-    if (error && (error as any).code === '23505') {
-      return NextResponse.json({
-        ok: false,
-        code: 'ALREADY_ENTERED',
-        message: 'You have already entered this giveaway.',
-      })
+    if (evErr) {
+      return NextResponse.json({ error: evErr.message }, { status: 500 })
+    }
+    if (!ev?.id) {
+      // 활성 이벤트가 없으면 응모 불가
+      return NextResponse.json({ error: 'event_not_found' }, { status: 404 })
     }
 
-    if (error) {
-      return NextResponse.json(
-        { ok: false, code: 'DB_ERROR', message: error.message },
-        { status: 500 }
-      )
+    const eventId = ev.id
+
+    // ✅ 2) 응모 저장 (event_id 필수)
+    const { error: insErr } = await sb
+      .from('giveaway_entries')
+      .insert({ event_id: eventId, email } as any)
+
+    // ✅ 3) 중복 응모 (유니크 제약 조건 필요)
+    if (insErr && (insErr as any).code === '23505') {
+      return NextResponse.json({ alreadyEntered: true }, { status: 200 })
     }
 
-    return NextResponse.json({ ok: true })
+    if (insErr) {
+      return NextResponse.json({ error: insErr.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true }, { status: 200 })
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, code: 'SERVER_ERROR', message: String(e?.message ?? e) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: String(e?.message ?? e) }, { status: 500 })
   }
 }
