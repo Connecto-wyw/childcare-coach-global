@@ -1,3 +1,6 @@
+Need to install the following packages:
+supabase@2.76.14
+Ok to proceed? (y) 
 export type Json =
   | string
   | number
@@ -49,40 +52,59 @@ export type Database = {
       chat_logs: {
         Row: {
           answer: string
+          city: string | null
+          country: string | null
           created_at: string | null
+          email: string | null
           id: string
+          ip: string | null
           lang: string | null
           model: string | null
+          path: string | null
           question: string
+          referer: string | null
+          region: string | null
+          session_id: string | null
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
           answer: string
+          city?: string | null
+          country?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string
+          ip?: string | null
           lang?: string | null
           model?: string | null
+          path?: string | null
           question: string
+          referer?: string | null
+          region?: string | null
+          session_id?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           answer?: string
+          city?: string | null
+          country?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string
+          ip?: string | null
           lang?: string | null
           model?: string | null
+          path?: string | null
           question?: string
+          referer?: string | null
+          region?: string | null
+          session_id?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "chat_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       coach_messages: {
         Row: {
@@ -126,6 +148,68 @@ export type Database = {
           q_count?: number
           usage_date?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      giveaway_entries: {
+        Row: {
+          created_at: string
+          email: string
+          event_id: string
+          id: string
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          event_id: string
+          id?: string
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          event_id?: string
+          id?: string
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "giveaway_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      giveaway_events: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          is_active: boolean
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          is_active?: boolean
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          team_id?: string
         }
         Relationships: []
       }
@@ -193,6 +277,7 @@ export type Database = {
           email: string | null
           id: string
           is_admin: boolean
+          nickname: string | null
           points: number
           provider: string | null
           reward_last_date: string | null
@@ -204,6 +289,7 @@ export type Database = {
           email?: string | null
           id: string
           is_admin?: boolean
+          nickname?: string | null
           points?: number
           provider?: string | null
           reward_last_date?: string | null
@@ -215,6 +301,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_admin?: boolean
+          nickname?: string | null
           points?: number
           provider?: string | null
           reward_last_date?: string | null
@@ -303,18 +390,21 @@ export type Database = {
       team_item_participants: {
         Row: {
           created_at: string
+          email: string | null
           id: string
           team_item_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          email?: string | null
           id?: string
           team_item_id: string
           user_id: string
         }
         Update: {
           created_at?: string
+          email?: string | null
           id?: string
           team_item_id?: string
           user_id?: string
@@ -389,6 +479,7 @@ export type Database = {
       team_members: {
         Row: {
           created_at: string
+          email: string | null
           id: string
           role: string
           team_id: string
@@ -396,6 +487,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
           id?: string
           role?: string
           team_id: string
@@ -403,6 +495,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
           id?: string
           role?: string
           team_id?: string
