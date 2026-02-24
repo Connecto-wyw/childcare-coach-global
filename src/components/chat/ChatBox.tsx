@@ -3,8 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { useAuthUser, useSupabase } from '@/app/providers'
-import { googleSignInWithSelectAccount } from '@/lib/googleSignIn'
+import { useAuthUser } from '@/app/providers'
 
 type ChatBoxProps = { systemPrompt?: string }
 type ChatRole = 'user' | 'assistant'
@@ -28,17 +27,6 @@ type ApiChatErr = { error?: string; requestId?: string; message?: string; body?:
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`
-}
-
-function stripTrailingSlash(s: string) {
-  return s.replace(/\/$/, '')
-}
-
-function getSiteOrigin() {
-  const envSite = (process.env.NEXT_PUBLIC_SITE_URL || '').trim()
-  if (envSite) return stripTrailingSlash(envSite)
-  if (typeof window !== 'undefined') return window.location.origin
-  return ''
 }
 
 // ✅ 비로그인 유저도 안정적으로 식별하기 위한 localStorage sessionId
@@ -127,35 +115,9 @@ If you would like to explore more trending parenting items from Korea,
 
 You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
 
-// ✅ 로그인 유도 후, 돌아왔을 때 재실행할 “대기 액션” 저장 키
-const PENDING_KEY = 'cc_pending_action'
-type PendingAction = { type: 'ask'; text: string }
-
-function setPending(action: PendingAction) {
-  try {
-    sessionStorage.setItem(PENDING_KEY, JSON.stringify(action))
-  } catch {}
-}
-
-function getPending(): PendingAction | null {
-  try {
-    const raw = sessionStorage.getItem(PENDING_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as PendingAction
-  } catch {
-    return null
-  }
-}
-
-function clearPending() {
-  try {
-    sessionStorage.removeItem(PENDING_KEY)
-  } catch {}
-}
-
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
+  // ✅ user는 "있으면 쓰고, 없어도 OK"
   const { user } = useAuthUser()
-  const supabase = useSupabase()
 
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -164,9 +126,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
   const [error, setError] = useState('')
   const [sessionId, setSessionId] = useState('')
-
-  // ✅ 로그인 요구 모달
-  const [showLoginModal, setShowLoginModal] = useState(false)
 
   const endRef = useRef<HTMLDivElement | null>(null)
   const chatBarRef = useRef<HTMLDivElement | null>(null)
@@ -228,20 +187,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages.length, loading])
 
-  const getAuthRedirectTo = useCallback(() => {
-    const base = getSiteOrigin()
-    return `${base}/auth/callback?next=/coach`
-  }, [])
-
-  // (유지) 다른 UI에서 로그인 버튼을 쓸 수도 있어서 함수는 남김
-  const loginGoogle = useCallback(async () => {
-    const redirectTo = getAuthRedirectTo()
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo },
-    })
-  }, [supabase, getAuthRedirectTo])
-
   const push = useCallback((role: ChatRole, content: string) => {
     const id = uuid()
     setMessages((prev) => [...prev, { id, role, content, createdAt: Date.now() }])
@@ -281,36 +226,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     }
   }
 
-  // ✅ 로그인 필요하면 모달 띄우고, pending 저장
-  const requireLoginThen = useCallback(
-    (textToAsk: string) => {
-      setPending({ type: 'ask', text: textToAsk })
-      setShowLoginModal(true)
-    },
-    []
-  )
-
-  // ✅ “로그인 체크 + 실행”
-  const guardedAsk = useCallback(
-    async (override?: string) => {
-      const q = (override ?? input).trim()
-      if (!q) return
-
-      // ✅ 여기에서 강제: 게스트면 모달
-      if (!user?.id) {
-        requireLoginThen(q)
-        return
-      }
-
-      // 로그인 유저면 정상 실행
-      await ask(q)
-    },
-    // ask는 아래에서 선언되지만, useCallback으로 안전하게 연결하려면 eslint 끄거나 순서 조정 필요.
-    // 여기서는 TS/React가 문제 없이 처리하는 패턴(아래 ask가 const로 정의)로 맞춰둠.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, user?.id, requireLoginThen]
-  )
-
   const ask = useCallback(
     async (override?: string) => {
       const q = (override ?? input).trim()
@@ -318,7 +233,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
       const sid = sessionId || getOrCreateSessionId()
 
-      // ✅ 라벨 강제 모드: Thinking → 타이핑으로 출력
+      // ✅ 라벨 강제 모드: Thinking → 타이핑으로 출력 (서버 호출 없이)
       if (isKMomLabel(q)) {
         push('user', K_MOM_USER_LABEL)
         setInput('')
@@ -364,6 +279,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         const okJson = await safeJsonParse<ApiChatOk>(raw)
         const answer = (okJson?.answer || '').trim()
 
+        // ✅ 서버가 세션ID를 새로 내려주면 로컬에도 반영
         if (okJson?.sessionId && okJson.sessionId !== sid) {
           try {
             window.localStorage.setItem(SESSION_KEY, okJson.sessionId)
@@ -389,7 +305,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         }
 
         push('assistant', answer)
-      } catch (e) {
+      } catch {
         const msg = 'The response is delayed. Please try again.'
         setError(msg)
         push('assistant', msg)
@@ -400,23 +316,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     [input, sessionId, push, systemPrompt, user?.id, typewriterAppend]
   )
 
-  // ✅ 로그인 성공 후 /coach 로 돌아왔을 때 pending 자동 실행
-  useEffect(() => {
-    if (!user?.id) return
-    if (loading) return
-
-    const p = getPending()
-    if (!p) return
-
-    // 중복 실행 방지: 먼저 지우고 실행
-    clearPending()
-
-    // pending 질문 실행
-    void ask(p.text)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id])
-
-  // ✅ 프리셋 클릭 이벤트도 로그인 강제
+  // ✅ 프리셋/키워드 클릭 이벤트: 로그인 없이도 즉시 질문 실행
   useEffect(() => {
     const handler = (e: Event) => {
       const text = (e as CustomEvent<string>).detail
@@ -426,30 +326,12 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
       setInput(q)
       if (loading) return
 
-      // ✅ 여기 중요: 바로 ask(q) 하지 말고 guardedAsk(q)
-      void guardedAsk(q)
+      void ask(q)
     }
 
     window.addEventListener('coach:setMessage', handler as EventListener)
     return () => window.removeEventListener('coach:setMessage', handler as EventListener)
-  }, [loading, guardedAsk])
-
-  // ✅ 모달 OK: 구글 로그인 시작
-  const onModalOk = useCallback(async () => {
-    setShowLoginModal(false)
-    try {
-      await googleSignInWithSelectAccount(supabase as any)
-    } catch (e) {
-      console.error('[googleSignInWithSelectAccount] error:', e)
-      // 실패하면 pending은 남아있으니 사용자가 다시 시도 가능
-      setError('Unable to start Google sign-in. Please try again.')
-    }
-  }, [supabase])
-
-  const onModalCancel = useCallback(() => {
-    setShowLoginModal(false)
-    clearPending()
-  }, [])
+  }, [loading, ask])
 
   return (
     <div className="w-full">
@@ -510,7 +392,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    void guardedAsk()
+                    void ask()
                   }
                 }}
                 placeholder="Anything on your mind?"
@@ -526,7 +408,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                 ].join(' ')}
               />
               <button
-                onClick={() => void guardedAsk()}
+                onClick={() => void ask()}
                 disabled={loading || !input.trim()}
                 className={[
                   'w-[92px]',
@@ -544,41 +426,6 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
           {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
         </div>
       </div>
-
-      {/* ✅ 로그인 요구 모달 */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-6">
-          <div className="absolute inset-0 bg-black/40" onClick={onModalCancel} />
-          <div className="relative w-full max-w-sm rounded-2xl bg-white shadow-xl border border-[#e5e5e5]">
-            <div className="px-5 py-4 border-b border-[#eeeeee]">
-              <p className="text-[16px] font-semibold text-[#0e0e0e]">Google sign-in required</p>
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-[14px] leading-relaxed text-[#222222]">
-                Please sign in with Google to continue.
-              </p>
-            </div>
-            <div className="px-5 py-4 border-t border-[#eeeeee] flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onModalCancel}
-                className="rounded-lg px-4 py-2 text-[14px] font-medium border border-[#d0d0d0] bg-white"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onModalOk}
-                className="rounded-lg px-4 py-2 text-[14px] font-semibold bg-black text-white"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* loginGoogle 함수는 유지(다른 UI에서 재사용 가능) */}
     </div>
   )
 }

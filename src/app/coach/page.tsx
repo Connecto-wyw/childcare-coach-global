@@ -75,6 +75,7 @@ async function createSupabaseServer() {
         return cookieStore.get(name)?.value
       },
       set(name: string, value: string, options: any) {
+        // Server Component에서 cookie set이 실패할 수 있어도 페이지 렌더는 계속
         try {
           cookieStore.set({ name, value, ...options })
         } catch {}
@@ -90,7 +91,7 @@ async function createSupabaseServer() {
 
 /**
  * ✅ Coach에서 보여줄 키워드는 "어드민에서 등록한 것"만 사용.
- * - GET /api/keywords 는 공개 읽기(추천)
+ * - GET /api/keywords 는 공개 읽기
  * - 응답 형식: { ok: true, data: [{ id, keyword, order }, ...] }
  */
 async function getPopularKeywords() {
@@ -169,6 +170,7 @@ export default async function CoachPage() {
         ) : null}
 
         <section className="mb-8">
+          {/* ✅ 게스트/로그인 모두 가능. ChatBox 내부에서 로그인 강제하면 안 됨 */}
           <ChatBox />
         </section>
 

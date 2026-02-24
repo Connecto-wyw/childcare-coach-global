@@ -27,23 +27,32 @@ export function Providers({ children }: PropsWithChildren) {
   useEffect(() => {
     let mounted = true
 
+    // ✅ auth 상태 업데이트 헬퍼 (중복 업데이트 최소화)
+    const setAuthSafe = (next: AuthUserState) => {
+      if (!mounted) return
+      setAuth((prev) => {
+        // loading만 바뀌는 경우 포함해도, 불필요 rerender 최소화
+        const sameUser = (prev.user?.id ?? null) === (next.user?.id ?? null)
+        const sameLoading = prev.loading === next.loading
+        if (sameUser && sameLoading) return prev
+        return next
+      })
+    }
+
     // 1) 초기 세션 로드
     supabase.auth
       .getSession()
       .then(({ data }) => {
-        if (!mounted) return
         const session: Session | null = data.session ?? null
-        setAuth({ user: session?.user ?? null, loading: false })
+        setAuthSafe({ user: session?.user ?? null, loading: false })
       })
       .catch(() => {
-        if (!mounted) return
-        setAuth({ user: null, loading: false })
+        setAuthSafe({ user: null, loading: false })
       })
 
     // 2) 세션 변화 구독
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return
-      setAuth({ user: session?.user ?? null, loading: false })
+      setAuthSafe({ user: session?.user ?? null, loading: false })
     })
 
     return () => {
