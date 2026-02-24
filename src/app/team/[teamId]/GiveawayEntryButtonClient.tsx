@@ -9,7 +9,6 @@ type Props = { teamId: string }
 function isValidEmail(v: string) {
   const s = v.trim()
   if (!s) return false
-  // 너무 빡세게 검증하지 말고 기본만
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
 }
 
@@ -20,6 +19,7 @@ function Modal({
   email,
   setEmail,
   submitting,
+  canSubmit,
   onClose,
   onSubmit,
 }: {
@@ -29,6 +29,7 @@ function Modal({
   email: string
   setEmail: (v: string) => void
   submitting: boolean
+  canSubmit: boolean
   onClose: () => void
   onSubmit: () => void
 }) {
@@ -60,9 +61,9 @@ function Modal({
 
           <button
             onClick={onSubmit}
-            disabled={submitting}
+            disabled={submitting || !canSubmit}
             className="h-10 rounded-lg px-5 text-[13px] font-semibold text-white disabled:opacity-60"
-            style={{ backgroundColor: '#111' }}
+            style={{ backgroundColor: INDIANBOB_RED }}
           >
             {submitting ? 'Submitting…' : 'Submit'}
           </button>
@@ -102,7 +103,6 @@ function AlertModal({
 export default function GiveawayEntryButtonClient({ teamId }: Props) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
-
   const [submitting, setSubmitting] = useState(false)
 
   const [alertOpen, setAlertOpen] = useState(false)
@@ -121,9 +121,7 @@ export default function GiveawayEntryButtonClient({ teamId }: Props) {
 
   const canSubmit = useMemo(() => isValidEmail(email), [email])
 
-  const onClickEnter = () => {
-    setOpen(true)
-  }
+  const onClickEnter = () => setOpen(true)
 
   const onClose = () => {
     if (submitting) return
@@ -141,10 +139,9 @@ export default function GiveawayEntryButtonClient({ teamId }: Props) {
       const res = await fetch('/api/giveaway/enter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamId, email: email.trim() }),
+        body: JSON.stringify({ teamId, email: email.trim().toLowerCase() }),
       })
 
-      // ✅ 여기서 404/500도 다 잡음
       const text = await res.text()
       let json: any = null
       try {
@@ -154,30 +151,23 @@ export default function GiveawayEntryButtonClient({ teamId }: Props) {
       }
 
       if (!res.ok) {
-        // 서버에서 에러 메시지 내려주면 그거 사용
-        const msg =
-          json?.message ||
-          json?.error ||
-          `Request failed (${res.status}). Please try again.`
+        const msg = json?.message || json?.error || `Request failed (${res.status}). Please try again.`
         showAlert('Error', msg)
         return
       }
 
-      // ✅ 중복 참여 케이스
-      if (json?.code === 'ALREADY_ENTERED') {
+      // ✅ 서버 응답 포맷에 맞춤
+      if (json?.alreadyEntered) {
         showAlert('Already entered', 'You have already entered this giveaway.')
         return
       }
 
-      // ✅ 성공
       showAlert('Done', 'Your email has been saved. Thank you!')
       setOpen(false)
       setEmail('')
     } catch (e: any) {
-      // ✅ fetch 자체 실패 (네트워크/라우트 없음 등)
       showAlert('Network error', e?.message || 'Please try again.')
     } finally {
-      // ✅ 여기 때문에 “무한 Submitting”이 사라짐
       setSubmitting(false)
     }
   }
@@ -200,6 +190,7 @@ export default function GiveawayEntryButtonClient({ teamId }: Props) {
         email={email}
         setEmail={setEmail}
         submitting={submitting}
+        canSubmit={canSubmit}
         onClose={onClose}
         onSubmit={onSubmit}
       />
