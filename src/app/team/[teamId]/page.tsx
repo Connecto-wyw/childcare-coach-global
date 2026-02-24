@@ -76,11 +76,10 @@ function formatMoney(n: number, currency: string) {
 }
 
 // ✅ UTC 표시용 (이벤트 문구에 쓰기)
-function formatUtcLabel(isoUtc: string) {
+function formatUtcLabel(_isoUtc: string) {
   // 목표 표기: "Ends Mar 15, 2026 24:00 (UTC)"
   // 실제 ISO: 2026-03-16T00:00:00Z -> "Mar 16, 2026 00:00 (UTC)"가 더 정직하지만,
-  // 너 요구사항 문구는 "3/15 24:00 UTC"라서 아래처럼 보여주면 됨.
-  // (원하면 완전 정직 표기로 바꿔줄게.)
+  // 요구사항 문구는 "3/15 24:00 UTC"라서 아래처럼 보여줌.
   return 'Ends Mar 15, 2026 24:00 (UTC)'
 }
 
@@ -164,24 +163,34 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
 
 /* -----------------------------------------
    ✅ Hardcoded detail: Shared “Intro Header”
+   ✅ 이벤트 상품은 아래 문구 숨김(isGiveaway)
 ------------------------------------------ */
-function ProductIntroHeader({ title }: { title: string }) {
+function ProductIntroHeader({
+  title,
+  isGiveaway,
+}: {
+  title: string
+  isGiveaway?: boolean
+}) {
   return (
     <div className="border-b border-[#efefef] bg-[#fafafa] px-6 py-5">
       <div className="text-[13px] font-semibold text-[#6f6f6f]">Trending & Premium from Korea</div>
       <div className="mt-1 text-[22px] font-semibold leading-snug text-[#0e0e0e]">{title}</div>
 
-      <div className="mt-3 space-y-1 text-[14px] leading-relaxed text-[#5f5f5f]">
-        <div>The more people join, the lower the price drops. The power of community unlocks better deals.</div>
+      {/* ✅ 이벤트 상품이면 아래 문구 통째로 숨김 */}
+      {!isGiveaway && (
+        <div className="mt-3 space-y-1 text-[14px] leading-relaxed text-[#5f5f5f]">
+          <div>The more people join, the lower the price drops. The power of community unlocks better deals.</div>
 
-        <div className="mt-2">
-          ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT charge you.
+          <div className="mt-2">
+            ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT charge you.
+          </div>
+          <div>When payments and shipping officially launch, you’ll be the first to know via your signed-in Google email.</div>
+          <div className="pt-1">
+            <span className="font-semibold text-[#0e0e0e]">Join early.</span> Unlock better prices. Be part of something new.
+          </div>
         </div>
-        <div>When payments and shipping officially launch, you’ll be the first to know via your signed-in Google email.</div>
-        <div className="pt-1">
-          <span className="font-semibold text-[#0e0e0e]">Join early.</span> Unlock better prices. Be part of something new.
-        </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -205,17 +214,49 @@ function HardcodedDetailForKTableware() {
 
         <div className="mt-6 space-y-4">
           {[
-            { no: '1', title: 'Designed for Little Hands', emoji: '🖐️ 👶', body: 'Thoughtfully shaped for small hands learning to eat independently. The ergonomic curves and balanced weight help children grip comfortably, building confidence at every meal.' },
-            { no: '2', title: 'Safe, Food-Grade Silicone', emoji: '🌿 🛡️', body: 'Made with BPA-free, food-grade silicone trusted by Korean parents. Soft, durable, and gentle on little mouths — giving parents peace of mind at every bite.' },
-            { no: '3', title: 'Strong Suction, Less Mess', emoji: '💪 🍽️', body: 'The powerful suction base keeps bowls and plates firmly in place. Less slipping, fewer spills, and calmer mealtimes for both parents and toddlers.' },
-            { no: '4', title: 'Everyday Practical & Easy to Clean', emoji: '🧼 ✨', body: 'Dishwasher-safe and effortless to wash by hand. Designed for busy family routines — because parenting is already demanding enough.' },
-            { no: '5', title: 'Minimal Korean Design', emoji: '🎀 🇰🇷', body: 'Soft neutral tones and clean, modern aesthetics inspired by Korean parenting style. Beautiful enough to leave on your table, functional enough to use every day.' },
+            {
+              no: '1',
+              title: 'Designed for Little Hands',
+              emoji: '🖐️ 👶',
+              body:
+                'Thoughtfully shaped for small hands learning to eat independently. The ergonomic curves and balanced weight help children grip comfortably, building confidence at every meal.',
+            },
+            {
+              no: '2',
+              title: 'Safe, Food-Grade Silicone',
+              emoji: '🌿 🛡️',
+              body:
+                'Made with BPA-free, food-grade silicone trusted by Korean parents. Soft, durable, and gentle on little mouths — giving parents peace of mind at every bite.',
+            },
+            {
+              no: '3',
+              title: 'Strong Suction, Less Mess',
+              emoji: '💪 🍽️',
+              body:
+                'The powerful suction base keeps bowls and plates firmly in place. Less slipping, fewer spills, and calmer mealtimes for both parents and toddlers.',
+            },
+            {
+              no: '4',
+              title: 'Everyday Practical & Easy to Clean',
+              emoji: '🧼 ✨',
+              body:
+                'Dishwasher-safe and effortless to wash by hand. Designed for busy family routines — because parenting is already demanding enough.',
+            },
+            {
+              no: '5',
+              title: 'Minimal Korean Design',
+              emoji: '🎀 🇰🇷',
+              body:
+                'Soft neutral tones and clean, modern aesthetics inspired by Korean parenting style. Beautiful enough to leave on your table, functional enough to use every day.',
+            },
           ].map((x) => (
             <div key={x.no} className="rounded-2xl border border-[#efefef] p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">{x.no}</span>
+                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
+                      {x.no}
+                    </span>
                     <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">{x.title}</div>
                   </div>
                 </div>
@@ -230,12 +271,16 @@ function HardcodedDetailForKTableware() {
           <div className="text-[16px] font-semibold text-[#0e0e0e]">🌸 Why Parents Love It in Southeast Asia</div>
 
           <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
-            {['Safe materials you can trust', 'Designed to support self-feeding milestones', 'Reduces mealtime stress and mess', 'Stylish enough for modern homes'].map((t) => (
-              <li key={t} className="flex items-start gap-2">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">✓</span>
-                <span className="leading-relaxed">{t}</span>
-              </li>
-            ))}
+            {['Safe materials you can trust', 'Designed to support self-feeding milestones', 'Reduces mealtime stress and mess', 'Stylish enough for modern homes'].map(
+              (t) => (
+                <li key={t} className="flex items-start gap-2">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">{t}</span>
+                </li>
+              )
+            )}
           </ul>
 
           <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">Smarter mealtimes. Safer materials. The Korean way.</div>
@@ -264,17 +309,49 @@ function HardcodedDetailForPostpartumKit() {
 
         <div className="mt-6 space-y-4">
           {[
-            { no: '1', title: 'Trusted by Korean Mothers', emoji: '🤱🇰🇷', body: 'In Korea, postpartum care is not optional — it’s a deeply respected tradition. This starter kit is inspired by real recovery routines practiced by Korean mothers, designed to help your body rest, restore, and feel supported during the most delicate stage after birth.' },
-            { no: '2', title: 'Gentle Daily Recovery', emoji: '🌙✨', body: 'After delivery, your body needs softness — not stress. This kit focuses on small, comforting daily rituals that help you feel calmer, lighter, and more balanced. It’s not about dramatic changes — it’s about steady, nurturing recovery every single day.' },
-            { no: '3', title: 'Warmth & Comfort First', emoji: '🔥💛', body: 'Korean postpartum care emphasizes warmth and proper rest to help the body regain balance. Even in tropical climates, air-conditioning, sleepless nights, and fatigue can leave your body feeling cold and depleted. This set supports that essential feeling of warmth, grounding, and protection.' },
-            { no: '4', title: 'Simple, Ready-to-Use Set', emoji: '🎁🌸', body: 'No complicated steps. No confusing routines. Everything you need is thoughtfully prepared in one easy starter kit — perfect for busy new moms who want recovery without overwhelm.' },
-            { no: '5', title: 'Self-Care at Home', emoji: '🏡💗', body: 'Not everyone can access a postpartum center — and that’s okay. Experience Korean-style recovery safely and comfortably at home, with products that support rest, comfort, and mindful care.' },
+            {
+              no: '1',
+              title: 'Trusted by Korean Mothers',
+              emoji: '🤱🇰🇷',
+              body:
+                'In Korea, postpartum care is not optional — it’s a deeply respected tradition. This starter kit is inspired by real recovery routines practiced by Korean mothers, designed to help your body rest, restore, and feel supported during the most delicate stage after birth.',
+            },
+            {
+              no: '2',
+              title: 'Gentle Daily Recovery',
+              emoji: '🌙✨',
+              body:
+                'After delivery, your body needs softness — not stress. This kit focuses on small, comforting daily rituals that help you feel calmer, lighter, and more balanced. It’s not about dramatic changes — it’s about steady, nurturing recovery every single day.',
+            },
+            {
+              no: '3',
+              title: 'Warmth & Comfort First',
+              emoji: '🔥💛',
+              body:
+                'Korean postpartum care emphasizes warmth and proper rest to help the body regain balance. Even in tropical climates, air-conditioning, sleepless nights, and fatigue can leave your body feeling cold and depleted. This set supports that essential feeling of warmth, grounding, and protection.',
+            },
+            {
+              no: '4',
+              title: 'Simple, Ready-to-Use Set',
+              emoji: '🎁🌸',
+              body:
+                'No complicated steps. No confusing routines. Everything you need is thoughtfully prepared in one easy starter kit — perfect for busy new moms who want recovery without overwhelm.',
+            },
+            {
+              no: '5',
+              title: 'Self-Care at Home',
+              emoji: '🏡💗',
+              body:
+                'Not everyone can access a postpartum center — and that’s okay. Experience Korean-style recovery safely and comfortably at home, with products that support rest, comfort, and mindful care.',
+            },
           ].map((x) => (
             <div key={x.no} className="rounded-2xl border border-[#efefef] p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">{x.no}</span>
+                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
+                      {x.no}
+                    </span>
                     <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">{x.title}</div>
                   </div>
                 </div>
@@ -289,9 +366,16 @@ function HardcodedDetailForPostpartumKit() {
           <div className="text-[16px] font-semibold text-[#0e0e0e]">🌺 Why Moms in Southeast Asia Love It</div>
 
           <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
-            {['Inspired by Korea’s trusted postpartum tradition', 'Practical, essential items — no unnecessary extras', 'Designed for comfort, recovery, and emotional ease', 'A meaningful gift for new mothers'].map((t) => (
+            {[
+              'Inspired by Korea’s trusted postpartum tradition',
+              'Practical, essential items — no unnecessary extras',
+              'Designed for comfort, recovery, and emotional ease',
+              'A meaningful gift for new mothers',
+            ].map((t) => (
               <li key={t} className="flex items-start gap-2">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">✓</span>
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
+                  ✓
+                </span>
                 <span className="leading-relaxed">{t}</span>
               </li>
             ))}
@@ -306,11 +390,15 @@ function HardcodedDetailForPostpartumKit() {
 
 /* -----------------------------------------
    ✅ Hardcoded detail 3: Korean Daily Care Essential (NEW)
+   ✅ 이벤트 상품이라 ProductIntroHeader 문구 숨김(isGiveaway)
 ------------------------------------------ */
 function HardcodedDetailForKDailyCare() {
   return (
     <section className="mt-8 overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
-      <ProductIntroHeader title="Discover the most trending and premium products from South Korea — carefully curated for you." />
+      <ProductIntroHeader
+        title="Discover the most trending and premium products from South Korea — carefully curated for you."
+        isGiveaway
+      />
 
       <div className="px-6 py-6">
         <div className="flex items-start gap-3">
@@ -325,17 +413,49 @@ function HardcodedDetailForKDailyCare() {
 
         <div className="mt-6 space-y-4">
           {[
-            { no: '1', title: 'All-in-One, No Guesswork', emoji: '✅🧴', body: 'A simple, practical solution for everyday family cleansing: shampoo + body wash in one. Less clutter, fewer steps — easier routines for busy mornings and tired nights.' },
-            { no: '2', title: 'Soft, Comfortable Daily Care', emoji: '🌿🫧', body: 'Inspired by the gentle care routines trusted by Korean moms. Designed to feel comfortable for everyday use — clean, fresh, and never fussy.' },
-            { no: '3', title: 'Head-to-Toe Convenience', emoji: '🛁✨', body: 'From hair to body, one pump does it. Great for families who want a quick, streamlined shower routine without switching bottles mid-wash.' },
-            { no: '4', title: 'Family-Friendly for Daily Use', emoji: '👨‍👩‍👧‍👦💛', body: 'A practical choice for shared bathrooms and family travel. Easy to reach for, easy to finish, and easy to restock — the “default pick” you’ll keep coming back to.' },
-            { no: '5', title: 'Korean Routine, Everyday Simplicity', emoji: '🇰🇷🕊️', body: 'Korean moms value steady, gentle routines more than complicated steps. This is that idea in a bottle: simple cleansing that fits real life, every day.' },
+            {
+              no: '1',
+              title: 'All-in-One, No Guesswork',
+              emoji: '✅🧴',
+              body:
+                'A simple, practical solution for everyday family cleansing: shampoo + body wash in one. Less clutter, fewer steps — easier routines for busy mornings and tired nights.',
+            },
+            {
+              no: '2',
+              title: 'Soft, Comfortable Daily Care',
+              emoji: '🌿🫧',
+              body:
+                'Inspired by the gentle care routines trusted by Korean moms. Designed to feel comfortable for everyday use — clean, fresh, and never fussy.',
+            },
+            {
+              no: '3',
+              title: 'Head-to-Toe Convenience',
+              emoji: '🛁✨',
+              body:
+                'From hair to body, one pump does it. Great for families who want a quick, streamlined shower routine without switching bottles mid-wash.',
+            },
+            {
+              no: '4',
+              title: 'Family-Friendly for Daily Use',
+              emoji: '👨‍👩‍👧‍👦💛',
+              body:
+                'A practical choice for shared bathrooms and family travel. Easy to reach for, easy to finish, and easy to restock — the “default pick” you’ll keep coming back to.',
+            },
+            {
+              no: '5',
+              title: 'Korean Routine, Everyday Simplicity',
+              emoji: '🇰🇷🕊️',
+              body:
+                'Korean moms value steady, gentle routines more than complicated steps. This is that idea in a bottle: simple cleansing that fits real life, every day.',
+            },
           ].map((x) => (
             <div key={x.no} className="rounded-2xl border border-[#efefef] p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">{x.no}</span>
+                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
+                      {x.no}
+                    </span>
                     <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">{x.title}</div>
                   </div>
                 </div>
@@ -350,12 +470,16 @@ function HardcodedDetailForKDailyCare() {
           <div className="text-[16px] font-semibold text-[#0e0e0e]">🌼 Why Families Love It</div>
 
           <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
-            {['One bottle for hair + body', 'Simple routines for busy families', 'Great for shared bathrooms & travel', 'Inspired by Korean moms’ practical daily care'].map((t) => (
-              <li key={t} className="flex items-start gap-2">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">✓</span>
-                <span className="leading-relaxed">{t}</span>
-              </li>
-            ))}
+            {['One bottle for hair + body', 'Simple routines for busy families', 'Great for shared bathrooms & travel', 'Inspired by Korean moms’ practical daily care'].map(
+              (t) => (
+                <li key={t} className="flex items-start gap-2">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">{t}</span>
+                </li>
+              )
+            )}
           </ul>
 
           <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">Simple. Gentle. Everyday — the Korean way.</div>
@@ -467,9 +591,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   // ✅ 당첨확률 계산 (정확 버전)
   // 참가자 N명 중 5명 당첨 => 5/N (단, N < 5면 100%)
   const chancePct =
-    participantCount <= 0
-      ? 100
-      : Math.min(100, Math.round(((GIVEAWAY.gifts / participantCount) * 100) * 10) / 10) // 소수 1자리
+    participantCount <= 0 ? 100 : Math.min(100, Math.round(((GIVEAWAY.gifts / participantCount) * 100) * 10) / 10) // 소수 1자리
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -527,8 +649,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                     </div>
 
                     <div className="mt-1 text-[13px] text-black/70">
-                      Current winning chance:{' '}
-                      <span className="font-semibold text-black/80">{chancePct}%</span>
+                      Current winning chance: <span className="font-semibold text-black/80">{chancePct}%</span>
                     </div>
 
                     {giveawayEndsAtUtc ? (
