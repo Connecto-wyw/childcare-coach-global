@@ -55,81 +55,14 @@ function ChevronDownIcon({ className = 'w-4 h-4' }: { className?: string }) {
 const INDIANBOB_RED = '#9F1D23'
 
 /**
- * ✅ TEAM BETA Badge (black pulse) - above TEAM (center)
+ * ✅ TEAM Badge: EVENT (IndianBob red pulse)
  */
-function NavBetaBadge({ text = 'BETA' }: { text?: string }) {
+function NavEventBadge({ text = 'EVENT' }: { text?: string }) {
   return (
     <>
       <span
         className={[
-          'beta-badge',
-          'absolute',
-          'rounded-full',
-          'px-[6px]',
-          'py-[1px]',
-          'text-[9px]',
-          'font-extrabold',
-          'leading-none',
-          'text-white',
-          'select-none',
-          'pointer-events-none',
-          'whitespace-nowrap',
-        ].join(' ')}
-        style={{ backgroundColor: '#000000' }}
-      >
-        {text}
-      </span>
-
-      <style jsx>{`
-        .beta-badge {
-          left: 50%;
-          top: -11px;
-          transform: translateX(-50%);
-          transform-origin: center;
-
-          animation: beta-badge-pulse 1.2s ease-in-out infinite;
-          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.18);
-        }
-
-        @keyframes beta-badge-pulse {
-          0% {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.22);
-          }
-          50% {
-            opacity: 0.6;
-            transform: translateX(-50%) scale(1.06);
-            box-shadow: 0 0 0 6px rgba(0, 0, 0, 0);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .beta-badge {
-            animation: none !important;
-          }
-        }
-      `}</style>
-    </>
-  )
-}
-
-/**
- * ✅ REWARD "Comming Soon" Badge - above REWARD like TEAM(BETA)
- * - 기본은 중앙(50%)
- * - 텍스트가 길어서 겹치면 오른쪽으로 조금 미는 용도: left: 62% (원하면 58~70% 사이로 조절)
- */
-function NavSoonBadge({ text = 'Comming Soon' }: { text?: string }) {
-  return (
-    <>
-      <span
-        className={[
-          'soon-badge',
+          'event-badge',
           'absolute',
           'rounded-full',
           'px-[7px]',
@@ -148,10 +81,9 @@ function NavSoonBadge({ text = 'Comming Soon' }: { text?: string }) {
       </span>
 
       <style jsx>{`
-        .soon-badge {
-          /* ✅ TEAM처럼 위에 올리되, 모자라면 오른쪽으로 살짝 */
-          left: 62%;
-          top: -12px;
+        .event-badge {
+          left: 50%;
+          top: -11px;
           transform: translateX(-50%);
           transform-origin: center;
 
@@ -174,6 +106,71 @@ function NavSoonBadge({ text = 'Comming Soon' }: { text?: string }) {
             opacity: 1;
             transform: translateX(-50%) scale(1);
             box-shadow: 0 0 0 0 rgba(159, 29, 35, 0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .event-badge {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </>
+  )
+}
+
+/**
+ * ✅ REWARD Badge: "Comming Soon" (text 그대로) + 배경 검정
+ */
+function NavSoonBadge({ text = 'Comming Soon' }: { text?: string }) {
+  return (
+    <>
+      <span
+        className={[
+          'soon-badge',
+          'absolute',
+          'rounded-full',
+          'px-[7px]',
+          'py-[2px]',
+          'text-[9px]',
+          'font-extrabold',
+          'leading-none',
+          'text-white',
+          'select-none',
+          'pointer-events-none',
+          'whitespace-nowrap',
+        ].join(' ')}
+        style={{ backgroundColor: '#000000' }}
+      >
+        {text}
+      </span>
+
+      <style jsx>{`
+        .soon-badge {
+          left: 62%;
+          top: -12px;
+          transform: translateX(-50%);
+          transform-origin: center;
+
+          animation: black-badge-pulse 1.2s ease-in-out infinite;
+          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.18);
+        }
+
+        @keyframes black-badge-pulse {
+          0% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.22);
+          }
+          50% {
+            opacity: 0.6;
+            transform: translateX(-50%) scale(1.06);
+            box-shadow: 0 0 0 6px rgba(0, 0, 0, 0);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
           }
         }
 
@@ -325,8 +322,9 @@ export default function NavBar() {
     } catch {}
   }, [supabase])
 
+  // ✅ 요구사항 반영
   const showTeamBadge = true
-  const teamBadgeText = 'BETA'
+  const teamBadgeText = 'EVENT'
 
   const showRewardBadge = true
   const rewardBadgeText = 'Comming Soon'
@@ -356,7 +354,7 @@ export default function NavBar() {
                     onClick={onClickReward}
                     className={[
                       'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                      'relative inline-flex items-center', // ✅ badge를 위에 올리려면 relative 필요
+                      'relative inline-flex items-center',
                       'cursor-pointer',
                     ].join(' ')}
                   >
@@ -376,7 +374,7 @@ export default function NavBar() {
                   ].join(' ')}
                 >
                   <span>{it.label}</span>
-                  {isTeam && showTeamBadge ? <NavBetaBadge text={teamBadgeText} /> : null}
+                  {isTeam && showTeamBadge ? <NavEventBadge text={teamBadgeText} /> : null}
                 </Link>
               )
             })}
