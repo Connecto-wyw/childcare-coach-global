@@ -1,5 +1,6 @@
 // src/app/team/[teamId]/page.tsx
 import Link from 'next/link'
+import GiveawayEntryButtonClient from './GiveawayEntryButtonClient'
 import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
@@ -540,7 +541,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                   </div>
 
                   <div className="mt-6 flex justify-center">
-                    <JoinButtonClient teamId={teamId} />
+                    <GiveawayEntryButtonClient teamId={teamId} />
                   </div>
                 </>
               ) : (
