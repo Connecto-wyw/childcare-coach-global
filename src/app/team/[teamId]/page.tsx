@@ -32,6 +32,7 @@ const FALLBACK_DETAIL_TEXT = 'No additional details yet.'
 const SKY_BLUE = '#3EB6F1'
 const SKY_BLUE_LIGHT = '#EAF6FF'
 
+// ✅ 하드코딩 상세를 적용할 teamId들
 const HARDCODED = {
   K_TABLEWARE: 'eee3586c-2ffe-45c5-888d-0a98f4d0b0d9',
   POSTPARTUM_KIT: '91780f15-d69a-4a46-bcda-dfedd0dc2a46',
@@ -46,12 +47,7 @@ function parseSteps(raw: any): DiscountStep[] {
       participants: Number(x?.participants ?? 0),
       discount_percent: Number(x?.discount_percent ?? 0),
     }))
-    .filter(
-      (s) =>
-        Number.isFinite(s.participants) &&
-        Number.isFinite(s.discount_percent) &&
-        s.participants > 0
-    )
+    .filter((s) => Number.isFinite(s.participants) && Number.isFinite(s.discount_percent) && s.participants > 0)
     .sort((a, b) => a.participants - b.participants)
 }
 
@@ -65,10 +61,7 @@ function calcCurrentDiscountPercent(count: number, steps: DiscountStep[]) {
 
 function formatMoney(n: number, currency: string) {
   try {
-    return (
-      new Intl.NumberFormat('en-US').format(n) +
-      (currency === 'KRW' ? ' KRW' : ` ${currency}`)
-    )
+    return new Intl.NumberFormat('en-US').format(n) + (currency === 'KRW' ? ' KRW' : ` ${currency}`)
   } catch {
     return `${n} ${currency}`
   }
@@ -102,15 +95,8 @@ async function createSupabaseServer() {
   })
 }
 
-async function getParticipantCount(
-  sb: Awaited<ReturnType<typeof createSupabaseServer>>,
-  teamId: string
-) {
-  const { count, error } = await sb
-    .from('team_members')
-    .select('*', { count: 'exact', head: true })
-    .eq('team_id', teamId)
-
+async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
+  const { count, error } = await sb.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId)
   if (error) return 0
   return Number(count ?? 0)
 }
@@ -144,26 +130,19 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
 /* -----------------------------------------
    ✅ Hardcoded detail: Shared “Intro Header”
 ------------------------------------------ */
-function ProductIntroHeader({
-  title,
-}: {
-  title: string
-}) {
+function ProductIntroHeader({ title }: { title: string }) {
   return (
     <div className="border-b border-[#efefef] bg-[#fafafa] px-6 py-5">
-      <div className="text-[13px] font-semibold text-[#6f6f6f]">
-        Trending & Premium from Korea
-      </div>
+      <div className="text-[13px] font-semibold text-[#6f6f6f]">Trending & Premium from Korea</div>
 
-      <div className="mt-1 text-[22px] font-semibold leading-snug text-[#0e0e0e]">
-        {title}
-      </div>
+      <div className="mt-1 text-[22px] font-semibold leading-snug text-[#0e0e0e]">{title}</div>
 
       <div className="mt-3 space-y-1 text-[14px] leading-relaxed text-[#5f5f5f]">
         <div>The more people join, the lower the price drops. The power of community unlocks better deals.</div>
 
         <div className="mt-2">
-          ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT charge you.
+          ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT
+          charge you.
         </div>
         <div>When payments and shipping officially launch, you’ll be the first to know via your signed-in Google email.</div>
         <div className="pt-1">
@@ -184,16 +163,10 @@ function HardcodedDetailForKTableware() {
 
       <div className="px-6 py-6">
         <div className="flex items-start gap-3">
-          <div className="mt-[2px] flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0f7fd] text-[18px]">
-            🍽️
-          </div>
+          <div className="mt-[2px] flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0f7fd] text-[18px]">🍽️</div>
           <div className="min-w-0">
-            <div className="text-[20px] font-semibold text-[#0e0e0e]">
-              K-Kids Silicone Tableware Set
-            </div>
-            <div className="mt-1 text-[14px] font-medium text-[#7a7a7a]">
-              Safe. Smart. Beautifully designed for modern families.
-            </div>
+            <div className="text-[20px] font-semibold text-[#0e0e0e]">K-Kids Silicone Tableware Set</div>
+            <div className="mt-1 text-[14px] font-medium text-[#7a7a7a]">Safe. Smart. Beautifully designed for modern families.</div>
           </div>
         </div>
 
@@ -224,8 +197,7 @@ function HardcodedDetailForKTableware() {
               no: '4',
               title: 'Everyday Practical & Easy to Clean',
               emoji: '🧼 ✨',
-              body:
-                'Dishwasher-safe and effortless to wash by hand. Designed for busy family routines — because parenting is already demanding enough.',
+              body: 'Dishwasher-safe and effortless to wash by hand. Designed for busy family routines — because parenting is already demanding enough.',
             },
             {
               no: '5',
@@ -242,32 +214,21 @@ function HardcodedDetailForKTableware() {
                     <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
                       {x.no}
                     </span>
-                    <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">
-                      {x.title}
-                    </div>
+                    <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">{x.title}</div>
                   </div>
                 </div>
                 <div className="shrink-0 text-[16px]">{x.emoji}</div>
               </div>
-              <div className="mt-3 text-[14px] leading-relaxed text-[#5f5f5f]">
-                {x.body}
-              </div>
+              <div className="mt-3 text-[14px] leading-relaxed text-[#5f5f5f]">{x.body}</div>
             </div>
           ))}
         </div>
 
         <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-[#fafafa] p-6">
-          <div className="text-[16px] font-semibold text-[#0e0e0e]">
-            🌸 Why Parents Love It in Southeast Asia
-          </div>
+          <div className="text-[16px] font-semibold text-[#0e0e0e]">🌸 Why Parents Love It in Southeast Asia</div>
 
           <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
-            {[
-              'Safe materials you can trust',
-              'Designed to support self-feeding milestones',
-              'Reduces mealtime stress and mess',
-              'Stylish enough for modern homes',
-            ].map((t) => (
+            {['Safe materials you can trust', 'Designed to support self-feeding milestones', 'Reduces mealtime stress and mess', 'Stylish enough for modern homes'].map((t) => (
               <li key={t} className="flex items-start gap-2">
                 <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
                   ✓
@@ -277,9 +238,7 @@ function HardcodedDetailForKTableware() {
             ))}
           </ul>
 
-          <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">
-            Smarter mealtimes. Safer materials. The Korean way.
-          </div>
+          <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">Smarter mealtimes. Safer materials. The Korean way.</div>
         </div>
       </div>
     </section>
@@ -296,16 +255,10 @@ function HardcodedDetailForPostpartumKit() {
 
       <div className="px-6 py-6">
         <div className="flex items-start gap-3">
-          <div className="mt-[2px] flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6f0ff] text-[18px]">
-            🌿
-          </div>
+          <div className="mt-[2px] flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6f0ff] text-[18px]">🌿</div>
           <div className="min-w-0">
-            <div className="text-[20px] font-semibold text-[#0e0e0e]">
-              Korean Postpartum Care Starter Kit
-            </div>
-            <div className="mt-1 text-[14px] font-medium text-[#7a7a7a]">
-              Bring the warmth and wisdom of Korean postpartum care into your home.
-            </div>
+            <div className="text-[20px] font-semibold text-[#0e0e0e]">Korean Postpartum Care Starter Kit</div>
+            <div className="mt-1 text-[14px] font-medium text-[#7a7a7a]">Bring the warmth and wisdom of Korean postpartum care into your home.</div>
           </div>
         </div>
 
@@ -354,31 +307,120 @@ function HardcodedDetailForPostpartumKit() {
                     <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
                       {x.no}
                     </span>
-                    <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">
-                      {x.title}
-                    </div>
+                    <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">{x.title}</div>
                   </div>
                 </div>
                 <div className="shrink-0 text-[16px]">{x.emoji}</div>
               </div>
-              <div className="mt-3 text-[14px] leading-relaxed text-[#5f5f5f]">
-                {x.body}
-              </div>
+              <div className="mt-3 text-[14px] leading-relaxed text-[#5f5f5f]">{x.body}</div>
             </div>
           ))}
         </div>
 
         <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-[#fafafa] p-6">
-          <div className="text-[16px] font-semibold text-[#0e0e0e]">
-            🌺 Why Moms in Southeast Asia Love It
+          <div className="text-[16px] font-semibold text-[#0e0e0e]">🌺 Why Moms in Southeast Asia Love It</div>
+
+          <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
+            {['Inspired by Korea’s trusted postpartum tradition', 'Practical, essential items — no unnecessary extras', 'Designed for comfort, recovery, and emotional ease', 'A meaningful gift for new mothers'].map((t) => (
+              <li key={t} className="flex items-start gap-2">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
+                  ✓
+                </span>
+                <span className="leading-relaxed">{t}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">Rest. Warmth. Recovery. The Korean way.</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* -----------------------------------------
+   ✅ Hardcoded detail 3: Korean Daily Care Essential
+------------------------------------------ */
+function HardcodedDetailForKDailyCare() {
+  return (
+    <section className="mt-8 overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
+      <ProductIntroHeader title="Discover the most trending and premium products from South Korea — carefully curated for you." />
+
+      <div className="px-6 py-6">
+        <div className="flex items-start gap-3">
+          <div className="mt-[2px] flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff4e6] text-[18px]">🧴</div>
+          <div className="min-w-0">
+            <div className="text-[20px] font-semibold text-[#0e0e0e]">Korean Daily Care Essential</div>
+            <div className="mt-1 text-[14px] font-medium text-[#7a7a7a]">
+              One gentle cleanser for the whole family — from head to toe.
+            </div>
           </div>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {[
+            {
+              no: '1',
+              title: 'Inspired by Korean Mom Routines',
+              emoji: '💛🇰🇷',
+              body:
+                'Korean moms value “daily care that never feels harsh.” This all-in-one shampoo + body wash is inspired by simple routines that keep the whole family feeling clean, comfortable, and cared for — without overcomplicating bath time.',
+            },
+            {
+              no: '2',
+              title: 'Head-to-Toe Convenience',
+              emoji: '🧼✨',
+              body:
+                'One pump, one bottle, two uses. Use it as a gentle shampoo and a soft body wash — ideal for busy mornings, quick showers, and kids’ bath time when you want fewer steps and less clutter.',
+            },
+            {
+              no: '3',
+              title: 'Comfort-First Daily Cleansing',
+              emoji: '🌿🫧',
+              body:
+                'Designed for everyday use with a “comfort-first” feel. A clean rinse, a soft finish, and an easy routine that fits into real family life — especially when you don’t have time for multiple products.',
+            },
+            {
+              no: '4',
+              title: 'Family-Friendly, Practical Choice',
+              emoji: '👨‍👩‍👧‍👦🧴',
+              body:
+                'A smart option for families who prefer simple, reliable essentials. Great for shared bathrooms, travel, or any home where parents want one product that works well for everyone.',
+            },
+            {
+              no: '5',
+              title: 'A Little Korean Touch in Your Routine',
+              emoji: '🇰🇷🌙',
+              body:
+                'Korean daily care is about consistency, gentleness, and comfort. Bring that feeling into your shower routine — a small upgrade that can make everyday care feel calmer and easier.',
+            },
+          ].map((x) => (
+            <div key={x.no} className="rounded-2xl border border-[#efefef] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[#111] px-2 text-[12px] font-semibold text-white">
+                      {x.no}
+                    </span>
+                    <div className="truncate text-[16px] font-semibold text-[#0e0e0e]">{x.title}</div>
+                  </div>
+                </div>
+                <div className="shrink-0 text-[16px]">{x.emoji}</div>
+              </div>
+              <div className="mt-3 text-[14px] leading-relaxed text-[#5f5f5f]">{x.body}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-[#e9e9e9] bg-[#fafafa] p-6">
+          <div className="text-[16px] font-semibold text-[#0e0e0e]">🫶 Why Families Love It</div>
 
           <ul className="mt-4 space-y-2 text-[14px] font-medium text-[#555]">
             {[
-              'Inspired by Korea’s trusted postpartum tradition',
-              'Practical, essential items — no unnecessary extras',
-              'Designed for comfort, recovery, and emotional ease',
-              'A meaningful gift for new mothers',
+              'All-in-one shampoo + body wash for simpler routines',
+              'Easy for kids’ bath time and busy parents',
+              'A practical everyday essential — not complicated, just useful',
+              'Brings a gentle “Korean daily care” vibe into your home',
             ].map((t) => (
               <li key={t} className="flex items-start gap-2">
                 <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#e8f6ee] text-[12px] font-bold text-[#1f7a3b]">
@@ -389,9 +431,7 @@ function HardcodedDetailForPostpartumKit() {
             ))}
           </ul>
 
-          <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">
-            Rest. Warmth. Recovery. The Korean way.
-          </div>
+          <div className="mt-5 text-[14px] font-semibold text-[#0e0e0e]">Soft. Simple. Everyday care — the Korean way.</div>
         </div>
       </div>
     </section>
@@ -404,15 +444,12 @@ function HardcodedDetailForPostpartumKit() {
 function renderHardcodedDetail(teamId: string) {
   if (teamId === HARDCODED.K_TABLEWARE) return <HardcodedDetailForKTableware />
   if (teamId === HARDCODED.POSTPARTUM_KIT) return <HardcodedDetailForPostpartumKit />
+  if (teamId === HARDCODED.K_DAILY_CARE) return <HardcodedDetailForKDailyCare />
   return null
 }
 
 // ✅ Next 16에서 params가 Promise로 올 수 있음
-export default async function TeamDetailPage({
-  params,
-}: {
-  params: Promise<{ teamId: string }>
-}) {
+export default async function TeamDetailPage({ params }: { params: Promise<{ teamId: string }> }) {
   const sb = await createSupabaseServer()
 
   const p = await params
@@ -440,10 +477,7 @@ export default async function TeamDetailPage({
             {JSON.stringify(debug, null, 2)}
           </pre>
           <div className="mt-6">
-            <Link
-              href="/team"
-              className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
-            >
+            <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
               Back to TEAM →
             </Link>
           </div>
@@ -470,10 +504,7 @@ export default async function TeamDetailPage({
           </pre>
 
           <div className="mt-6">
-            <Link
-              href="/team"
-              className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
-            >
+            <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
               Back to TEAM →
             </Link>
           </div>
@@ -485,11 +516,7 @@ export default async function TeamDetailPage({
   const team = teamRes as unknown as TeamRow
   const participantCount = await getParticipantCount(sb, teamId)
 
-  const { data: pricingRes } = await sb
-    .from('team_pricing_rules')
-    .select('*')
-    .eq('team_id', teamId)
-    .maybeSingle()
+  const { data: pricingRes } = await sb.from('team_pricing_rules').select('*').eq('team_id', teamId).maybeSingle()
 
   const pricing = (pricingRes ?? null) as PricingRow | null
   const steps = parseSteps((pricing as any)?.discount_steps)
@@ -529,20 +556,14 @@ export default async function TeamDetailPage({
               </div>
             </div>
 
-            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">
-              {team.purpose ?? 'No description yet.'}
-            </div>
+            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">{team.purpose ?? 'No description yet.'}</div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {team.tag1 ? (
-                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">
-                  {team.tag1}
-                </span>
+                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">{team.tag1}</span>
               ) : null}
               {team.tag2 ? (
-                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">
-                  {team.tag2}
-                </span>
+                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">{team.tag2}</span>
               ) : null}
             </div>
 
@@ -552,21 +573,14 @@ export default async function TeamDetailPage({
             </div>
 
             {/* ✅ 가격/할인 영역 */}
-            <div
-              className="mt-8 rounded-2xl px-6 py-8"
-              style={{
-                background: SKY_BLUE,
-                color: '#0e0e0e',
-              }}
-            >
+            <div className="mt-8 rounded-2xl px-6 py-8" style={{ background: SKY_BLUE, color: '#0e0e0e' }}>
               <div className="mt-4 text-center">
                 {basePrice > 0 ? (
                   <>
                     <div className="text-[14px] text-black/70">Current price</div>
                     <div className="mt-1 text-[30px] font-semibold">{formatMoney(discountedPrice, currency)}</div>
                     <div className="mt-1 text-[13px] text-black/70">
-                      {participantCount} joined · {curDiscount}% discount
-                      {minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
+                      {participantCount} joined · {curDiscount}% discount{minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
                     </div>
                   </>
                 ) : (
@@ -605,10 +619,7 @@ export default async function TeamDetailPage({
                       return (
                         <div
                           key={`${s.participants}_${idx}`}
-                          className={[
-                            'grid grid-cols-3 px-4 py-3 text-[13px]',
-                            hit ? 'bg-black/5' : 'bg-transparent',
-                          ].join(' ')}
+                          className={['grid grid-cols-3 px-4 py-3 text-[13px]', hit ? 'bg-black/5' : 'bg-transparent'].join(' ')}
                         >
                           <div>{s.participants}+</div>
                           <div>{s.discount_percent}%</div>
@@ -636,26 +647,17 @@ export default async function TeamDetailPage({
 
                 {team.detail_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={team.detail_image_url}
-                    alt="detail"
-                    className="mt-4 w-full h-auto rounded-2xl object-cover"
-                  />
+                  <img src={team.detail_image_url} alt="detail" className="mt-4 w-full h-auto rounded-2xl object-cover" />
                 ) : null}
 
                 <div className="mt-4 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                    {team.detail_markdown || FALLBACK_DETAIL_TEXT}
-                  </ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{team.detail_markdown || FALLBACK_DETAIL_TEXT}</ReactMarkdown>
                 </div>
               </div>
             )}
 
             <div className="mt-10">
-              <Link
-                href="/team"
-                className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2"
-              >
+              <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
                 Back to TEAM →
               </Link>
             </div>
