@@ -228,6 +228,8 @@ export default function NavBar() {
       { label: 'NEWS', href: '/news' },
       { label: 'TEAM', href: '/team' },
       { label: 'REWARD', href: '/reward' },
+      // ✅ 추가
+      { label: 'ABOUT', href: '/about' },
     ],
     []
   )
