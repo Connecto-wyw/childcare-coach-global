@@ -119,98 +119,6 @@ function NavEventBadge({ text = 'EVENT' }: { text?: string }) {
   )
 }
 
-/**
- * ✅ REWARD Badge: "Comming Soon" (text 그대로) + 배경 검정
- */
-function NavSoonBadge({ text = 'Comming Soon' }: { text?: string }) {
-  return (
-    <>
-      <span
-        className={[
-          'soon-badge',
-          'absolute',
-          'rounded-full',
-          'px-[7px]',
-          'py-[2px]',
-          'text-[9px]',
-          'font-extrabold',
-          'leading-none',
-          'text-white',
-          'select-none',
-          'pointer-events-none',
-          'whitespace-nowrap',
-        ].join(' ')}
-        style={{ backgroundColor: '#000000' }}
-      >
-        {text}
-      </span>
-
-      <style jsx>{`
-        .soon-badge {
-          left: 62%;
-          top: -12px;
-          transform: translateX(-50%);
-          transform-origin: center;
-
-          animation: black-badge-pulse 1.2s ease-in-out infinite;
-          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.18);
-        }
-
-        @keyframes black-badge-pulse {
-          0% {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.22);
-          }
-          50% {
-            opacity: 0.6;
-            transform: translateX(-50%) scale(1.06);
-            box-shadow: 0 0 0 6px rgba(0, 0, 0, 0);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .soon-badge {
-            animation: none !important;
-          }
-        }
-      `}</style>
-    </>
-  )
-}
-
-function SoonModal({
-  open,
-  title,
-  message,
-  onClose,
-}: {
-  open: boolean
-  title: string
-  message: string
-  onClose: () => void
-}) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm bg-white border border-[#dcdcdc] p-6">
-        <div className="text-[15px] font-extrabold text-[#1e1e1e]">{title}</div>
-        <div className="mt-2 text-[14px] text-gray-700 whitespace-pre-wrap leading-relaxed">{message}</div>
-        <div className="mt-5 flex justify-end">
-          <button onClick={onClose} className="h-10 px-5 rounded-md bg-[#1e1e1e] text-white text-[14px] font-semibold">
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
@@ -227,14 +135,10 @@ export default function NavBar() {
       { label: 'COACH', href: '/coach' },
       { label: 'NEWS', href: '/news' },
       { label: 'TEAM', href: '/team' },
-      { label: 'REWARD', href: '/reward' },
-      // ✅ 추가
       { label: 'ABOUT', href: '/about' },
     ],
     []
   )
-
-  const [soonOpen, setSoonOpen] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -324,117 +228,85 @@ export default function NavBar() {
     } catch {}
   }, [supabase])
 
-  // ✅ 요구사항 반영
+  // TEAM 뱃지 유지
   const showTeamBadge = true
   const teamBadgeText = 'EVENT'
 
-  const showRewardBadge = true
-  const rewardBadgeText = 'Comming Soon'
-
-  const onClickReward = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    setSoonOpen(true)
-  }, [])
-
   return (
-    <>
-      <SoonModal open={soonOpen} title="REWARD" message="Opening soon." onClose={() => setSoonOpen(false)} />
-
-      <header className="w-full bg-white border-b border-[#eeeeee]">
-        <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-4">
-          {/* Left */}
-          <nav className="flex items-center gap-4">
-            {items.map((it) => {
-              const isTeam = it.href === '/team'
-              const isReward = it.href === '/reward'
-
-              if (isReward) {
-                return (
-                  <a
-                    key={it.href}
-                    href={it.href}
-                    onClick={onClickReward}
-                    className={[
-                      'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                      'relative inline-flex items-center',
-                      'cursor-pointer',
-                    ].join(' ')}
-                  >
-                    <span>{it.label}</span>
-                    {showRewardBadge ? <NavSoonBadge text={rewardBadgeText} /> : null}
-                  </a>
-                )
-              }
-
-              return (
-                <Link
-                  key={it.href}
-                  href={it.href}
-                  className={[
-                    'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
-                    isTeam ? 'relative inline-flex items-center' : 'inline-flex items-center',
-                  ].join(' ')}
-                >
-                  <span>{it.label}</span>
-                  {isTeam && showTeamBadge ? <NavEventBadge text={teamBadgeText} /> : null}
-                </Link>
-              )
-            })}
-          </nav>
-
-          {/* Right */}
-          <div className="flex items-center gap-3 min-w-0">
-            {authLoading ? (
-              <span className="text-[12px] text-gray-500">Loading…</span>
-            ) : user ? (
-              <>
-                <span
-                  className={[
-                    'flex items-center gap-1 whitespace-nowrap',
-                    'text-[11px] font-semibold',
-                    'px-[7px] py-[3px] rounded-md',
-                    'bg-[#F2F7FF] text-[#0B4DD6] border border-[#D6E6FF]',
-                  ].join(' ')}
-                >
-                  <CoinIcon className="w-[15px] h-[15px] text-[#0B4DD6]" />
-                  <span>Points:</span>
-                  <span>{loadingPoints ? '…' : format(points)}</span>
-                </span>
-
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen((v) => !v)}
-                    className="flex items-center gap-1 text-[12px] font-semibold text-[#1e1e1e] hover:opacity-80 max-w-[200px]"
-                  >
-                    <span className="truncate">{displayName || 'Account'}</span>
-                    <ChevronDownIcon className="w-4 h-4 text-[#1e1e1e]" />
-                  </button>
-
-                  {menuOpen && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-md border border-[#e5e5e5] bg-white shadow-sm overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={signOut}
-                        className="w-full text-left px-3 py-2 text-[12px] text-[#1e1e1e] hover:bg-[#f5f5f5]"
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <button
-                onClick={loginGoogle}
-                className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
+    <header className="w-full bg-white border-b border-[#eeeeee]">
+      <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-4">
+        {/* Left */}
+        <nav className="flex items-center gap-4">
+          {items.map((it) => {
+            const isTeam = it.href === '/team'
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                className={[
+                  'text-[13px] font-semibold text-[#1e1e1e] hover:opacity-70',
+                  isTeam ? 'relative inline-flex items-center' : 'inline-flex items-center',
+                ].join(' ')}
               >
-                Sign in with Google
-              </button>
-            )}
-          </div>
+                <span>{it.label}</span>
+                {isTeam && showTeamBadge ? <NavEventBadge text={teamBadgeText} /> : null}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* Right */}
+        <div className="flex items-center gap-3 min-w-0">
+          {authLoading ? (
+            <span className="text-[12px] text-gray-500">Loading…</span>
+          ) : user ? (
+            <>
+              <span
+                className={[
+                  'flex items-center gap-1 whitespace-nowrap',
+                  'text-[11px] font-semibold',
+                  'px-[7px] py-[3px] rounded-md',
+                  'bg-[#F2F7FF] text-[#0B4DD6] border border-[#D6E6FF]',
+                ].join(' ')}
+              >
+                <CoinIcon className="w-[15px] h-[15px] text-[#0B4DD6]" />
+                <span>Points:</span>
+                <span>{loadingPoints ? '…' : format(points)}</span>
+              </span>
+
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-[#1e1e1e] hover:opacity-80 max-w-[200px]"
+                >
+                  <span className="truncate">{displayName || 'Account'}</span>
+                  <ChevronDownIcon className="w-4 h-4 text-[#1e1e1e]" />
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-44 rounded-md border border-[#e5e5e5] bg-white shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      className="w-full text-left px-3 py-2 text-[12px] text-[#1e1e1e] hover:bg-[#f5f5f5]"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={loginGoogle}
+              className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
+            >
+              Sign in with Google
+            </button>
+          )}
         </div>
-      </header>
-    </>
+      </div>
+    </header>
   )
 }
