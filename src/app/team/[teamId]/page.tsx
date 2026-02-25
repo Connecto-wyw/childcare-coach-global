@@ -6,6 +6,7 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
 import JoinButtonClient from './JoinButtonClient'
+import PageHeader from '@/components/layout/PageHeader'
 
 // ✅ 마크다운 렌더 (fallback용)
 import ReactMarkdown from 'react-markdown'
@@ -77,9 +78,6 @@ function formatMoney(n: number, currency: string) {
 
 // ✅ UTC 표시용 (이벤트 문구에 쓰기)
 function formatUtcLabel(_isoUtc: string) {
-  // 목표 표기: "Ends Mar 15, 2026 24:00 (UTC)"
-  // 실제 ISO: 2026-03-16T00:00:00Z -> "Mar 16, 2026 00:00 (UTC)"가 더 정직하지만,
-  // 요구사항 문구는 "3/15 24:00 UTC"라서 아래처럼 보여줌.
   return 'Ends Mar 15, 2026 24:00 (UTC)'
 }
 
@@ -118,20 +116,13 @@ async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseS
 // ✅ giveaway_events 에서 마감일 읽기 (없으면 fallback)
 async function getGiveawayEndsAtUtc(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
   try {
-    // 테이블이 없거나 타입에 없을 수도 있으니 any로 안전 처리
-    const { data } = await (sb as any)
-      .from('giveaway_events')
-      .select('ends_at,is_active')
-      .eq('team_id', teamId)
-      .maybeSingle()
+    const { data } = await (sb as any).from('giveaway_events').select('ends_at,is_active').eq('team_id', teamId).maybeSingle()
 
     const endsAt = String(data?.ends_at ?? '').trim()
     const isActive = Boolean(data?.is_active ?? false)
 
     if (isActive && endsAt) return endsAt
-  } catch {
-    // ignore
-  }
+  } catch {}
   return GIVEAWAY.fallbackEndsAtUtc
 }
 
@@ -165,23 +156,15 @@ async function resolveTeamId(paramsObj: { teamId?: string } | undefined) {
    ✅ Hardcoded detail: Shared “Intro Header”
    ✅ 이벤트 상품은 아래 문구 숨김(isGiveaway)
 ------------------------------------------ */
-function ProductIntroHeader({
-  title,
-  isGiveaway,
-}: {
-  title: string
-  isGiveaway?: boolean
-}) {
+function ProductIntroHeader({ title, isGiveaway }: { title: string; isGiveaway?: boolean }) {
   return (
     <div className="border-b border-[#efefef] bg-[#fafafa] px-6 py-5">
       <div className="text-[13px] font-semibold text-[#6f6f6f]">Trending & Premium from Korea</div>
       <div className="mt-1 text-[22px] font-semibold leading-snug text-[#0e0e0e]">{title}</div>
 
-      {/* ✅ 이벤트 상품이면 아래 문구 통째로 숨김 */}
       {!isGiveaway && (
         <div className="mt-3 space-y-1 text-[14px] leading-relaxed text-[#5f5f5f]">
           <div>The more people join, the lower the price drops. The power of community unlocks better deals.</div>
-
           <div className="mt-2">
             ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT charge you.
           </div>
@@ -389,16 +372,12 @@ function HardcodedDetailForPostpartumKit() {
 }
 
 /* -----------------------------------------
-   ✅ Hardcoded detail 3: Korean Daily Care Essential (NEW)
-   ✅ 이벤트 상품이라 ProductIntroHeader 문구 숨김(isGiveaway)
+   ✅ Hardcoded detail 3: Korean Daily Care Essential
 ------------------------------------------ */
 function HardcodedDetailForKDailyCare() {
   return (
     <section className="mt-8 overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
-      <ProductIntroHeader
-        title="Discover the most trending and premium products from South Korea — carefully curated for you."
-        isGiveaway
-      />
+      <ProductIntroHeader title="Discover the most trending and premium products from South Korea — carefully curated for you." isGiveaway />
 
       <div className="px-6 py-6">
         <div className="flex items-start gap-3">
@@ -489,9 +468,6 @@ function HardcodedDetailForKDailyCare() {
   )
 }
 
-/* -----------------------------------------
-   ✅ teamId별 하드코딩 상세 렌더
------------------------------------------- */
 function renderHardcodedDetail(teamId: string) {
   if (teamId === HARDCODED.K_TABLEWARE) return <HardcodedDetailForKTableware />
   if (teamId === HARDCODED.POSTPARTUM_KIT) return <HardcodedDetailForPostpartumKit />
@@ -499,7 +475,6 @@ function renderHardcodedDetail(teamId: string) {
   return null
 }
 
-// ✅ Next 16에서 params가 Promise로 올 수 있음
 export default async function TeamDetailPage({ params }: { params: Promise<{ teamId: string }> }) {
   const sb = await createSupabaseServer()
 
@@ -522,15 +497,19 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
 
     return (
       <main className="min-h-screen bg-white text-[#0e0e0e]">
-        <div className="mx-auto max-w-3xl px-4 py-10">
-          <h1 className="text-[28px] font-semibold">TEAM route params missing</h1>
-          <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
-            {JSON.stringify(debug, null, 2)}
-          </pre>
-          <div className="mt-6">
-            <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
-              Back to TEAM →
-            </Link>
+        <div className="mx-auto max-w-5xl px-4 py-10">
+          <PageHeader title="Team" subtitle="TEAM UP FOR FAMILY GROWTH" />
+
+          <div className="mx-auto max-w-3xl pt-10">
+            <h2 className="text-[28px] font-semibold">TEAM route params missing</h2>
+            <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
+              {JSON.stringify(debug, null, 2)}
+            </pre>
+            <div className="mt-6">
+              <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
+                Back to TEAM →
+              </Link>
+            </div>
           </div>
         </div>
       </main>
@@ -546,18 +525,22 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   if (teamErr || !teamRes) {
     return (
       <main className="min-h-screen bg-white text-[#0e0e0e]">
-        <div className="mx-auto max-w-3xl px-4 py-10">
-          <h1 className="text-[28px] font-semibold">Team load failed</h1>
-          <p className="mt-2 text-[13px] text-[#7a7a7a]">teamId: {teamId}</p>
+        <div className="mx-auto max-w-5xl px-4 py-10">
+          <PageHeader title="Team" subtitle="TEAM UP FOR FAMILY GROWTH" />
 
-          <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
-            {JSON.stringify({ teamErr, teamRes }, null, 2)}
-          </pre>
+          <div className="mx-auto max-w-3xl pt-10">
+            <h2 className="text-[28px] font-semibold">Team load failed</h2>
+            <p className="mt-2 text-[13px] text-[#7a7a7a]">teamId: {teamId}</p>
 
-          <div className="mt-6">
-            <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
-              Back to TEAM →
-            </Link>
+            <pre className="mt-6 whitespace-pre-wrap rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-[12px] text-[#111]">
+              {JSON.stringify({ teamErr, teamRes }, null, 2)}
+            </pre>
+
+            <div className="mt-6">
+              <Link href="/team" className="text-[#3497f3] text-[15px] font-medium hover:underline underline-offset-2">
+                Back to TEAM →
+              </Link>
+            </div>
           </div>
         </div>
       </main>
@@ -585,18 +568,18 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   const progressMax = steps.length > 0 ? steps[steps.length - 1].participants : 0
   const progressPct = progressMax > 0 ? Math.max(0, Math.min(100, Math.round((participantCount / progressMax) * 100))) : 0
 
-  // ✅ 하드코딩 상세가 있으면 이걸 우선 렌더
   const hardcodedDetail = renderHardcodedDetail(teamId)
 
-  // ✅ 당첨확률 계산 (정확 버전)
-  // 참가자 N명 중 5명 당첨 => 5/N (단, N < 5면 100%)
   const chancePct =
-    participantCount <= 0 ? 100 : Math.min(100, Math.round(((GIVEAWAY.gifts / participantCount) * 100) * 10) / 10) // 소수 1자리
+    participantCount <= 0 ? 100 : Math.min(100, Math.round(((GIVEAWAY.gifts / participantCount) * 100) * 10) / 10)
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="mt-8 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
+        {/* ✅ News/About과 같은 상단 패턴 */}
+        <PageHeader title="Team" subtitle="Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now." />
+
+        <div className="mt-10 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
           <div className="w-full bg-[#f3f3f3]">
             {team.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -630,19 +613,14 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
               <ShareButtonClient />
             </div>
 
-            {/* ✅ 가격/할인(or 이벤트) 영역 */}
-            <div
-              className="mt-8 rounded-2xl px-6 py-8"
-              style={{
-                background: SKY_BLUE,
-                color: '#0e0e0e',
-              }}
-            >
+            <div className="mt-8 rounded-2xl px-6 py-8" style={{ background: SKY_BLUE, color: '#0e0e0e' }}>
               {isGiveaway ? (
                 <>
                   <div className="text-center">
                     <div className="text-[14px] text-black/70">Giveaway Event</div>
-                    <div className="mt-1 text-[30px] font-semibold">Free Gift × {GIVEAWAY.gifts}</div>
+                    <div className="mt-1 text-[30px] font-semibold">
+                      Free Gift × {GIVEAWAY.gifts}
+                    </div>
 
                     <div className="mt-2 text-[13px] text-black/70">
                       Participants: <span className="font-semibold text-black/80">{participantCount}</span>
@@ -652,9 +630,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                       Current winning chance: <span className="font-semibold text-black/80">{chancePct}%</span>
                     </div>
 
-                    {giveawayEndsAtUtc ? (
-                      <div className="mt-2 text-[12px] text-black/60">{formatUtcLabel(giveawayEndsAtUtc)}</div>
-                    ) : null}
+                    {giveawayEndsAtUtc ? <div className="mt-2 text-[12px] text-black/60">{formatUtcLabel(giveawayEndsAtUtc)}</div> : null}
 
                     <div className="mt-6 text-[13px] text-black/70">
                       <span className="font-semibold text-black/80">Free entry.</span> No payment now. Winners will be notified by email.
@@ -729,11 +705,8 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                   </div>
                 </>
               )}
-
-              <div className="mt-3 text-center text-[12px] text-black/60"></div>
             </div>
 
-            {/* ✅ 상세 영역: 하드코딩 우선, 없으면 기존 마크다운 */}
             {hardcodedDetail ? (
               hardcodedDetail
             ) : (

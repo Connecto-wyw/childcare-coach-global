@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
+import PageHeader from '@/components/layout/PageHeader'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -77,60 +78,47 @@ export default async function NewsPage() {
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[24px] font-medium leading-tight">News</h1>
-        <p className="mt-3 text-[14px] text-[#b4b4b4]">
-          Curated parenting research &amp; book notes.
-        </p>
+        {/* ✅ 공통 헤더 적용: 설명 아래 회색줄 자동 */}
+        <PageHeader title="News" subtitle="Curated parenting research & book notes." />
 
-        <div className="mt-10 border-t border-[#eeeeee]">
-          {news.length === 0 ? (
-            <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">No news available.</div>
-          ) : (
-            <ul>
-              {news.map((n) => {
-                const date = formatDate(n.created_at)
-                const category = (n.category && String(n.category).trim()) || 'Research'
-                const cover = n.cover_image_url ? String(n.cover_image_url).trim() : ''
+        {/* ✅ 기존 mt-10 border-t wrapper 제거 (중복 방지) */}
+        {news.length === 0 ? (
+          <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">No news available.</div>
+        ) : (
+          <ul>
+            {news.map((n) => {
+              const date = formatDate(n.created_at)
+              const category = (n.category && String(n.category).trim()) || 'Research'
+              const cover = n.cover_image_url ? String(n.cover_image_url).trim() : ''
 
-                return (
-                  <li key={n.id} className="border-b border-[#eeeeee]">
-                    <Link href={`/news/${n.slug}`} className="block py-10 hover:bg-[#fafafa] transition">
-                      {/* ✅ 모바일/PC 모두 "가로 배치" 고정 */}
-                      <div className="flex flex-row items-start gap-5">
-                        {/* ✅ 썸네일: 모바일에서도 왼쪽 고정 + 크기 고정 */}
-                        <div className="shrink-0 w-[120px] sm:w-[220px]">
-                          <div className="w-full aspect-square bg-[#d9d9d9] overflow-hidden">
-                            {cover ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={cover}
-                                alt={n.title}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : null}
-                          </div>
-                        </div>
-
-                        {/* ✅ 텍스트: 오른쪽에서 항상 같이 보이게 */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <CategoryPill label={category} />
-                            <div className="text-[15px] text-[#b4b4b4] font-Light">{date}</div>
-                          </div>
-
-                          <h2 className="mt-3 text-[20px] sm:text-[20px] leading-tight font- line-clamp-3">
-                            {n.title}
-                          </h2>
+              return (
+                <li key={n.id} className="border-b border-[#eeeeee]">
+                  <Link href={`/news/${n.slug}`} className="block py-10 hover:bg-[#fafafa] transition">
+                    <div className="flex flex-row items-start gap-5">
+                      <div className="shrink-0 w-[120px] sm:w-[220px]">
+                        <div className="w-full aspect-square bg-[#d9d9d9] overflow-hidden">
+                          {cover ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={cover} alt={n.title} className="w-full h-full object-cover" loading="lazy" />
+                          ) : null}
                         </div>
                       </div>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <CategoryPill label={category} />
+                          <div className="text-[15px] text-[#b4b4b4] font-Light">{date}</div>
+                        </div>
+
+                        <h2 className="mt-3 text-[20px] sm:text-[20px] leading-tight line-clamp-3">{n.title}</h2>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
     </main>
   )
