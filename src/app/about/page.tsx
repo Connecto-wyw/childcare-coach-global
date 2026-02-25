@@ -15,7 +15,7 @@ export default async function AboutPage() {
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Top logo */}
+        {/* Logo */}
         <div className="flex justify-center mb-4">
           <Logo />
         </div>
@@ -28,7 +28,7 @@ export default async function AboutPage() {
           </p>
         </section>
 
-        {/* Quote block */}
+        {/* Quote */}
         <section className="text-center border-t" style={{ borderColor: BORDER }}>
           <div className="py-12">
             <p className="text-[13px] leading-relaxed mx-auto max-w-[720px]" style={{ color: MUTED }}>
@@ -37,9 +37,8 @@ export default async function AboutPage() {
 
             <div className="mt-7 mx-auto max-w-[860px]">
               <div className="text-[22px] sm:text-[26px] leading-snug font-semibold">
-                <span>After analyzing parenting challenges, </span>
-                <span>we provide practical guidance</span>
-                <span>, tailored to each family’s unique </span>
+                After analyzing parenting challenges, we provide practical guidance,
+                tailored to each family’s unique{' '}
                 <span className="relative inline-block">
                   <span className="relative z-10">context</span>
                   <span
@@ -48,10 +47,10 @@ export default async function AboutPage() {
                     style={{ borderColor: TEXT }}
                   />
                 </span>
-                <span>.</span>
+                .
               </div>
 
-              <p className="mt-8 text-[14px] leading-relaxed mx-auto max-w-[820px]" style={{ color: TEXT }}>
+              <p className="mt-8 text-[14px] leading-relaxed mx-auto max-w-[820px]">
                 We believe parenting and child development should be a team effort, not a solo journey.
                 <br />
                 By understanding each child’s personality and growth data, connecting families, and leveraging AI,
@@ -68,25 +67,26 @@ export default async function AboutPage() {
           </div>
         </section>
 
-        {/* Image section (이벤트 핸들러 제거) */}
+        {/* ✅ IMAGE SECTION (1:1 비율, 안 잘림) */}
         <section className="border-t" style={{ borderColor: BORDER }}>
           <div className="py-10">
-            <div className="w-full overflow-hidden bg-[#f2f2f2]">
-              {/* ✅ 이 파일이 실제로 존재해야 이미지가 보임:
-                  /public/about/about-hero.jpg
-                  없으면 그냥 회색 배경만 보이고, 에러는 안 남 */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/about/about-hero.jpg"
-                alt=""
-                className="w-full h-[260px] sm:h-[360px] md:h-[420px] object-cover"
-                loading="lazy"
-              />
+            <div className="w-full bg-[#f2f2f2] overflow-hidden">
+              {/* 1:1 컨테이너 */}
+              <div className="w-full aspect-square relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/about/about-hero.jpg"
+                  alt="IndianBob"
+                  className="absolute inset-0 w-full h-full object-contain"
+                  loading="lazy"
+                />
+              </div>
 
               <div className="px-5 py-10">
                 <div className="text-[12px] font-semibold tracking-wide" style={{ color: INDIANBOB_RED }}>
                   INDIANBOB
                 </div>
+
                 <div className="mt-2 text-[18px] sm:text-[20px] font-semibold leading-snug">
                   TEAM UP FOR FAMILY GROWTH
                 </div>
@@ -95,12 +95,12 @@ export default async function AboutPage() {
           </div>
         </section>
 
-        {/* Body content */}
+        {/* Body */}
         <section className="border-t" style={{ borderColor: BORDER }}>
           <div className="py-12">
             <div className="mx-auto max-w-[860px]">
               <div className="text-[16px] sm:text-[18px] leading-relaxed font-medium whitespace-pre-line">
-                {`IndianBob is a family-tech app
+{`IndianBob is a family-tech app
 
 originated in Korea.
 
@@ -125,6 +125,7 @@ tailored to each family’s unique context.`}
                 <div className="text-[18px] sm:text-[20px] font-extrabold tracking-wide">
                   TEAM UP FOR FAMILY GROWTH
                 </div>
+
                 <div className="mt-2 text-[14px] font-semibold" style={{ color: INDIANBOB_RED }}>
                   INDIANBOB
                 </div>
@@ -138,7 +139,7 @@ tailored to each family’s unique context.`}
           </div>
         </section>
 
-        <div aria-hidden className="h-[80px] bg-white" />
+        <div aria-hidden className="h-[80px]" />
       </div>
     </main>
   )
