@@ -10,10 +10,12 @@ const MUTED = '#b4b4b4'
 const BORDER = '#eeeeee'
 
 export default async function AboutPage() {
+  const year = new Date().getFullYear()
+
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Top logo (coach와 톤 맞춤) */}
+        {/* Top logo */}
         <div className="flex justify-center mb-4">
           <Logo />
         </div>
@@ -26,7 +28,7 @@ export default async function AboutPage() {
           </p>
         </section>
 
-        {/* Intro + Quote block (레퍼런스 이미지 느낌: 중앙 정렬 + 큰 문구) */}
+        {/* Quote block */}
         <section className="text-center border-t" style={{ borderColor: BORDER }}>
           <div className="py-12">
             <p className="text-[13px] leading-relaxed mx-auto max-w-[720px]" style={{ color: MUTED }}>
@@ -34,16 +36,12 @@ export default async function AboutPage() {
             </p>
 
             <div className="mt-7 mx-auto max-w-[860px]">
-              {/* 레퍼런스처럼 “문장 + 강조 단어(원형/하이라이트 느낌)” */}
               <div className="text-[22px] sm:text-[26px] leading-snug font-semibold">
                 <span>After analyzing parenting challenges, </span>
-                <span className="inline-flex items-center">
-                  <span>we provide practical guidance</span>
-                </span>
+                <span>we provide practical guidance</span>
                 <span>, tailored to each family’s unique </span>
                 <span className="relative inline-block">
                   <span className="relative z-10">context</span>
-                  {/* 원형 표시 느낌 */}
                   <span
                     aria-hidden
                     className="absolute -inset-x-3 -inset-y-2 rounded-full border"
@@ -62,7 +60,6 @@ export default async function AboutPage() {
               </p>
             </div>
 
-            {/* 레퍼런스의 3-step 라벨 느낌 */}
             <div className="mt-10 flex items-center justify-center gap-6 flex-wrap">
               <StepPill label="Analyzing Challenges" />
               <StepPill label="Building Context" />
@@ -71,25 +68,21 @@ export default async function AboutPage() {
           </div>
         </section>
 
-        {/* Photo section (레퍼런스처럼 큰 이미지 1장) */}
+        {/* Image section (이벤트 핸들러 제거) */}
         <section className="border-t" style={{ borderColor: BORDER }}>
           <div className="py-10">
             <div className="w-full overflow-hidden bg-[#f2f2f2]">
-              {/* ✅ 여기 이미지는 네 프로젝트에 맞게 교체하면 됨
-                  - public/about/about-hero.jpg 같은 걸로 넣는 걸 추천
-                  - 지금은 없는 경우도 빌드 에러 안 나게 빈 상태 허용 */}
+              {/* ✅ 이 파일이 실제로 존재해야 이미지가 보임:
+                  /public/about/about-hero.jpg
+                  없으면 그냥 회색 배경만 보이고, 에러는 안 남 */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/about/about-hero.jpg"
                 alt=""
                 className="w-full h-[260px] sm:h-[360px] md:h-[420px] object-cover"
                 loading="lazy"
-                onError={(e) => {
-                  // 이미지가 없을 때 깨진 아이콘 대신 회색 박스로 보이게
-                  const img = e.currentTarget
-                  img.style.display = 'none'
-                }}
               />
+
               <div className="px-5 py-10">
                 <div className="text-[12px] font-semibold tracking-wide" style={{ color: INDIANBOB_RED }}>
                   INDIANBOB
@@ -97,17 +90,12 @@ export default async function AboutPage() {
                 <div className="mt-2 text-[18px] sm:text-[20px] font-semibold leading-snug">
                   TEAM UP FOR FAMILY GROWTH
                 </div>
-                <div className="mt-3 text-[14px] leading-relaxed" style={{ color: MUTED }}>
-                  If you want a specific photo layout like the reference,
-                  <br />
-                  you can swap this section to a fixed-height image and move the text above.
-                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Body content (사용자가 준 문구를 그대로 “줄바꿈 구조”로 유지) */}
+        {/* Body content */}
         <section className="border-t" style={{ borderColor: BORDER }}>
           <div className="py-12">
             <div className="mx-auto max-w-[860px]">
@@ -142,10 +130,9 @@ tailored to each family’s unique context.`}
                 </div>
               </div>
 
-              {/* 디바이더 */}
               <div className="mt-12 border-t" style={{ borderColor: BORDER }} />
               <div className="mt-6 text-[12px]" style={{ color: MUTED }}>
-                © {new Date().getFullYear()} IndianBob. All rights reserved.
+                © {year} IndianBob. All rights reserved.
               </div>
             </div>
           </div>
