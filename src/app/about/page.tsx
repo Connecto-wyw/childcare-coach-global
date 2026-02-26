@@ -40,7 +40,8 @@ export default async function AboutPage() {
               <p className="mt-8 text-[14px] leading-relaxed mx-auto max-w-[820px]">
                 We believe parenting and child development should be a team effort, not a solo journey.
                 <br />
-                By understanding each child’s personality and growth data, connecting families, and leveraging AI, we support everyday parenting decisions.
+                By understanding each child’s personality and growth data, connecting families, and leveraging AI, we
+                support everyday parenting decisions.
               </p>
 
               <div className="mt-10 flex items-center justify-center gap-6 flex-wrap">
@@ -51,11 +52,12 @@ export default async function AboutPage() {
             </div>
           </section>
 
-          {/* Image (1:1, 안 잘림) */}
+          {/* Image (2134x1513 비율, 안 잘림) */}
           <section className="border-t" style={{ borderColor: BORDER }}>
             <div className="py-10">
               <div className="w-full bg-[#f2f2f2] overflow-hidden">
-                <div className="w-full aspect-square relative">
+                {/* ✅ 원본 비율(2134/1513)로 컨테이너 잡기 */}
+                <div className="w-full aspect-[2134/1513] relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/about/about-hero.jpg"
@@ -82,7 +84,10 @@ export default async function AboutPage() {
             <div className="py-12">
               <div className="mx-auto max-w-[860px]">
                 <p className="text-[14px] sm:text-[16px] leading-relaxed">
-                  IndianBob is a family-tech app originated in Korea. We believe parenting and child development should be a team effort, not a solo journey. By understanding each child’s personality and growth data, connecting families, and leveraging AI, we support everyday parenting decisions. After analyzing parenting challenges, we provide practical guidance tailored to each family’s unique context.
+                  IndianBob is a family-tech app originated in Korea. We believe parenting and child development should
+                  be a team effort, not a solo journey. By understanding each child’s personality and growth data,
+                  connecting families, and leveraging AI, we support everyday parenting decisions. After analyzing
+                  parenting challenges, we provide practical guidance tailored to each family’s unique context.
                 </p>
 
                 <div className="mt-10">
@@ -127,11 +132,7 @@ function CircledWord({ text }: { text: string }) {
   return (
     <span className="relative inline-block mx-1">
       <span className="relative z-10">{text}</span>
-      <span
-        aria-hidden
-        className="absolute -inset-x-3 -inset-y-2 rounded-full border"
-        style={{ borderColor: '#0e0e0e' }}
-      />
+      <span aria-hidden className="absolute -inset-x-3 -inset-y-2 rounded-full border" style={{ borderColor: '#0e0e0e' }} />
     </span>
   )
 }
