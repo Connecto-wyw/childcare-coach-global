@@ -108,7 +108,10 @@ async function createSupabaseServer() {
 }
 
 async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
-  const { count, error } = await sb.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId)
+  const { count, error } = await sb
+    .from('team_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('team_id', teamId)
   if (error) return 0
   return Number(count ?? 0)
 }
@@ -116,7 +119,11 @@ async function getParticipantCount(sb: Awaited<ReturnType<typeof createSupabaseS
 // ✅ giveaway_events 에서 마감일 읽기 (없으면 fallback)
 async function getGiveawayEndsAtUtc(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
   try {
-    const { data } = await (sb as any).from('giveaway_events').select('ends_at,is_active').eq('team_id', teamId).maybeSingle()
+    const { data } = await (sb as any)
+      .from('giveaway_events')
+      .select('ends_at,is_active')
+      .eq('team_id', teamId)
+      .maybeSingle()
 
     const endsAt = String(data?.ends_at ?? '').trim()
     const isActive = Boolean(data?.is_active ?? false)
@@ -124,6 +131,32 @@ async function getGiveawayEndsAtUtc(sb: Awaited<ReturnType<typeof createSupabase
     if (isActive && endsAt) return endsAt
   } catch {}
   return GIVEAWAY.fallbackEndsAtUtc
+}
+
+// ✅ giveaway_entries 기준 “실제 응모 수” 카운트
+async function getGiveawayEntryCount(sb: Awaited<ReturnType<typeof createSupabaseServer>>, teamId: string) {
+  const { data: ev, error: evErr } = await (sb as any)
+    .from('giveaway_events')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (evErr) return { eventId: null as string | null, entryCount: 0 }
+
+  const eventId = String(ev?.id ?? '').trim()
+  if (!eventId) return { eventId: null as string | null, entryCount: 0 }
+
+  const { count, error } = await (sb as any)
+    .from('giveaway_entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+
+  if (error) return { eventId, entryCount: 0 }
+
+  return { eventId, entryCount: Number(count ?? 0) }
 }
 
 /**
@@ -166,7 +199,8 @@ function ProductIntroHeader({ title, isGiveaway }: { title: string; isGiveaway?:
         <div className="mt-3 space-y-1 text-[14px] leading-relaxed text-[#5f5f5f]">
           <div>The more people join, the lower the price drops. The power of community unlocks better deals.</div>
           <div className="mt-2">
-            ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will NOT charge you.
+            ✨ <span className="font-semibold text-[#0e0e0e]">We are currently in beta.</span> Clicking “Join now” will
+            NOT charge you.
           </div>
           <div>When payments and shipping officially launch, you’ll be the first to know via your signed-in Google email.</div>
           <div className="pt-1">
@@ -548,10 +582,16 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   }
 
   const team = teamRes as unknown as TeamRow
+
+  // ✅ 기존 TEAM 참여자수(가격/Joined 뱃지용)
   const participantCount = await getParticipantCount(sb, teamId)
 
   const isGiveaway = teamId === GIVEAWAY.teamId
   const giveawayEndsAtUtc = isGiveaway ? await getGiveawayEndsAtUtc(sb, teamId) : null
+
+  // ✅ Giveaway 참여자수(응모 수) = giveaway_entries 카운트
+  const { entryCount } = isGiveaway ? await getGiveawayEntryCount(sb, teamId) : { entryCount: 0 }
+  const giveawayParticipants = isGiveaway ? entryCount : participantCount
 
   const { data: pricingRes } = await sb.from('team_pricing_rules').select('*').eq('team_id', teamId).maybeSingle()
   const pricing = (pricingRes ?? null) as PricingRow | null
@@ -571,13 +611,18 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   const hardcodedDetail = renderHardcodedDetail(teamId)
 
   const chancePct =
-    participantCount <= 0 ? 100 : Math.min(100, Math.round(((GIVEAWAY.gifts / participantCount) * 100) * 10) / 10)
+    giveawayParticipants <= 0
+      ? 100
+      : Math.min(100, Math.round(((GIVEAWAY.gifts / giveawayParticipants) * 100) * 10) / 10)
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* ✅ News/About과 같은 상단 패턴 */}
-        <PageHeader title="Team" subtitle="Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now." />
+        <PageHeader
+          title="Team"
+          subtitle="Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now."
+        />
 
         <div className="mt-10 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#e9e9e9] bg-white">
           <div className="w-full bg-[#f3f3f3]">
@@ -601,10 +646,14 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
 
             <div className="mt-4 flex flex-wrap gap-2">
               {team.tag1 ? (
-                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">{team.tag1}</span>
+                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">
+                  {team.tag1}
+                </span>
               ) : null}
               {team.tag2 ? (
-                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">{team.tag2}</span>
+                <span className="rounded-md bg-[#EAF6FF] px-4 py-2 text-[18px] font-medium text-[#2F8EEA]">
+                  {team.tag2}
+                </span>
               ) : null}
             </div>
 
@@ -618,22 +667,23 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                 <>
                   <div className="text-center">
                     <div className="text-[14px] text-black/70">Giveaway Event</div>
-                    <div className="mt-1 text-[30px] font-semibold">
-                      Free Gift × {GIVEAWAY.gifts}
-                    </div>
+                    <div className="mt-1 text-[30px] font-semibold">Free Gift × {GIVEAWAY.gifts}</div>
 
                     <div className="mt-2 text-[13px] text-black/70">
-                      Participants: <span className="font-semibold text-black/80">{participantCount}</span>
+                      Participants: <span className="font-semibold text-black/80">{giveawayParticipants}</span>
                     </div>
 
                     <div className="mt-1 text-[13px] text-black/70">
                       Current winning chance: <span className="font-semibold text-black/80">{chancePct}%</span>
                     </div>
 
-                    {giveawayEndsAtUtc ? <div className="mt-2 text-[12px] text-black/60">{formatUtcLabel(giveawayEndsAtUtc)}</div> : null}
+                    {giveawayEndsAtUtc ? (
+                      <div className="mt-2 text-[12px] text-black/60">{formatUtcLabel(giveawayEndsAtUtc)}</div>
+                    ) : null}
 
                     <div className="mt-6 text-[13px] text-black/70">
-                      <span className="font-semibold text-black/80">Free entry.</span> No payment now. Winners will be notified by email.
+                      <span className="font-semibold text-black/80">Free entry.</span> No payment now. Winners will be
+                      notified by email.
                     </div>
                   </div>
 
@@ -649,7 +699,8 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                         <div className="text-[14px] text-black/70">Current price</div>
                         <div className="mt-1 text-[30px] font-semibold">{formatMoney(discountedPrice, currency)}</div>
                         <div className="mt-1 text-[13px] text-black/70">
-                          {participantCount} joined · {curDiscount}% discount{minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
+                          {participantCount} joined · {curDiscount}% discount
+                          {minPrice > 0 ? ` · min ${formatMoney(minPrice, currency)}` : ''}
                         </div>
                       </>
                     ) : (
@@ -673,7 +724,10 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
                   ) : null}
 
                   {steps.length > 0 ? (
-                    <div className="mt-6 overflow-hidden rounded-xl border border-black/15" style={{ background: SKY_BLUE_LIGHT }}>
+                    <div
+                      className="mt-6 overflow-hidden rounded-xl border border-black/15"
+                      style={{ background: SKY_BLUE_LIGHT }}
+                    >
                       <div className="grid grid-cols-3 px-4 py-3 text-[13px] font-semibold text-[#0e0e0e]">
                         <div>Participants</div>
                         <div>Discount</div>
@@ -715,11 +769,17 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
 
                 {team.detail_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={team.detail_image_url} alt="detail" className="mt-4 w-full h-auto rounded-2xl object-cover" />
+                  <img
+                    src={team.detail_image_url}
+                    alt="detail"
+                    className="mt-4 w-full h-auto rounded-2xl object-cover"
+                  />
                 ) : null}
 
                 <div className="mt-4 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{team.detail_markdown || FALLBACK_DETAIL_TEXT}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                    {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+                  </ReactMarkdown>
                 </div>
               </div>
             )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 const INDIANBOB_RED = '#9F1D23'
 
@@ -101,6 +102,8 @@ function AlertModal({
 }
 
 export default function GiveawayEntryButtonClient({ teamId }: Props) {
+  const router = useRouter()
+
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -142,13 +145,7 @@ export default function GiveawayEntryButtonClient({ teamId }: Props) {
         body: JSON.stringify({ teamId, email: email.trim().toLowerCase() }),
       })
 
-      const text = await res.text()
-      let json: any = null
-      try {
-        json = text ? JSON.parse(text) : null
-      } catch {
-        json = { raw: text }
-      }
+      const json = await res.json().catch(() => null)
 
       if (!res.ok) {
         const msg = json?.message || json?.error || `Request failed (${res.status}). Please try again.`
@@ -156,15 +153,21 @@ export default function GiveawayEntryButtonClient({ teamId }: Props) {
         return
       }
 
-      // ✅ 서버 응답 포맷에 맞춤
       if (json?.alreadyEntered) {
         showAlert('Already entered', 'You have already entered this giveaway.')
+        setOpen(false)
+        setEmail('')
+        // ✅ 숫자/확률 갱신
+        router.refresh()
         return
       }
 
       showAlert('Done', 'Your email has been saved. Thank you!')
       setOpen(false)
       setEmail('')
+
+      // ✅ 숫자/확률 갱신 (서버 컴포넌트 재렌더)
+      router.refresh()
     } catch (e: any) {
       showAlert('Network error', e?.message || 'Please try again.')
     } finally {
