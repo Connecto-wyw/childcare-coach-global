@@ -215,33 +215,34 @@ const DEFAULT_TIPS: Tip[] = [
   },
 ]
 
-function pickThreeRandom(tips: Tip[]) {
-  const arr = tips.slice()
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr.slice(0, 3) // ✅ 3개 노출
+// ✅ 랜덤 제거: 서버/클라 동일 결과 보장(하이드레이션 안전)
+function pickThreeStable(tips: Tip[]) {
+  const source = Array.isArray(tips) ? tips : []
+
+  // title+body로 안정적인 key를 만들고 정렬
+  const stable = [...source].sort((a, b) => {
+    const ak = `${a.title}||${a.body}`
+    const bk = `${b.title}||${b.body}`
+    return ak.localeCompare(bk)
+  })
+
+  return stable.slice(0, 3)
 }
 
 export default function TipSection({ tips = DEFAULT_TIPS }: { tips?: Tip[] }) {
   const items = useMemo(() => {
     const source = Array.isArray(tips) && tips.length > 0 ? tips : DEFAULT_TIPS
-    return pickThreeRandom(source)
+    return pickThreeStable(source)
   }, [tips])
 
-  // ✅ Coach 페이지에서 이미 bg/p-4 박스로 감싸고 있으므로
-  // TipSection 내부에서는 “추가 카드(bg/padding)”를 없애서
-  // K-Parenting News와 동일한 여백/박스 느낌으로 맞춘다.
   return (
     <div>
       {items.length === 0 ? (
         <p className="text-[15px] font-medium text-[#b4b4b4]">No tips available.</p>
       ) : (
         <ul className="space-y-3">
-          {items.map((tip, idx) => (
-            <li key={`${tip.title}-${idx}`} className="flex items-start gap-3">
-              {/* ✅ v 체크 표시(아이콘) 제거 */}
+          {items.map((tip) => (
+            <li key={`${tip.title}||${tip.body}`} className="flex items-start gap-3">
               <div className="min-w-0">
                 <div className="text-[#3497f3] text-[15px] font-medium leading-snug">{tip.title}</div>
                 <div className="mt-1 text-[#1e1e1e] text-[13px] font-normal leading-relaxed">{tip.body}</div>
