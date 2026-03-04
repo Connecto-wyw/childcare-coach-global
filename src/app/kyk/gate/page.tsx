@@ -45,10 +45,9 @@ export default function KYKGatePage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // 로그인 후 다시 gate로 돌아오게
-        redirectTo: `${window.location.origin}/kyk/gate`,
-      },
-    })
+        redirectTo: `${window.location.origin}/auth/callback?next=/kyk/gate`,
+        },
+     })
     if (error) setError(error.message)
   }
 
