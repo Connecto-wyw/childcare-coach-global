@@ -19,15 +19,14 @@ export default function KYKGatePage() {
   const [error, setError] = useState<string | null>(null)
 
   async function claim() {
-    setError(null)
-    setNeedLogin(false)
+      setError(null)
+  setNeedLogin(false)
 
+  try {
     const res = await fetch('/api/kyk/claim', { method: 'POST' })
+    const status = res.status
 
-    // ✅ 무조건 text로 먼저 받기 (서버가 JSON이 아닌 에러를 줘도 원문 확인 가능)
     const text = await res.text().catch(() => '')
-
-    // ✅ text가 JSON이면 파싱, 아니면 null
     let json: any = null
     try {
       json = text ? JSON.parse(text) : null
@@ -35,22 +34,24 @@ export default function KYKGatePage() {
       json = null
     }
 
-    // ✅ 성공
     if (res.ok && json?.ok) {
       router.replace('/kyk/result')
       return
     }
 
-    // ✅ 로그인 필요 (세션 없음)
-    if (res.status === 401) {
+    if (status === 401) {
       setNeedLogin(true)
       return
     }
 
-    // ✅ 그 외 에러: 서버가 준 메시지 그대로
-    const detail = json?.error ?? text ?? `HTTP ${res.status}`
+    // ✅ status를 무조건 포함해서 보여주기
+    const detail = `[HTTP ${status}] ${json?.error ?? text ?? '(empty body)'}`
     setError(detail)
+  } catch (e: any) {
+    // ✅ fetch 자체 실패
+    setError(`[FETCH ERROR] ${e?.message ?? String(e)}`)
   }
+}
 
   useEffect(() => {
     ;(async () => {
