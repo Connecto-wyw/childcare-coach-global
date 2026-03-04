@@ -20,27 +20,40 @@ export default function KYKGatePage() {
 
   async function claim() {
     setError(null)
-    const res = await fetch('/api/kyk/claim', { method: 'POST' })
-    const json = await res.json().catch(() => ({}))
+    setNeedLogin(false)
 
+    const res = await fetch('/api/kyk/claim', { method: 'POST' })
+
+    // ✅ 무조건 text로 먼저 받기 (서버가 JSON이 아닌 에러를 줘도 원문 확인 가능)
+    const text = await res.text().catch(() => '')
+
+    // ✅ text가 JSON이면 파싱, 아니면 null
+    let json: any = null
+    try {
+      json = text ? JSON.parse(text) : null
+    } catch {
+      json = null
+    }
+
+    // ✅ 성공
     if (res.ok && json?.ok) {
       router.replace('/kyk/result')
       return
     }
 
-    // 로그인 안 된 경우(혹은 세션 쿠키 없음)
+    // ✅ 로그인 필요 (세션 없음)
     if (res.status === 401) {
       setNeedLogin(true)
       return
     }
 
-    setError(json?.error ?? 'claim failed')
+    // ✅ 그 외 에러: 서버가 준 메시지 그대로
+    const detail = json?.error ?? text ?? `HTTP ${res.status}`
+    setError(detail)
   }
 
   useEffect(() => {
     ;(async () => {
-      // ✅ 클라에서 getUser()로 판단하지 말고,
-      // ✅ 서버(쿠키 기반)에게 claim을 먼저 시킨다.
       await claim()
       setLoading(false)
     })()
@@ -102,11 +115,26 @@ export default function KYKGatePage() {
               <p className="text-[14px]" style={{ color: MUTED }}>
                 결과를 가져오지 못했어요.
               </p>
+
               {error && (
                 <p className="mt-2 text-[13px]" style={{ color: '#d00' }}>
                   {error}
                 </p>
               )}
+
+              {/* 디버그용: 다시 시도 버튼 */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true)
+                  await claim()
+                  setLoading(false)
+                }}
+                className="mt-6 rounded-md border px-4 py-2 text-[14px] font-medium"
+                style={{ borderColor: BORDER }}
+              >
+                Retry
+              </button>
             </>
           )}
         </section>
