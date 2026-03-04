@@ -1,14 +1,16 @@
+// src/app/api/kyk/claim/route.ts
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
-// ---------- Supabase Admin (Service Role) ----------
-function admin(): SupabaseClient<Database> {
+const DRAFT_COOKIE = 'kyk_draft'
+
+function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
   return createClient<Database>(url, key, {
@@ -16,86 +18,102 @@ function admin(): SupabaseClient<Database> {
   })
 }
 
-// ---------- helpers ----------
-function asObject(value: unknown): Record<string, any> {
-  if (!value) return {}
-  if (typeof value !== 'object') return {}
-  if (Array.isArray(value)) return {}
-  return value as Record<string, any>
+// ✅ 여기서 “결과 계산”은 너가 가진 로직으로 대체하면 됨.
+// 지금은 예시로 computed에 answers 그대로 넣음.
+function computeResultFromAnswers(answers: any) {
+  // TODO: 너의 MBTI/동물/문구 매핑 로직으로 교체
+  return {
+    primary_type: 'INTP',
+    color: 'BLUE',
+    profile: {
+      animal: '물고기',
+      title: '솔직한 물고기',
+      summary: '깊이 있는 탐구와 분석을 즐기는 사색가형.',
+      keywords: ['학습 루틴', '집중력', '친구관계'], // 결과 페이지 하단 3개 키워드
+    },
+  }
 }
 
-export async function POST() {
-  // ✅ Next 16에서도 route handler에서 cookies()는 async로 쓰는 게 안전
-  const cookieStore = await cookies()
+export async function POST(_req: NextRequest) {
+  try {
+    const cookieStore = await cookies()
 
-  const draftId = cookieStore.get('kyk_draft')?.value
-  if (!draftId) {
-    return NextResponse.json({ ok: false, error: 'no draft' }, { status: 400 })
-  }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
+    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
 
-  // ✅ 여기 핵심: auth-helpers가 Promise를 기대함
-  const supabaseAuth = createRouteHandlerClient<Database>({
-    cookies: async () => cookieStore,
-  })
+    // ✅ 응답 객체 먼저 만들고, set-cookie가 필요하면 여기에 싣는다
+    const res = NextResponse.json({ ok: false }, { status: 200 })
 
-  const { data: authData, error: authErr } = await supabaseAuth.auth.getUser()
-  if (authErr) {
-    return NextResponse.json({ ok: false, error: authErr.message }, { status: 401 })
-  }
-
-  const user = authData?.user
-  if (!user) {
-    return NextResponse.json({ ok: false, error: 'not logged in' }, { status: 401 })
-  }
-
-  const supabase = admin()
-
-  // 1) draft 로드
-  const { data: draft, error: dErr } = await supabase
-    .from('kyk_drafts')
-    .select('draft_id, answers, computed')
-    .eq('draft_id', draftId)
-    .single()
-
-  if (dErr || !draft) {
-    return NextResponse.json(
-      { ok: false, error: dErr?.message ?? 'draft missing' },
-      { status: 404 }
-    )
-  }
-
-  // 2) computed 안전 캐스팅
-  const computed = asObject(draft.computed)
-
-  const color = (computed.color ?? 'BLUE') as Database['public']['Tables']['kyk_results']['Insert']['color']
-  const primaryType = String(computed.primary_type ?? 'INTP')
-  const profile = asObject(computed.profile)
-
-  // 3) 결과 저장
-  const { data: inserted, error: iErr } = await supabase
-    .from('kyk_results')
-    .insert({
-      user_id: user.id,
-      answers: draft.answers, // answers도 Json 타입이라 그대로 OK
-      color,
-      primary_type: primaryType,
-      profile,
+    // ✅ Next 16 cookies() 대응: getAll/setAll 패턴
+    const supabase = createServerClient<Database>(supabaseUrl, supabaseAnon, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+            res.cookies.set(name, value, options)
+          })
+        },
+      },
     })
-    .select('id')
-    .single()
 
-  if (iErr || !inserted) {
-    return NextResponse.json(
-      { ok: false, error: iErr?.message ?? 'insert failed' },
-      { status: 500 }
-    )
+    // 1) 로그인 체크 (쿠키 기반 세션)
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    const user = userData?.user
+
+    if (userError || !user) {
+      return NextResponse.json({ ok: false, error: 'not logged in' }, { status: 401 })
+    }
+
+    // 2) draft id 체크
+    const draftId = cookieStore.get(DRAFT_COOKIE)?.value
+    if (!draftId) {
+      return NextResponse.json({ ok: false, error: 'no draft' }, { status: 400 })
+    }
+
+    // 3) draft 로드 (서비스 롤)
+    const supabaseAdmin = admin()
+    const { data: draft, error: draftError } = await supabaseAdmin
+      .from('kyk_drafts')
+      .select('id, answers')
+      .eq('id', draftId)
+      .maybeSingle()
+
+    if (draftError) {
+      return NextResponse.json({ ok: false, error: draftError.message }, { status: 500 })
+    }
+    if (!draft) {
+      return NextResponse.json({ ok: false, error: 'draft not found' }, { status: 404 })
+    }
+
+    // 4) 결과 계산
+    const computed = computeResultFromAnswers(draft.answers)
+
+    // 5) 결과 저장 (서비스 롤)
+    const { error: insertError } = await supabaseAdmin.from('kyk_results').insert({
+      user_id: user.id,
+      draft_id: draftId,
+      computed, // jsonb
+    })
+
+    if (insertError) {
+      return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 })
+    }
+
+    // 6) draft 쿠키 제거
+    const okRes = NextResponse.json({ ok: true }, { status: 200 })
+    okRes.cookies.set(DRAFT_COOKIE, '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 0,
+    })
+
+    return okRes
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 })
   }
-
-  // 4) draft 삭제
-  await supabase.from('kyk_drafts').delete().eq('draft_id', draftId)
-
-  // 5) 쿠키 제거
-  cookieStore.set('kyk_draft', '', { path: '/', maxAge: 0 })
-
-  return NextResponse.json({ ok: true, result_id: inserted.id })
 }

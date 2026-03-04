@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_participants: {
@@ -238,56 +213,52 @@ export type Database = {
       kyk_drafts: {
         Row: {
           answers: Json
-          computed: Json
           created_at: string
-          draft_id: string
-          expires_at: string
+          id: string
         }
         Insert: {
           answers?: Json
-          computed?: Json
           created_at?: string
-          draft_id?: string
-          expires_at?: string
+          id: string
         }
         Update: {
           answers?: Json
-          computed?: Json
           created_at?: string
-          draft_id?: string
-          expires_at?: string
+          id?: string
         }
         Relationships: []
       }
       kyk_results: {
         Row: {
-          answers: Json
-          color: string
+          computed: Json
           created_at: string
+          draft_id: string
           id: string
-          primary_type: string
-          profile: Json
           user_id: string
         }
         Insert: {
-          answers: Json
-          color: string
+          computed: Json
           created_at?: string
+          draft_id: string
           id?: string
-          primary_type: string
-          profile?: Json
           user_id: string
         }
         Update: {
-          answers?: Json
-          color?: string
+          computed?: Json
           created_at?: string
+          draft_id?: string
           id?: string
-          primary_type?: string
-          profile?: Json
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kyk_results_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "kyk_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       news_posts: {
         Row: {
@@ -849,9 +820,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

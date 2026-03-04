@@ -1,12 +1,13 @@
+// src/app/api/kyk/save/route.ts
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
-function admin(): SupabaseClient<Database> {
+function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
   return createClient<Database>(url, key, {
@@ -14,52 +15,39 @@ function admin(): SupabaseClient<Database> {
   })
 }
 
-type SaveBody = {
-  // Q1~Q13 응답 전체(또는 중간 상태)
-  // 예: { q1_adjectives: string[], likert: { q2:1..4, ... }, meta: {...} }
-  answers: Record<string, any>
+const DRAFT_COOKIE = 'kyk_draft'
 
-  // (선택) 미리 계산된 값들
-  // 예: { color:'BLUE', primary_type:'INTP', profile:{...} }
-  computed?: Record<string, any>
+type SaveBody = {
+  answers: any // (너의 KYKAnswers 타입을 그대로 보내면 됨)
 }
 
-export async function POST(req: Request) {
-  // ✅ Next 15: cookies()는 await 필요
-  const cookieStore = await cookies()
-  const draftId = cookieStore.get('kyk_draft')?.value
-  if (!draftId) {
-    return NextResponse.json({ ok: false, error: 'no draft' }, { status: 400 })
-  }
-
-  let body: SaveBody | null = null
+export async function POST(req: NextRequest) {
   try {
-    body = (await req.json()) as SaveBody
-  } catch {
-    return NextResponse.json({ ok: false, error: 'invalid json' }, { status: 400 })
+    const cookieStore = await cookies()
+    const draftId = cookieStore.get(DRAFT_COOKIE)?.value
+
+    if (!draftId) {
+      return NextResponse.json({ ok: false, error: 'no draft' }, { status: 400 })
+    }
+
+    const body = (await req.json().catch(() => null)) as SaveBody | null
+    if (!body?.answers) {
+      return NextResponse.json({ ok: false, error: 'missing answers' }, { status: 400 })
+    }
+
+    const supabaseAdmin = admin()
+
+    const { error } = await supabaseAdmin
+      .from('kyk_drafts')
+      .update({ answers: body.answers })
+      .eq('id', draftId)
+
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true }, { status: 200 })
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 })
   }
-
-  if (!body?.answers || typeof body.answers !== 'object') {
-    return NextResponse.json({ ok: false, error: 'no answers' }, { status: 400 })
-  }
-
-  const supabase = admin()
-
-  // expires_at 연장(24h)
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-
-  const { error } = await supabase
-    .from('kyk_drafts')
-    .update({
-      answers: body.answers,
-      computed: body.computed ?? {},
-      expires_at: expiresAt,
-    })
-    .eq('draft_id', draftId)
-
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true })
 }
