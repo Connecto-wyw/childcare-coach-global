@@ -1,3 +1,4 @@
+// src/app/kyk/gate/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -17,41 +18,27 @@ export default function KYKGatePage() {
   const [loading, setLoading] = useState(true)
   const [needLogin, setNeedLogin] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [busyLogin, setBusyLogin] = useState(false)
 
   async function claim() {
-      setError(null)
-  setNeedLogin(false)
+    setError(null)
 
-  try {
     const res = await fetch('/api/kyk/claim', { method: 'POST' })
-    const status = res.status
-
-    const text = await res.text().catch(() => '')
-    let json: any = null
-    try {
-      json = text ? JSON.parse(text) : null
-    } catch {
-      json = null
-    }
+    const json = await res.json().catch(() => ({}))
 
     if (res.ok && json?.ok) {
       router.replace('/kyk/result')
       return
     }
 
-    if (status === 401) {
-      setNeedLogin(true)
+    if (res.status === 401) {
+      setNeedLogin(true) // ✅ 모달 띄우기
       return
     }
 
-    // ✅ status를 무조건 포함해서 보여주기
-    const detail = `[HTTP ${status}] ${json?.error ?? text ?? '(empty body)'}`
+    const detail = json?.error ?? `HTTP ${res.status}`
     setError(detail)
-  } catch (e: any) {
-    // ✅ fetch 자체 실패
-    setError(`[FETCH ERROR] ${e?.message ?? String(e)}`)
   }
-}
 
   useEffect(() => {
     ;(async () => {
@@ -62,17 +49,22 @@ export default function KYKGatePage() {
   }, [])
 
   async function onGoogleLogin() {
-    setError(null)
+    try {
+      setBusyLogin(true)
+      setError(null)
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        // ✅ 로그인 완료 후 auth/callback에서 next=/kyk/gate로 복귀
-        redirectTo: `${window.location.origin}/auth/callback?next=/kyk/gate`,
-      },
-    })
+      const next = encodeURIComponent('/kyk/gate') // ✅ 중요: URL 인코딩
+      const redirectTo = `${window.location.origin}/auth/callback?next=${next}`
 
-    if (error) setError(error.message)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      })
+
+      if (error) setError(error.message)
+    } finally {
+      setBusyLogin(false)
+    }
   }
 
   return (
@@ -85,61 +77,66 @@ export default function KYKGatePage() {
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
 
+        {/* 로딩/에러만 최소 표시 */}
         <section className="mt-10">
           {loading ? (
             <p className="text-[14px]" style={{ color: MUTED }}>
               Loading...
             </p>
-          ) : needLogin ? (
-            <>
-              <p className="text-[14px]" style={{ color: MUTED }}>
-                결과를 보기 전에 구글 로그인이 필요해요.
-              </p>
+          ) : error ? (
+            <p className="text-[13px]" style={{ color: '#d00' }}>
+              {error}
+            </p>
+          ) : null}
+        </section>
+      </div>
+
+      {/* ✅ 로그인 필요 모달 */}
+      {needLogin && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm rounded-lg bg-white p-5">
+            <div className="text-[16px] font-medium" style={{ color: TEXT }}>
+              구글 로그인이 필요해요
+            </div>
+            <div className="mt-2 text-[13px]" style={{ color: MUTED }}>
+              KYK 결과를 계정에 저장하고, 다음 로그인 때 코치가 이 성향을 반영해서 답해요.
+            </div>
+
+            {error && (
+              <div className="mt-3 text-[12px]" style={{ color: '#d00' }}>
+                {error}
+              </div>
+            )}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => router.replace('/kyk')}
+                className="flex-1 rounded-md border px-4 py-2 text-[14px] font-medium"
+                style={{ borderColor: BORDER, color: TEXT }}
+                disabled={busyLogin}
+              >
+                Back
+              </button>
 
               <button
                 type="button"
                 onClick={onGoogleLogin}
-                className="mt-6 rounded-md px-4 py-2 text-[14px] font-medium"
+                className="flex-1 rounded-md px-4 py-2 text-[14px] font-medium"
                 style={{ background: BTN, color: 'white' }}
+                disabled={busyLogin}
               >
-                Continue with Google
+                {busyLogin ? 'Opening...' : 'OK'}
               </button>
-
-              {error && (
-                <p className="mt-4 text-[13px]" style={{ color: '#d00' }}>
-                  {error}
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              <p className="text-[14px]" style={{ color: MUTED }}>
-                결과를 가져오지 못했어요.
-              </p>
-
-              {error && (
-                <p className="mt-2 text-[13px]" style={{ color: '#d00' }}>
-                  {error}
-                </p>
-              )}
-
-              {/* 디버그용: 다시 시도 버튼 */}
-              <button
-                type="button"
-                onClick={async () => {
-                  setLoading(true)
-                  await claim()
-                  setLoading(false)
-                }}
-                className="mt-6 rounded-md border px-4 py-2 text-[14px] font-medium"
-                style={{ borderColor: BORDER }}
-              >
-                Retry
-              </button>
-            </>
-          )}
-        </section>
-      </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

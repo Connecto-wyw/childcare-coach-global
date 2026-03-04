@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LIKERT_OPTIONS, Q2_TO_Q13, type KYKAnswers, type LikertValue } from '@/lib/kykQuestions'
 import { ensureDraftStarted, loadLocalAnswers, saveDraft, saveLocalAnswers } from '@/lib/kykClient'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
 
@@ -34,6 +34,8 @@ function Modal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.35)' }}
+      role="dialog"
+      aria-modal="true"
     >
       <div className="w-[92%] max-w-md rounded-lg bg-white p-5">
         <div className="text-[16px] font-semibold" style={{ color: TEXT }}>
@@ -68,11 +70,14 @@ function Modal({
 
 export default function KYKStep3Page() {
   const router = useRouter()
+  const sp = useSearchParams()
   const supabase = createClientComponentClient<Database>()
 
   const [answers, setAnswers] = useState<KYKAnswers>(() => loadLocalAnswers())
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [loginErr, setLoginErr] = useState<string | null>(null)
+  const [claimErr, setClaimErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const questions = useMemo(() => Q2_TO_Q13.slice(6, 12), []) // q8~q13
   const isComplete = useMemo(
@@ -95,14 +100,10 @@ export default function KYKStep3Page() {
     }))
   }
 
-  async function onSeeResult() {
-    if (!isComplete) return
+  // ✅ claim 공통 함수: 성공하면 result로, 401이면 모달
+  async function claimAndGoResult() {
+    setClaimErr(null)
 
-    // 1) 일단 draft 저장
-    await saveDraft(answers)
-
-    // 2) 서버에게 "지금 claim 가능?" 먼저 물어본다.
-    //    (로그인 되어있으면 바로 claim 성공 -> result)
     const res = await fetch('/api/kyk/claim', { method: 'POST' })
     const json = await res.json().catch(() => ({}))
 
@@ -111,25 +112,65 @@ export default function KYKStep3Page() {
       return
     }
 
-    // 로그인 필요면 모달 띄우기
     if (res.status === 401) {
       setShowLoginModal(true)
       return
     }
 
-    // 그 외는 gate로 보내서 상태 보여주기(디버그/예외처리)
-    router.push('/kyk/gate')
+    setClaimErr(json?.error ?? `HTTP ${res.status}`)
+  }
+
+  // ✅ 로그인 후 callback에서 /kyk/step3?after=login 로 돌아오면 자동 claim
+  useEffect(() => {
+    const after = sp.get('after')
+    if (after !== 'login') return
+
+    ;(async () => {
+      setBusy(true)
+      try {
+        await claimAndGoResult()
+      } finally {
+        setBusy(false)
+        // after 파라미터 제거해서 새로고침해도 반복되지 않게
+        const url = new URL(window.location.href)
+        url.searchParams.delete('after')
+        window.history.replaceState({}, '', url.toString())
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function onSeeResult() {
+    if (!isComplete) return
+
+    setBusy(true)
+    setLoginErr(null)
+    setClaimErr(null)
+
+    try {
+      // 1) draft 저장
+      await saveDraft(answers)
+
+      // 2) 로그인 되어 있으면 바로 claim 성공 → result
+      //    로그인 안 되어 있으면 401 → 모달
+      await claimAndGoResult()
+    } catch (e: any) {
+      setClaimErr(e?.message ?? 'Failed to continue.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function startGoogleLogin() {
     setLoginErr(null)
     setShowLoginModal(false)
 
+    const next = encodeURIComponent('/kyk/step3?after=login')
+    const redirectTo = `${window.location.origin}/auth/callback?next=${next}`
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/kyk/gate`,
-      },
+      options: { redirectTo },
     })
 
     if (error) setLoginErr(error.message)
@@ -179,9 +220,9 @@ export default function KYKStep3Page() {
             )
           })}
 
-          {loginErr && (
+          {(loginErr || claimErr) && (
             <p className="text-[13px]" style={{ color: '#d00' }}>
-              {loginErr}
+              {loginErr ?? claimErr}
             </p>
           )}
 
@@ -191,6 +232,7 @@ export default function KYKStep3Page() {
               onClick={onBack}
               className="rounded-md border px-4 py-2 text-[14px] font-medium"
               style={{ borderColor: BORDER }}
+              disabled={busy}
             >
               Back
             </button>
@@ -198,15 +240,15 @@ export default function KYKStep3Page() {
             <button
               type="button"
               onClick={onSeeResult}
-              disabled={!isComplete}
+              disabled={!isComplete || busy}
               className="rounded-md px-4 py-2 text-[14px] font-medium"
               style={{
-                background: isComplete ? BTN : '#d9d9d9',
+                background: isComplete && !busy ? BTN : '#d9d9d9',
                 color: 'white',
-                cursor: isComplete ? 'pointer' : 'not-allowed',
+                cursor: isComplete && !busy ? 'pointer' : 'not-allowed',
               }}
             >
-              See Result
+              {busy ? 'Loading...' : 'See Result'}
             </button>
           </div>
         </section>
