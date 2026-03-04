@@ -9,7 +9,7 @@ import {
   type LikertValue,
 } from '@/lib/kykQuestions'
 import { ensureDraftStarted, loadLocalAnswers, saveDraft, saveLocalAnswers } from '@/lib/kykClient'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
 
@@ -76,7 +76,6 @@ function Modal({
 
 export default function Step3Client() {
   const router = useRouter()
-  const sp = useSearchParams()
   const supabase = createClientComponentClient<Database>()
 
   const [answers, setAnswers] = useState<KYKAnswers>(() => loadLocalAnswers())
@@ -125,9 +124,12 @@ export default function Step3Client() {
     setClaimErr(json?.error ?? `HTTP ${res.status}`)
   }
 
-  // 로그인 후 /kyk/step3?after=login 로 돌아왔을 때 자동 claim
+  // ✅ useSearchParams() 대신 window.location.search로 after=login 확인
   useEffect(() => {
-    const after = sp.get('after')
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const after = params.get('after')
     if (after !== 'login') return
 
     ;(async () => {
@@ -136,9 +138,10 @@ export default function Step3Client() {
         await claimAndGoResult()
       } finally {
         setBusy(false)
-        const url = new URL(window.location.href)
-        url.searchParams.delete('after')
-        window.history.replaceState({}, '', url.toString())
+        params.delete('after')
+        const nextUrl =
+          window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
+        window.history.replaceState({}, '', nextUrl)
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
