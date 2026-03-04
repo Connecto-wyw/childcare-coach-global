@@ -1,10 +1,11 @@
+// src/app/kyk/result/page.tsx
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 
 const TEXT = '#0e0e0e'
@@ -12,20 +13,42 @@ const MUTED = '#b4b4b4'
 const BORDER = '#eeeeee'
 const BTN = '#3497f3'
 
-function asObject(value: unknown): Record<string, any> {
-  if (!value) return {}
-  if (typeof value !== 'object') return {}
-  if (Array.isArray(value)) return {}
-  return value as Record<string, any>
-}
-
 type KYKResultRow = Pick<
   Database['public']['Tables']['kyk_results']['Row'],
-  'color' | 'profile' | 'created_at'
+  'computed' | 'created_at'
 >
 
+type Computed = {
+  primary_type?: string
+  color?: string
+  profile?: {
+    animal?: string
+    title?: string
+    summary?: string
+    keywords?: string[]
+  }
+}
+
+async function getServerSupabase() {
+  const cookieStore = await cookies()
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
+
+  return createServerClient<Database>(supabaseUrl, supabaseAnon, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
+      setAll() {
+        // 결과 조회 페이지에서는 Set-Cookie가 꼭 필요하지 않아서 비워둠
+      },
+    },
+  })
+}
+
 export default async function KYKResultPage() {
-  const supabase = createServerComponentClient<Database>({ cookies })
+  const supabase = await getServerSupabase()
 
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user
@@ -34,99 +57,122 @@ export default async function KYKResultPage() {
     return (
       <main className="min-h-screen bg-white" style={{ color: TEXT }}>
         <div className="mx-auto max-w-5xl px-4 py-10">
-          <h1 className="text-[24px] font-medium">KYK Result</h1>
+          <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
           <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-            로그인이 필요해요.
+            결과를 보려면 로그인이 필요해요.
           </p>
-          <div className="mt-6">
-            <Link href="/kyk" className="text-[14px]" style={{ color: BTN }}>
-              Go to KYK
-            </Link>
-          </div>
+
+          <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
+
+          <Link
+            href="/kyk/gate"
+            className="mt-8 inline-block rounded-md px-4 py-2 text-[14px] font-medium"
+            style={{ background: BTN, color: 'white' }}
+          >
+            Go to Login
+          </Link>
         </div>
       </main>
     )
   }
 
-  // ✅ 타입이 꼬이면 never가 뜨니까, Row 타입을 명시해서 받는다.
   const { data, error } = await supabase
     .from('kyk_results')
-    .select('color, profile, created_at')
+    .select('computed, created_at')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle<KYKResultRow>()
 
-  if (error) {
+  if (error || !data) {
     return (
       <main className="min-h-screen bg-white" style={{ color: TEXT }}>
         <div className="mx-auto max-w-5xl px-4 py-10">
-          <h1 className="text-[24px] font-medium">KYK Result</h1>
+          <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
           <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
             결과를 불러오지 못했어요.
           </p>
-          <p className="mt-2 text-[13px]" style={{ color: '#d00' }}>
-            {error.message}
+
+          <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
+
+          <p className="mt-8 text-[13px]" style={{ color: '#d00' }}>
+            {error?.message ?? 'No result found.'}
           </p>
-          <div className="mt-6">
-            <Link href="/coach" className="text-[14px]" style={{ color: BTN }}>
-              Go to Coach
-            </Link>
-          </div>
+
+          <Link
+            href="/kyk"
+            className="mt-8 inline-block rounded-md px-4 py-2 text-[14px] font-medium"
+            style={{ background: BTN, color: 'white' }}
+          >
+            Take KYK Test Again
+          </Link>
         </div>
       </main>
     )
   }
 
-  const profile = asObject(data?.profile)
-
-  const title = String(profile.title ?? 'Your child type')
-  const desc = String(profile.description ?? 'We are preparing a detailed result.')
-  const keywords = Array.isArray(profile.parent_keywords)
-    ? (profile.parent_keywords as string[])
-    : ['How to support this type?', 'Daily routine tips', 'Social skills guidance']
+  const computed = (data.computed ?? {}) as unknown as Computed
+  const profile = computed.profile ?? {}
+  const keywords = Array.isArray(profile.keywords) ? profile.keywords.slice(0, 3) : []
 
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[24px] font-medium leading-tight">KYK Result</h1>
+        <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          Top 1 only (code hidden)
+          우리 아이 성향 결과(1위)
         </p>
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
 
         <section className="mt-10">
-          <div className="text-[20px] font-semibold">{title}</div>
-
-          <p className="mt-4 text-[14px] leading-relaxed" style={{ color: TEXT }}>
-            {desc}
-          </p>
-
-          <div className="mt-10">
+          <div className="rounded-lg border p-6" style={{ borderColor: BORDER }}>
             <div className="text-[14px] font-medium" style={{ color: MUTED }}>
-              Parents often ask:
+              {profile.animal ?? 'Result'}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {keywords.slice(0, 3).map((k) => (
-                <Link
-                  key={k}
-                  href={`/coach?q=${encodeURIComponent(k)}`}
-                  className="rounded-full border px-3 py-2 text-[13px]"
-                  style={{ borderColor: BORDER }}
-                >
-                  {k}
-                </Link>
-              ))}
+            <div className="mt-2 text-[22px] font-medium leading-tight">
+              {profile.title ?? '성향 결과를 표시할 수 없어요'}
+            </div>
+
+            {profile.summary && (
+              <p className="mt-4 text-[14px] leading-relaxed" style={{ color: TEXT }}>
+                {profile.summary}
+              </p>
+            )}
+
+            {keywords.length > 0 && (
+              <div className="mt-6">
+                <div className="text-[13px] font-medium" style={{ color: MUTED }}>
+                  이 성향 부모님이 자주 궁금해하는 키워드
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {keywords.map((k) => (
+                    <Link
+                      key={k}
+                      href={`/coach?prefill=${encodeURIComponent(k)}`}
+                      className="rounded-full border px-3 py-1 text-[13px]"
+                      style={{ borderColor: BORDER }}
+                    >
+                      {k}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8">
+              <Link
+                href="/coach"
+                className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
+                style={{ background: BTN, color: 'white' }}
+              >
+                Go to AI Coach
+              </Link>
             </div>
           </div>
         </section>
-
-        <div className="mt-10">
-          <Link href="/coach" className="text-[14px]" style={{ color: BTN }}>
-            Go to Coach
-          </Link>
-        </div>
       </div>
     </main>
   )
