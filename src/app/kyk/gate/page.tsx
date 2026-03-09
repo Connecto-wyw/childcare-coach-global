@@ -1,7 +1,7 @@
 // src/app/kyk/gate/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
@@ -13,7 +13,7 @@ const BTN = '#3497f3'
 
 export default function KYKGatePage() {
   const router = useRouter()
-  const supabase = createClientComponentClient<Database>()
+  const supabase = useMemo(() => createClientComponentClient<Database>(), [])
 
   const [loading, setLoading] = useState(true)
   const [needLogin, setNeedLogin] = useState(false)
@@ -32,7 +32,7 @@ export default function KYKGatePage() {
     }
 
     if (res.status === 401) {
-      setNeedLogin(true) // ✅ 모달 띄우기
+      setNeedLogin(true)
       return
     }
 
@@ -53,15 +53,22 @@ export default function KYKGatePage() {
       setBusyLogin(true)
       setError(null)
 
-      const next = encodeURIComponent('/kyk/gate') // ✅ 중요: URL 인코딩
-      const redirectTo = `${window.location.origin}/auth/callback?next=${next}`
+      const callbackUrl = new URL('/auth/callback', window.location.origin)
+      callbackUrl.searchParams.set('next', '/kyk/gate')
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo },
+        options: {
+          redirectTo: callbackUrl.toString(),
+          queryParams: {
+            prompt: 'select_account',
+          },
+        },
       })
 
-      if (error) setError(error.message)
+      if (error) {
+        setError(error.message)
+      }
     } finally {
       setBusyLogin(false)
     }
@@ -77,7 +84,6 @@ export default function KYKGatePage() {
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
 
-        {/* 로딩/에러만 최소 표시 */}
         <section className="mt-10">
           {loading ? (
             <p className="text-[14px]" style={{ color: MUTED }}>
@@ -91,7 +97,6 @@ export default function KYKGatePage() {
         </section>
       </div>
 
-      {/* ✅ 로그인 필요 모달 */}
       {needLogin && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
@@ -103,6 +108,7 @@ export default function KYKGatePage() {
             <div className="text-[16px] font-medium" style={{ color: TEXT }}>
               구글 로그인이 필요해요
             </div>
+
             <div className="mt-2 text-[13px]" style={{ color: MUTED }}>
               KYK 결과를 계정에 저장하고, 다음 로그인 때 코치가 이 성향을 반영해서 답해요.
             </div>

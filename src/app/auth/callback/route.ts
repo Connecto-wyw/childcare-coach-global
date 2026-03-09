@@ -8,11 +8,32 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
 
+function decodeRepeatedly(value: string, max = 2) {
+  let current = value
+
+  for (let i = 0; i < max; i += 1) {
+    try {
+      const decoded = decodeURIComponent(current)
+      if (decoded === current) break
+      current = decoded
+    } catch {
+      break
+    }
+  }
+
+  return current
+}
+
 function safeNextPath(raw: string | null) {
   if (!raw) return '/coach'
-  // ✅ 무조건 내부 경로만 허용
-  if (raw.startsWith('/')) return raw
-  return '/coach'
+
+  const decoded = decodeRepeatedly(raw.trim())
+
+  // 내부 경로만 허용
+  if (!decoded.startsWith('/')) return '/coach'
+  if (decoded.startsWith('//')) return '/coach'
+
+  return decoded
 }
 
 export async function GET(req: Request) {
@@ -21,8 +42,6 @@ export async function GET(req: Request) {
   const code = url.searchParams.get('code')
   const error = url.searchParams.get('error')
   const errorDescription = url.searchParams.get('error_description')
-
-  // ✅ next가 있으면 그쪽으로, 없으면 /coach
   const nextPath = safeNextPath(url.searchParams.get('next'))
 
   if (error) {

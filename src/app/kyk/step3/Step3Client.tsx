@@ -36,6 +36,7 @@ function Modal({
   cancelText?: string
 }) {
   if (!open) return null
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -47,6 +48,7 @@ function Modal({
         <div className="text-[16px] font-semibold" style={{ color: TEXT }}>
           {title}
         </div>
+
         <div className="mt-2 text-[14px] leading-relaxed" style={{ color: MUTED }}>
           {body}
         </div>
@@ -60,6 +62,7 @@ function Modal({
           >
             {cancelText}
           </button>
+
           <button
             type="button"
             onClick={onOk}
@@ -76,7 +79,7 @@ function Modal({
 
 export default function Step3Client() {
   const router = useRouter()
-  const supabase = createClientComponentClient<Database>()
+  const supabase = useMemo(() => createClientComponentClient<Database>(), [])
 
   const [answers, setAnswers] = useState<KYKAnswers>(() => loadLocalAnswers())
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -84,7 +87,7 @@ export default function Step3Client() {
   const [claimErr, setClaimErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const questions = useMemo(() => Q2_TO_Q13.slice(6, 12), []) // q8~q13
+  const questions = useMemo(() => Q2_TO_Q13.slice(6, 12), [])
   const isComplete = useMemo(
     () => questions.every((q) => !!answers.likert[q.key]),
     [answers.likert, questions]
@@ -124,7 +127,6 @@ export default function Step3Client() {
     setClaimErr(json?.error ?? `HTTP ${res.status}`)
   }
 
-  // ✅ useSearchParams() 대신 window.location.search로 after=login 확인
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -168,15 +170,22 @@ export default function Step3Client() {
     setLoginErr(null)
     setShowLoginModal(false)
 
-    const next = encodeURIComponent('/kyk/step3?after=login')
-    const redirectTo = `${window.location.origin}/auth/callback?next=${next}`
+    const callbackUrl = new URL('/auth/callback', window.location.origin)
+    callbackUrl.searchParams.set('next', '/kyk/step3?after=login')
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo: callbackUrl.toString(),
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
     })
 
-    if (error) setLoginErr(error.message)
+    if (error) {
+      setLoginErr(error.message)
+    }
   }
 
   function onBack() {
@@ -196,6 +205,7 @@ export default function Step3Client() {
         <section className="mt-8 space-y-8">
           {questions.map((q) => {
             const picked = answers.likert[q.key]
+
             return (
               <div key={q.key}>
                 <div className="text-[16px] font-medium leading-snug">{q.text}</div>
@@ -203,6 +213,7 @@ export default function Step3Client() {
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {LIKERT_OPTIONS.map((opt) => {
                     const active = picked === opt.value
+
                     return (
                       <button
                         key={opt.value}
