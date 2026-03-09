@@ -59,7 +59,7 @@ export default async function KYKResultPage() {
         <div className="mx-auto max-w-5xl px-4 py-10">
           <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
           <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-            결과를 보려면 로그인이 필요해요.
+            결과를 보려면 로그인이 필요해.
           </p>
 
           <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -90,7 +90,7 @@ export default async function KYKResultPage() {
         <div className="mx-auto max-w-5xl px-4 py-10">
           <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
           <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-            결과를 불러오지 못했어요.
+            결과를 불러오지 못했어.
           </p>
 
           <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -100,7 +100,7 @@ export default async function KYKResultPage() {
           </p>
 
           <Link
-            href="/kyk"
+            href="/kyk/step1?restart=1"
             className="mt-8 inline-block rounded-md px-4 py-2 text-[14px] font-medium"
             style={{ background: BTN, color: 'white' }}
           >
@@ -132,7 +132,7 @@ export default async function KYKResultPage() {
             </div>
 
             <div className="mt-2 text-[22px] font-medium leading-tight">
-              {profile.title ?? '성향 결과를 표시할 수 없어요'}
+              {profile.title ?? '성향 결과를 표시할 수 없어'}
             </div>
 
             {profile.summary && (
@@ -162,13 +162,21 @@ export default async function KYKResultPage() {
               </div>
             )}
 
-            <div className="mt-8">
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/coach"
                 className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
                 style={{ background: BTN, color: 'white' }}
               >
                 Go to AI Coach
+              </Link>
+
+              <Link
+                href="/kyk/step1?restart=1"
+                className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
+                style={{ borderColor: BORDER, color: TEXT }}
+              >
+                다시 해보기
               </Link>
             </div>
           </div>

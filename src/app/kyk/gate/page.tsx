@@ -79,7 +79,7 @@ export default function KYKGatePage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          결과를 불러오는 중이에요.
+          결과를 불러오는 중이야.
         </p>
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -106,11 +106,11 @@ export default function KYKGatePage() {
         >
           <div className="w-full max-w-sm rounded-lg bg-white p-5">
             <div className="text-[16px] font-medium" style={{ color: TEXT }}>
-              구글 로그인이 필요해요
+              구글 로그인이 필요해
             </div>
 
             <div className="mt-2 text-[13px]" style={{ color: MUTED }}>
-              KYK 결과를 계정에 저장하고, 다음 로그인 때 코치가 이 성향을 반영해서 답해요.
+              KYK 결과를 계정에 저장하고, 다음 로그인 때 코치가 이 성향을 반영해서 답할 수 있게 돼.
             </div>
 
             {error && (
