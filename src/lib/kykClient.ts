@@ -13,9 +13,25 @@ export function loadLocalAnswers(): KYKAnswers {
     const raw = localStorage.getItem('kyk_answers')
     if (!raw) return DEFAULT_ANSWERS
     const parsed = JSON.parse(raw)
+    
+    let { q1_adjectives, likert } = parsed
+
+    q1_adjectives = Array.isArray(q1_adjectives) ? q1_adjectives : []
+    likert = typeof likert === 'object' && likert ? likert : {}
+
+    const LEGACY_MAP: Record<string, string> = {
+      '차분한': 'adj_1', '똑똑한': 'adj_2', '유연한': 'adj_3', '상상력이 풍부한': 'adj_4', '꼼꼼한': 'adj_5',
+      '세심한': 'adj_6', '똑 부러진': 'adj_7', '요령있는': 'adj_8', '말재주 있는': 'adj_9', '의젓한': 'adj_10',
+      '친구 많은': 'adj_11', '에너지넘치는': 'adj_12', '겁 없는': 'adj_13', '밝은': 'adj_14', '긍정 뿜뿜': 'adj_15',
+      '호기심 많은': 'adj_16', '착한마음씨': 'adj_17', '듬직한': 'adj_18', '내 의견 확실한': 'adj_19', '몸으로 배우는': 'adj_20',
+      '믿음직한': 'adj_21', '포기 안 하는': 'adj_22', '자기 색 뚜렷한': 'adj_23', '몰입 잘 하는': 'adj_24', '조용히 생각하는': 'adj_25'
+    }
+
+    q1_adjectives = q1_adjectives.map((item: string) => LEGACY_MAP[item] || item)
+
     return {
-      q1_adjectives: Array.isArray(parsed.q1_adjectives) ? parsed.q1_adjectives : [],
-      likert: typeof parsed.likert === 'object' && parsed.likert ? parsed.likert : {},
+      q1_adjectives,
+      likert,
     }
   } catch {
     return DEFAULT_ANSWERS

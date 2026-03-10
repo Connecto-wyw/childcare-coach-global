@@ -14,10 +14,12 @@ export default function KYKLoginModal({
   open,
   onClose,
   onAfterLogin,
+  dict,
 }: {
   open: boolean
   onClose: () => void
   onAfterLogin: () => Promise<void>
+  dict: any
 }) {
   const supabase = createClientComponentClient<Database>()
   const [busy, setBusy] = useState(false)
@@ -70,11 +72,11 @@ export default function KYKLoginModal({
     >
       <div className="w-full max-w-sm rounded-lg bg-white p-5">
         <div className="text-[16px] font-medium" style={{ color: TEXT }}>
-          결과를 보려면 구글 로그인이 필요해요
+          {dict.title}
         </div>
 
         <div className="mt-2 text-[13px]" style={{ color: MUTED }}>
-          KYK 결과를 계정에 저장하고, 다음 로그인 때 코치가 이 성향을 반영해서 답해요.
+          {dict.desc}
         </div>
 
         {error && (
@@ -91,7 +93,7 @@ export default function KYKLoginModal({
             style={{ borderColor: BORDER, color: TEXT }}
             disabled={busy}
           >
-            Cancel
+            {dict.btn_cancel}
           </button>
 
           <button
@@ -101,7 +103,7 @@ export default function KYKLoginModal({
             style={{ background: BTN, color: 'white' }}
             disabled={busy}
           >
-            {busy ? 'Opening...' : 'OK'}
+            {busy ? dict.btn_opening : dict.btn_ok}
           </button>
         </div>
 
@@ -113,7 +115,7 @@ export default function KYKLoginModal({
           style={{ borderColor: BORDER, color: TEXT }}
           disabled={busy}
         >
-          I’m already logged in → Continue
+          {dict.btn_continue}
         </button>
       </div>
     </div>

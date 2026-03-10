@@ -57,7 +57,7 @@ function Modal({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border px-4 py-2 text-[14px] font-medium"
+            className="rounded-md border px-4 py-2 text-[14px] font-medium transition active:scale-95"
             style={{ borderColor: BORDER }}
           >
             {cancelText}
@@ -66,7 +66,7 @@ function Modal({
           <button
             type="button"
             onClick={onOk}
-            className="rounded-md px-4 py-2 text-[14px] font-medium"
+            className="rounded-md px-4 py-2 text-[14px] font-medium transition active:scale-95 hover:brightness-95"
             style={{ background: BTN, color: 'white' }}
           >
             {okText}
@@ -77,7 +77,7 @@ function Modal({
   )
 }
 
-export default function Step3Client() {
+export default function Step3Client({ dict }: { dict: any }) {
   const router = useRouter()
   const supabase = useMemo(() => createClientComponentClient<Database>(), [])
 
@@ -89,7 +89,7 @@ export default function Step3Client() {
 
   const questions = useMemo(() => Q2_TO_Q13.slice(6, 12), [])
   const isComplete = useMemo(
-    () => questions.every((q) => !!answers.likert[q.key]),
+    () => questions.every((q) => !!answers.likert[q.key as keyof typeof answers.likert]),
     [answers.likert, questions]
   )
 
@@ -195,24 +195,26 @@ export default function Step3Client() {
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
+        <h1 className="text-[24px] font-medium leading-tight">{dict.title}</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          아이 성향 분석 (3/3)
+          {dict.step_indicator}
         </p>
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
 
         <section className="mt-8 space-y-8">
           {questions.map((q) => {
-            const picked = answers.likert[q.key]
+            const picked = answers.likert[q.key as keyof typeof answers.likert]
+            const text = dict.questions?.[q.key] || q.key
 
             return (
               <div key={q.key}>
-                <div className="text-[16px] font-medium leading-snug">{q.text}</div>
+                <div className="text-[16px] font-medium leading-snug">{text}</div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {LIKERT_OPTIONS.map((opt) => {
                     const active = picked === opt.value
+                    const label = dict.likert?.[String(opt.value)] || String(opt.value)
 
                     return (
                       <button
@@ -225,7 +227,7 @@ export default function Step3Client() {
                           background: active ? '#f0f7ff' : 'transparent',
                         }}
                       >
-                        {opt.label}
+                        {label}
                       </button>
                     )
                   })}
@@ -244,25 +246,25 @@ export default function Step3Client() {
             <button
               type="button"
               onClick={onBack}
-              className="rounded-md border px-4 py-2 text-[14px] font-medium"
+              className="rounded-md border px-4 py-2 text-[14px] font-medium transition active:scale-95"
               style={{ borderColor: BORDER }}
               disabled={busy}
             >
-              Back
+              {dict.btn_back}
             </button>
 
             <button
               type="button"
               onClick={onSeeResult}
               disabled={!isComplete || busy}
-              className="rounded-md px-4 py-2 text-[14px] font-medium"
+              className="rounded-md px-4 py-2 text-[14px] font-medium transition disabled:bg-[#d9d9d9] active:scale-95 hover:brightness-95"
               style={{
                 background: isComplete && !busy ? BTN : '#d9d9d9',
                 color: 'white',
                 cursor: isComplete && !busy ? 'pointer' : 'not-allowed',
               }}
             >
-              {busy ? 'Loading...' : 'See Result'}
+              {busy ? dict.loading : dict.btn_see_result}
             </button>
           </div>
         </section>
@@ -270,13 +272,13 @@ export default function Step3Client() {
 
       <Modal
         open={showLoginModal}
-        title="Google login required"
-        body="결과를 저장하고 보여주려면 구글 로그인이 필요해요. OK를 누르면 계정 선택창으로 이동합니다."
+        title={dict.modal_title}
+        body={dict.modal_body}
         onCancel={() => setShowLoginModal(false)}
         onOk={startGoogleLogin}
-        okText="OK"
-        cancelText="Cancel"
+        okText={dict.modal_ok}
+        cancelText={dict.modal_cancel}
       />
     </main>
   )
-}
+}

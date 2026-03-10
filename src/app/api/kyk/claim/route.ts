@@ -26,10 +26,10 @@ function computeResultFromAnswers(answers: any) {
     primary_type: 'INTP',
     color: 'BLUE',
     profile: {
-      animal: '물고기',
-      title: '솔직한 물고기',
-      summary: '깊이 있는 탐구와 분석을 즐기는 사색가형.',
-      keywords: ['학습 루틴', '집중력', '친구관계'], // 결과 페이지 하단 3개 키워드
+      animal: 'animal_fish',
+      title: 'title_fish_honest',
+      summary: 'summary_fish',
+      keywords: ['keyword_learning_routine', 'keyword_focus', 'keyword_friends'], // 결과 페이지 하단 3개 키워드
     },
   }
 }

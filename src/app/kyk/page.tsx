@@ -50,7 +50,8 @@ async function getServerSupabase() {
 
 export default async function KYKHomePage() {
   const supabase = await getServerSupabase()
-  const t = await getDictionary('kyk')
+  const dict = await getDictionary('kyk')
+  const t = dict.landing
 
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user ?? null
@@ -133,18 +134,18 @@ export default async function KYKHomePage() {
               </div>
 
               <div className="mt-3 text-[24px] font-medium leading-tight">
-                {profile.title ?? t.default_title}
+                {profile.title ? dict.computed[profile.title as keyof typeof dict.computed] ?? profile.title : t.default_title}
               </div>
 
               {profile.animal && (
                 <div className="mt-2 text-[14px]" style={{ color: MUTED }}>
-                  {profile.animal}
+                  {dict.computed[profile.animal as keyof typeof dict.computed] ?? profile.animal}
                 </div>
               )}
 
               {profile.summary && (
                 <p className="mt-5 text-[14px] leading-relaxed" style={{ color: TEXT }}>
-                  {profile.summary}
+                  {dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary}
                 </p>
               )}
 

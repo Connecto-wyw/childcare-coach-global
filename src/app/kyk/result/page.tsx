@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
+import { getDictionary } from '@/i18n'
 
 const TEXT = '#0e0e0e'
 const MUTED = '#b4b4b4'
@@ -49,6 +50,9 @@ async function getServerSupabase() {
 
 export default async function KYKResultPage() {
   const supabase = await getServerSupabase()
+  
+  // NOTE: i18n
+  const dict = await getDictionary('kyk')
 
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user
@@ -57,9 +61,9 @@ export default async function KYKResultPage() {
     return (
       <main className="min-h-screen bg-white" style={{ color: TEXT }}>
         <div className="mx-auto max-w-5xl px-4 py-10">
-          <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
+          <h1 className="text-[24px] font-medium leading-tight">{dict.result.title}</h1>
           <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-            결과를 보려면 로그인이 필요해.
+            {dict.result.login_required}
           </p>
 
           <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -69,7 +73,7 @@ export default async function KYKResultPage() {
             className="mt-8 inline-block rounded-md px-4 py-2 text-[14px] font-medium"
             style={{ background: BTN, color: 'white' }}
           >
-            Go to Login
+            {dict.result.btn_login}
           </Link>
         </div>
       </main>
@@ -88,15 +92,15 @@ export default async function KYKResultPage() {
     return (
       <main className="min-h-screen bg-white" style={{ color: TEXT }}>
         <div className="mx-auto max-w-5xl px-4 py-10">
-          <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
+          <h1 className="text-[24px] font-medium leading-tight">{dict.result.title}</h1>
           <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-            결과를 불러오지 못했어.
+            {dict.result.failed_load}
           </p>
 
           <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
 
           <p className="mt-8 text-[13px]" style={{ color: '#d00' }}>
-            {error?.message ?? 'No result found.'}
+            {error?.message ?? dict.result.no_result}
           </p>
 
           <Link
@@ -104,7 +108,7 @@ export default async function KYKResultPage() {
             className="mt-8 inline-block rounded-md px-4 py-2 text-[14px] font-medium"
             style={{ background: BTN, color: 'white' }}
           >
-            Take KYK Test Again
+            {dict.result.btn_retake}
           </Link>
         </div>
       </main>
@@ -118,9 +122,9 @@ export default async function KYKResultPage() {
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
+        <h1 className="text-[24px] font-medium leading-tight">{dict.result.title}</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          우리 아이 성향 결과(1위)
+          {dict.result.subtitle}
         </p>
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -128,36 +132,39 @@ export default async function KYKResultPage() {
         <section className="mt-10">
           <div className="rounded-lg border p-6" style={{ borderColor: BORDER }}>
             <div className="text-[14px] font-medium" style={{ color: MUTED }}>
-              {profile.animal ?? 'Result'}
+              {profile.animal ? dict.computed[profile.animal as keyof typeof dict.computed] : 'Result'}
             </div>
 
             <div className="mt-2 text-[22px] font-medium leading-tight">
-              {profile.title ?? '성향 결과를 표시할 수 없어'}
+              {profile.title ? dict.computed[profile.title as keyof typeof dict.computed] : dict.result.unable_to_display}
             </div>
 
             {profile.summary && (
               <p className="mt-4 text-[14px] leading-relaxed" style={{ color: TEXT }}>
-                {profile.summary}
+                {dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary}
               </p>
             )}
 
             {keywords.length > 0 && (
               <div className="mt-6">
                 <div className="text-[13px] font-medium" style={{ color: MUTED }}>
-                  이 성향 부모님이 자주 궁금해하는 키워드
+                  {dict.result.keyword_title}
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {keywords.map((k) => (
-                    <Link
-                      key={k}
-                      href={`/coach?prefill=${encodeURIComponent(k)}`}
-                      className="rounded-full border px-3 py-1 text-[13px]"
-                      style={{ borderColor: BORDER }}
-                    >
-                      {k}
-                    </Link>
-                  ))}
+                  {keywords.map((k) => {
+                    const label = dict.computed[k as keyof typeof dict.computed] ?? k
+                    return (
+                      <Link
+                        key={k}
+                        href={`/coach?prefill=${encodeURIComponent(label)}`}
+                        className="rounded-full border px-3 py-1 text-[13px]"
+                        style={{ borderColor: BORDER }}
+                      >
+                        {label}
+                      </Link>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -168,7 +175,7 @@ export default async function KYKResultPage() {
                 className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
                 style={{ background: BTN, color: 'white' }}
               >
-                Go to AI Coach
+                {dict.result.btn_coach}
               </Link>
 
               <Link
@@ -176,7 +183,7 @@ export default async function KYKResultPage() {
                 className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
                 style={{ borderColor: BORDER, color: TEXT }}
               >
-                다시 해보기
+                {dict.result.btn_retry}
               </Link>
             </div>
           </div>
