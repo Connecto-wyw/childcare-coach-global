@@ -1,0 +1,14 @@
+{
+  "hello": "HALO",
+  "subtitle": "SAYA ADALAH PELATIH PENGASUHAN AI ANDA",
+  "people_asking": "Orang-orang juga bertanya",
+  "ongoing_teams": "Tim yang Sedang Berjalan",
+  "k_parenting_news": "Berita Pengasuhan K",
+  "no_news": "Tidak ada berita yang tersedia.",
+  "todays_tips": "Tips Pengasuhan Hari Hari",
+  "chat_thinking": "Sedang berpikir",
+  "chat_placeholder": "Ada yang sedang Anda pikirkan?",
+  "chat_send": "Kirim",
+  "chat_error_delayed": "Respons tertunda. Silakan coba lagi.",
+  "chat_error_empty": "Jawaban kosong dari server"
+}

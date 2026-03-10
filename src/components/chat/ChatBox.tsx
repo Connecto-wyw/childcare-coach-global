@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAuthUser } from '@/app/providers'
+import { useTranslation } from '@/i18n/I18nProvider'
 
 type ChatBoxProps = { systemPrompt?: string }
 type ChatRole = 'user' | 'assistant'
@@ -118,6 +119,7 @@ You can discover carefully selected, high-quality products that many Korean fami
 export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   // ✅ user는 "있으면 쓰고, 없어도 OK"
   const { user } = useAuthUser()
+  const t = useTranslation('coach')
 
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -298,7 +300,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
         if (!answer) {
           const rid = okJson?.requestId ? ` (requestId: ${okJson.requestId})` : ''
-          const msg = `Empty answer from server${rid}`
+          const msg = `${t('chat_error_empty')}${rid}`
           setError(msg)
           push('assistant', msg)
           return
@@ -306,7 +308,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
 
         push('assistant', answer)
       } catch {
-        const msg = 'The response is delayed. Please try again.'
+        const msg = t('chat_error_delayed')
         setError(msg)
         push('assistant', msg)
       } finally {
@@ -374,7 +376,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
         {loading && (
           <div className="flex justify-start">
             <div className="rounded-xl bg-white border border-[#dcdcdc] px-4 py-3 text-[15px] font-medium text-[#0e0e0e]">
-              Thinking{'.'.repeat(dots)}
+              {t('chat_thinking')}{'.'.repeat(dots)}
             </div>
           </div>
         )}
@@ -395,7 +397,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                     void ask()
                   }
                 }}
-                placeholder="Anything on your mind?"
+                placeholder={t('chat_placeholder')}
                 rows={1}
                 disabled={loading}
                 className={[
@@ -418,7 +420,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
                   'disabled:cursor-not-allowed',
                 ].join(' ')}
               >
-                Send
+                {t('chat_send')}
               </button>
             </div>
           </div>

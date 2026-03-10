@@ -3,6 +3,7 @@ import { Inter, Kanit } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
 import NavBar from '@/components/layout/NavBar'
+import LanguageSelector from '@/components/layout/LanguageSelector'
 import { getLocale, getDictionary } from '@/i18n'
 import { I18nProvider } from '@/i18n/I18nProvider'
 
@@ -57,10 +58,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale()
   
   // Load common dictionaries required by Layout/Client components
-  const navbarDict = await getDictionary('navbar')
+  const [navbarDict, coachDict, teamDict, newsDict, commonDict] = await Promise.all([
+    getDictionary('navbar'),
+    getDictionary('coach'),
+    getDictionary('team'),
+    getDictionary('news'),
+    getDictionary('common'),
+  ])
   
   const dictionaries = {
     navbar: navbarDict,
+    coach: coachDict,
+    team: teamDict,
+    news: newsDict,
+    common: commonDict,
   }
 
   // Determine font variable based on locale
@@ -72,12 +83,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang={locale} className={`${fontVariable} ${inter.variable} ${pretendardVariable} ${kanit.variable}`}>
-      <body className={`min-h-screen bg-white text-[#0e0e0e] antialiased font-sans flex flex-col`}>
+    <html lang={locale} className={`${fontVariable} ${inter.variable} ${pretendardVariable} ${kanit.variable}`} suppressHydrationWarning>
+      <body className={`min-h-screen bg-white text-[#0e0e0e] antialiased font-sans flex flex-col`} suppressHydrationWarning>
         <I18nProvider locale={locale} dictionary={dictionaries}>
           <Providers>
             <NavBar />
-            {children}
+            <div className="flex-1 flex flex-col">
+              {children}
+            </div>
+            <LanguageSelector />
           </Providers>
         </I18nProvider>
       </body>

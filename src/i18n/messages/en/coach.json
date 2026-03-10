@@ -1,0 +1,14 @@
+{
+  "hello": "HELLO",
+  "subtitle": "I AM YOUR AI PARENTING COACH",
+  "people_asking": "People are also asking",
+  "ongoing_teams": "Ongoing Teams",
+  "k_parenting_news": "K-Parenting News",
+  "no_news": "No news available.",
+  "todays_tips": "Today’s Parenting Tips",
+  "chat_thinking": "Thinking",
+  "chat_placeholder": "Anything on your mind?",
+  "chat_send": "Send",
+  "chat_error_delayed": "The response is delayed. Please try again.",
+  "chat_error_empty": "Empty answer from server"
+}

@@ -1,0 +1,27 @@
+
+> childcare-coach@0.1.0 build
+> next build
+
+??Next.js 16.1.0 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  쨌 serverActions
+
+??The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+??Compiled successfully in 11.3s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/about/page.tsx:23:69
+Type error: Property 'title' does not exist on type '{ coach: string; news: string; team: string; about: string; signOut: string; signInGoogle: string; points: string; account: string; loading: string; } | { title: string; subtitle: string; originText: string; ... 15 more ...; copyright: string; } | { ...; } | { ...; } | { ...; } | { ...; }'.
+  Property 'title' does not exist on type '{ coach: string; news: string; team: string; about: string; signOut: string; signInGoogle: string; points: string; account: string; loading: string; }'.
+
+  21 |       <div className="mx-auto max-w-5xl px-4 py-10">
+  22 |         {/* Header (News ?섏씠吏 ?ㅺ낵 ?듭씪) */}
+> 23 |         <h1 className="text-[24px] font-medium leading-tight">{dict.title}</h1>
+     |                                                                     ^
+  24 |         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
+  25 |           {dict.subtitle}
+  26 |         </p>
+Next.js build worker exited with code: 1 and signal: null

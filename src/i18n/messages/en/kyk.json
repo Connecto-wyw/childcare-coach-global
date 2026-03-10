@@ -1,0 +1,15 @@
+{
+  "title": "KYK",
+  "subtitle": "Know Your Kid · Understand your child’s personality and parenting context",
+  "intro_title": "A simple way to better understand your child’s personality",
+  "intro_desc": "KYK helps you explore your child’s temperament and response patterns through a short set of questions. Once your result is saved, the AI Coach can provide more relevant and personalized guidance based on your child’s unique personality.",
+  "point_1": "• It only takes about 1–2 minutes to complete.",
+  "point_2": "• You can begin without logging in, but sign-in may be required to save your result.",
+  "point_3": "• You can retake KYK anytime as your child grows and changes.",
+  "btn_start": "Start KYK Now",
+  "btn_coach": "Go to AI Coach",
+  "latest_result": "YOUR LATEST KYK RESULT",
+  "default_title": "Your child’s personality result",
+  "btn_view": "View Result",
+  "btn_retake": "Retake KYK"
+}

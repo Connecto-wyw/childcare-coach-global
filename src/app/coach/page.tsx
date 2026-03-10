@@ -10,6 +10,7 @@ import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ActiveTeamsGrid, { type TeamCard } from '@/components/team/ActiveTeamsGrid'
+import { getDictionary, getLocale } from '@/i18n'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -130,6 +131,8 @@ async function getOngoingTeams(supabase: Awaited<ReturnType<typeof createSupabas
 
 export default async function CoachPage() {
   const supabase = await createSupabaseServer()
+  const locale = await getLocale()
+  const t = await getDictionary('coach')
 
   // ✅ 어드민 등록 키워드만 사용 (없으면 섹션 숨김)
   const kw = await getPopularKeywords()
@@ -156,15 +159,15 @@ export default async function CoachPage() {
 
         <section className="text-center mb-16">
           <div className="leading-tight">
-            <div className="text-[30px] text-[#0e0e0e] font-Light">HELLO</div>
-            <div className="text-[22px] text-[#0e0e0e] font-semibold">I AM YOUR AI PARENTING COACH</div>
+            <div className="text-[30px] text-[#0e0e0e] font-Light">{t.hello}</div>
+            <div className="text-[22px] text-[#0e0e0e] font-semibold">{t.subtitle}</div>
           </div>
         </section>
 
         {/* ✅ 키워드가 있을 때만 노출 */}
         {keywords.length > 0 ? (
           <section className="mb-3">
-            <div className="text-[15px] font-medium text-[#0e0e0e] mb-3">People are also asking</div>
+            <div className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.people_asking}</div>
             <KeywordButtons keywords={keywords} />
           </section>
         ) : null}
@@ -175,7 +178,7 @@ export default async function CoachPage() {
         </section>
 
         <section className="mb-8">
-          <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">Ongoing Teams</div>
+          <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">{t.ongoing_teams}</div>
           <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
 
@@ -183,11 +186,11 @@ export default async function CoachPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             {/* (1) K-Parenting News -> 왼쪽 */}
             <div>
-              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">K-Parenting News</h3>
+              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.k_parenting_news}</h3>
 
               <div className="bg-[#f0f7fd] p-4">
                 {news.length === 0 ? (
-                  <p className="text-[15px] font-medium text-[#b4b4b4]">No news available.</p>
+                  <p className="text-[15px] font-medium text-[#b4b4b4]">{t.no_news}</p>
                 ) : (
                   <ul className="space-y-3">
                     {news.map((n) => (
@@ -219,7 +222,7 @@ export default async function CoachPage() {
 
             {/* (2) Today’s Parenting Tips -> 오른쪽 */}
             <div>
-              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">Today’s Parenting Tips</h3>
+              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.todays_tips}</h3>
               <div className="bg-[#f0f7fd] p-4">
                 <TipSection />
               </div>

@@ -4,6 +4,10 @@ import React, { createContext, useContext } from 'react'
 
 type CommonDictionary = {
   navbar: Record<string, string>
+  coach?: Record<string, string>
+  news?: Record<string, string>
+  team?: Record<string, string>
+  common?: Record<string, string>
 }
 
 interface I18nContextProps {

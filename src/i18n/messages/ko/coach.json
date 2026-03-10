@@ -1,0 +1,14 @@
+{
+  "hello": "안녕하세요",
+  "subtitle": "당신의 AI 육아 코치입니다",
+  "people_asking": "다른 사람들은 이런 질문을 했어요",
+  "ongoing_teams": "진행 중인 팀",
+  "k_parenting_news": "K-육아 뉴스",
+  "no_news": "뉴스가 없습니다.",
+  "todays_tips": "오늘의 육아 팁",
+  "chat_thinking": "생각 중",
+  "chat_placeholder": "어떤 고민이 있으신가요?",
+  "chat_send": "전송",
+  "chat_error_delayed": "응답이 지연되고 있습니다. 다시 시도해 주세요.",
+  "chat_error_empty": "서버로부터 빈 응답을 받았습니다"
+}

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
+import { getDictionary } from '@/i18n'
 
 const TEXT = '#0e0e0e'
 const MUTED = '#b4b4b4'
@@ -49,6 +50,7 @@ async function getServerSupabase() {
 
 export default async function KYKHomePage() {
   const supabase = await getServerSupabase()
+  const t = await getDictionary('kyk')
 
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user ?? null
@@ -74,9 +76,9 @@ export default async function KYKHomePage() {
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
+        <h1 className="text-[24px] font-medium leading-tight">{t.title}</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          Know Your Kid · Understand your child’s personality and parenting context
+          {t.subtitle}
         </p>
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -88,20 +90,17 @@ export default async function KYKHomePage() {
               style={{ borderColor: BORDER, background: '#fff' }}
             >
               <div className="text-[22px] font-medium leading-tight">
-                A simple way to better understand your child’s personality
+                {t.intro_title}
               </div>
 
               <p className="mt-4 text-[14px] leading-relaxed" style={{ color: TEXT }}>
-                KYK helps you explore your child’s temperament and response patterns
-                through a short set of questions. Once your result is saved, the AI Coach
-                can provide more relevant and personalized guidance based on your child’s
-                unique personality.
+                {t.intro_desc}
               </p>
 
               <div className="mt-6 space-y-3 text-[14px] leading-relaxed" style={{ color: MUTED }}>
-                <p>• It only takes about 1–2 minutes to complete.</p>
-                <p>• You can begin without logging in, but sign-in may be required to save your result.</p>
-                <p>• You can retake KYK anytime as your child grows and changes.</p>
+                <p>{t.point_1}</p>
+                <p>{t.point_2}</p>
+                <p>{t.point_3}</p>
               </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
@@ -110,7 +109,7 @@ export default async function KYKHomePage() {
                   className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
                   style={{ background: INDIANBOB_RED, color: 'white' }}
                 >
-                  Start KYK Now
+                  {t.btn_start}
                 </Link>
 
                 <Link
@@ -118,7 +117,7 @@ export default async function KYKHomePage() {
                   className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
                   style={{ borderColor: BORDER, color: TEXT }}
                 >
-                  Go to AI Coach
+                  {t.btn_coach}
                 </Link>
               </div>
             </div>
@@ -130,11 +129,11 @@ export default async function KYKHomePage() {
               style={{ borderColor: BORDER, background: '#fff' }}
             >
               <div className="text-[13px] font-medium tracking-wide" style={{ color: INDIANBOB_RED }}>
-                YOUR LATEST KYK RESULT
+                {t.latest_result}
               </div>
 
               <div className="mt-3 text-[24px] font-medium leading-tight">
-                {profile.title ?? 'Your child’s personality result'}
+                {profile.title ?? t.default_title}
               </div>
 
               {profile.animal && (
@@ -155,7 +154,7 @@ export default async function KYKHomePage() {
                   className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
                   style={{ background: INDIANBOB_RED, color: 'white' }}
                 >
-                  View Result
+                  {t.btn_view}
                 </Link>
 
                 <Link
@@ -163,7 +162,7 @@ export default async function KYKHomePage() {
                   className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
                   style={{ borderColor: BORDER, color: TEXT }}
                 >
-                  Retake KYK
+                  {t.btn_retake}
                 </Link>
               </div>
             </div>
