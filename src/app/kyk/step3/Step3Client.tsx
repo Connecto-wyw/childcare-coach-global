@@ -81,7 +81,8 @@ export default function Step3Client({ dict }: { dict: any }) {
   const router = useRouter()
   const supabase = useMemo(() => createClientComponentClient<Database>(), [])
 
-  const [answers, setAnswers] = useState<KYKAnswers>(() => loadLocalAnswers())
+  const [answers, setAnswers] = useState<KYKAnswers>({ q1_adjectives: [], likert: {} })
+  const [mounted, setMounted] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [loginErr, setLoginErr] = useState<string | null>(null)
   const [claimErr, setClaimErr] = useState<string | null>(null)
@@ -95,6 +96,8 @@ export default function Step3Client({ dict }: { dict: any }) {
 
   useEffect(() => {
     ensureDraftStarted()
+    setAnswers(loadLocalAnswers())
+    setMounted(true)
   }, [])
 
   useEffect(() => {
@@ -191,6 +194,8 @@ export default function Step3Client({ dict }: { dict: any }) {
   function onBack() {
     router.push('/kyk/step2')
   }
+
+  if (!mounted) return null
 
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
