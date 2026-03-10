@@ -1,15 +1,28 @@
-// src/app/layout.tsx
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Kanit } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
 import NavBar from '@/components/layout/NavBar'
+import LanguageSelector from '@/components/layout/LanguageSelector'
+import { getLocale, getDictionary } from '@/i18n'
+import { I18nProvider } from '@/i18n/I18nProvider'
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
 })
+
+const kanit = Kanit({
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['thai', 'latin'],
+  variable: '--font-kanit',
+  display: 'swap',
+})
+
+// We use a CSS variable for Pretendard defined in globals.css
+// because next/font/local has issues with certain variable fonts in Turbopack
+const pretendardVariable = '--font-pretendard'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://childcare-coach-global.vercel.app'),
@@ -24,6 +37,7 @@ export const metadata: Metadata = {
     locale: 'ko_KR',
     type: 'website',
   },
+
   twitter: {
     card: 'summary_large_image',
     title: 'AI Parenting Coach',
@@ -40,14 +54,46 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale()
+  
+  // Load common dictionaries required by Layout/Client components
+  const [navbarDict, coachDict, teamDict, newsDict, commonDict] = await Promise.all([
+    getDictionary('navbar'),
+    getDictionary('coach'),
+    getDictionary('team'),
+    getDictionary('news'),
+    getDictionary('common'),
+  ])
+  
+  const dictionaries = {
+    navbar: navbarDict,
+    coach: coachDict,
+    team: teamDict,
+    news: newsDict,
+    common: commonDict,
+  }
+
+  // Determine font variable based on locale
+  let fontVariable = inter.variable
+  if (locale === 'ko') {
+    fontVariable = pretendardVariable
+  } else if (locale === 'th') {
+    fontVariable = kanit.variable
+  }
+
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-white text-[#0e0e0e] antialiased font-sans">
-        <Providers>
-          <NavBar />
-          {children}
-        </Providers>
+    <html lang={locale} className={`${fontVariable} ${inter.variable} ${pretendardVariable} ${kanit.variable}`} suppressHydrationWarning>
+      <body className={`min-h-screen bg-white text-[#0e0e0e] antialiased font-sans flex flex-col`} suppressHydrationWarning>
+        <I18nProvider locale={locale} dictionary={dictionaries}>
+          <Providers>
+            <NavBar />
+            <div className="flex-1 flex flex-col">
+              {children}
+            </div>
+            <LanguageSelector />
+          </Providers>
+        </I18nProvider>
       </body>
     </html>
   )

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import PageHeader from '@/components/layout/PageHeader'
+import { getDictionary } from '@/i18n'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -74,16 +75,17 @@ function CategoryPill({ label }: { label: string }) {
 export default async function NewsPage() {
   const supabase = await createSupabaseServer()
   const news = await fetchNewsList(supabase)
+  const t = await getDictionary('news')
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* ✅ 공통 헤더 적용: 설명 아래 회색줄 자동 */}
-        <PageHeader title="News" subtitle="Curated parenting research & book notes." />
+        <PageHeader title={t.title} subtitle={t.subtitle} />
 
         {/* ✅ 기존 mt-10 border-t wrapper 제거 (중복 방지) */}
         {news.length === 0 ? (
-          <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">No news available.</div>
+          <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">{t.no_news}</div>
         ) : (
           <ul>
             {news.map((n) => {

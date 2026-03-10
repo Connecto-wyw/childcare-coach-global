@@ -1,0 +1,7 @@
+export { default as navbar } from './navbar.json'
+export { default as about } from './about.json'
+export { default as coach } from './coach.json'
+export { default as news } from './news.json'
+export { default as team } from './team.json'
+export { default as common } from './common.json'
+export { default as kyk } from './kyk.json'

@@ -1,0 +1,31 @@
+
+> childcare-coach@0.1.0 build
+> next build
+
+??Next.js 16.1.0 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  쨌 serverActions
+
+??The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/app/layout.tsx
+Module not found: Can't resolve 'next/font/local/target.css'
+unexpected data version
+
+Debug info:
+- Execution of <ModuleAssetContext as AssetContext>::resolve_asset failed
+- Execution of resolve failed
+- Execution of <NextFontLocalResolvePlugin as BeforeResolvePlugin>::before_resolve failed
+- Execution of get_font_fallbacks failed
+- unexpected data version
+Import map: aliased to module 'next' with subpath '/font/local/target.css' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)

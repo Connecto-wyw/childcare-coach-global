@@ -4,9 +4,10 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
+import { useTranslation } from '@/i18n/I18nProvider'
 
-type NavItem = {
-  label: string
+type NavItemLocal = {
+  key: string
   href: string
 }
 
@@ -122,6 +123,7 @@ function NavEventBadge({ text = 'EVENT' }: { text?: string }) {
 export default function NavBar() {
   const supabase = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
+  const t = useTranslation('navbar')
 
   const [nickname, setNickname] = useState<string>('')
   const [points, setPoints] = useState<number>(0)
@@ -130,12 +132,13 @@ export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  const items: NavItem[] = useMemo(
+  const items: NavItemLocal[] = useMemo(
     () => [
-      { label: 'COACH', href: '/coach' },
-      { label: 'NEWS', href: '/news' },
-      { label: 'TEAM', href: '/team' },
-      { label: 'ABOUT', href: '/about' },
+      { key: 'kyk', href: '/kyk' },
+      { key: 'coach', href: '/coach' },
+      { key: 'news', href: '/news' },
+      { key: 'team', href: '/team' },
+      { key: 'about', href: '/about' },
     ],
     []
   )
@@ -248,7 +251,7 @@ export default function NavBar() {
                   isTeam ? 'relative inline-flex items-center' : 'inline-flex items-center',
                 ].join(' ')}
               >
-                <span>{it.label}</span>
+                <span>{t(it.key)}</span>
                 {isTeam && showTeamBadge ? <NavEventBadge text={teamBadgeText} /> : null}
               </Link>
             )
@@ -258,7 +261,7 @@ export default function NavBar() {
         {/* Right */}
         <div className="flex items-center gap-3 min-w-0">
           {authLoading ? (
-            <span className="text-[12px] text-gray-500">Loading…</span>
+            <span className="text-[12px] text-gray-500">{t('loading')}</span>
           ) : user ? (
             <>
               <span
@@ -270,7 +273,7 @@ export default function NavBar() {
                 ].join(' ')}
               >
                 <CoinIcon className="w-[15px] h-[15px] text-[#0B4DD6]" />
-                <span>Points:</span>
+                <span>{t('points')}</span>
                 <span>{loadingPoints ? '…' : format(points)}</span>
               </span>
 
@@ -280,18 +283,18 @@ export default function NavBar() {
                   onClick={() => setMenuOpen((v) => !v)}
                   className="flex items-center gap-1 text-[12px] font-semibold text-[#1e1e1e] hover:opacity-80 max-w-[200px]"
                 >
-                  <span className="truncate">{displayName || 'Account'}</span>
+                  <span className="truncate">{displayName || t('account')}</span>
                   <ChevronDownIcon className="w-4 h-4 text-[#1e1e1e]" />
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-44 rounded-md border border-[#e5e5e5] bg-white shadow-sm overflow-hidden">
+                  <div className="absolute right-0 mt-2 w-44 rounded-md border border-[#e5e5e5] bg-white shadow-sm overflow-hidden z-50">
                     <button
                       type="button"
                       onClick={signOut}
                       className="w-full text-left px-3 py-2 text-[12px] text-[#1e1e1e] hover:bg-[#f5f5f5]"
                     >
-                      Sign out
+                      {t('signOut')}
                     </button>
                   </div>
                 )}
@@ -302,7 +305,7 @@ export default function NavBar() {
               onClick={loginGoogle}
               className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
             >
-              Sign in with Google
+              {t('signInGoogle')}
             </button>
           )}
         </div>

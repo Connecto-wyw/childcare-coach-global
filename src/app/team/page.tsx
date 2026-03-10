@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import PageHeader from '@/components/layout/PageHeader'
+import { getDictionary } from '@/i18n'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,10 +53,11 @@ function TagPill({ label }: { label: string }) {
   )
 }
 
-function JoinedPill({ count }: { count: number }) {
+function JoinedPill({ count, labelTmpl }: { count: number; labelTmpl: string }) {
+  const label = labelTmpl.replace('{count}', count.toString())
   return (
     <span className="inline-flex items-center h-8 px-4 rounded-full bg-[#f2f2f2] text-[#6b6b6b] text-[13px] font-medium">
-      Joined {count}
+      {label}
     </span>
   )
 }
@@ -112,27 +114,28 @@ export default async function TeamPage() {
 
   const teamIds = teams.map((t) => String(t.id))
   const countMap = await getParticipantCountMap(supabase, teamIds)
+  const t = await getDictionary('team')
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* ✅ News/About과 동일한 상단 구조 + 설명 아래 회색줄 */}
         <PageHeader
-          title="Team"
-          subtitle="Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now."
+          title={t.title}
+          subtitle={t.subtitle}
         />
 
         {teams.length === 0 ? (
-          <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">No teams available.</div>
+          <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">{t.no_teams}</div>
         ) : (
           <ul className="divide-y divide-[#eeeeee]">
-            {teams.map((t) => {
-              const id = String(t.id)
-              const name = safeText(t.name) || 'Untitled'
-              const purpose = safeText(t.purpose)
-              const cover = safeText(t.image_url)
-              const tag1 = safeText(t.tag1)
-              const tag2 = safeText(t.tag2)
+            {teams.map((tm) => {
+              const id = String(tm.id)
+              const name = safeText(tm.name) || t.untitled
+              const purpose = safeText(tm.purpose)
+              const cover = safeText(tm.image_url)
+              const tag1 = safeText(tm.tag1)
+              const tag2 = safeText(tm.tag2)
               const joined = Number(countMap.get(id) ?? 0)
 
               return (
@@ -154,7 +157,7 @@ export default async function TeamPage() {
                         <div className="flex items-center justify-between gap-4">
                           <h2 className="text-[22px] font-semibold leading-tight truncate">{name}</h2>
                           <div className="shrink-0">
-                            <JoinedPill count={joined} />
+                            <JoinedPill count={joined} labelTmpl={t.joined} />
                           </div>
                         </div>
 
