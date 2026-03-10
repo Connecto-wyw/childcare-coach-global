@@ -11,7 +11,7 @@ import type { Database } from '@/lib/database.types'
 const TEXT = '#0e0e0e'
 const MUTED = '#b4b4b4'
 const BORDER = '#eeeeee'
-const BTN = '#3497f3'
+const INDIANBOB_RED = '#9F1D23'
 
 type KYKResultRow = Pick<
   Database['public']['Tables']['kyk_results']['Row'],
@@ -41,7 +41,7 @@ async function getServerSupabase() {
         return cookieStore.getAll()
       },
       setAll() {
-        // 읽기 전용 페이지라 비워둠
+        // read-only page
       },
     },
   })
@@ -76,7 +76,7 @@ export default async function KYKHomePage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <h1 className="text-[24px] font-medium leading-tight">KYK</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          Know Your Kid · 아이 성향 분석
+          Know Your Kid · Understand your child’s personality and parenting context
         </p>
 
         <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
@@ -88,28 +88,29 @@ export default async function KYKHomePage() {
               style={{ borderColor: BORDER, background: '#fff' }}
             >
               <div className="text-[22px] font-medium leading-tight">
-                우리 아이 성향을 간단히 알아보는 테스트
+                A simple way to better understand your child’s personality
               </div>
 
               <p className="mt-4 text-[14px] leading-relaxed" style={{ color: TEXT }}>
-                KYK는 몇 가지 질문을 통해 아이의 기질과 반응 패턴을 가볍게 살펴보는
-                성향 분석이야. 결과를 저장해두면 이후 AI 코치가 아이 성향을 반영해서
-                더 맥락에 맞는 답변을 할 수 있어.
+                KYK helps you explore your child’s temperament and response patterns
+                through a short set of questions. Once your result is saved, the AI Coach
+                can provide more relevant and personalized guidance based on your child’s
+                unique personality.
               </p>
 
-              <div className="mt-6 space-y-3 text-[14px]" style={{ color: MUTED }}>
-                <p>· 질문 수는 많지 않고 1~2분 정도면 끝나.</p>
-                <p>· 로그인 없이 시작할 수 있지만, 결과 저장 단계에서 로그인이 필요할 수 있어.</p>
-                <p>· 이미 결과가 있더라도 언제든 다시 해볼 수 있어.</p>
+              <div className="mt-6 space-y-3 text-[14px] leading-relaxed" style={{ color: MUTED }}>
+                <p>• It only takes about 1–2 minutes to complete.</p>
+                <p>• You can begin without logging in, but sign-in may be required to save your result.</p>
+                <p>• You can retake KYK anytime as your child grows and changes.</p>
               </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/kyk/step1"
                   className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
-                  style={{ background: BTN, color: 'white' }}
+                  style={{ background: INDIANBOB_RED, color: 'white' }}
                 >
-                  지금 바로 하기
+                  Start KYK Now
                 </Link>
 
                 <Link
@@ -117,7 +118,7 @@ export default async function KYKHomePage() {
                   className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
                   style={{ borderColor: BORDER, color: TEXT }}
                 >
-                  AI 코치로 가기
+                  Go to AI Coach
                 </Link>
               </div>
             </div>
@@ -128,12 +129,12 @@ export default async function KYKHomePage() {
               className="rounded-2xl border px-6 py-7"
               style={{ borderColor: BORDER, background: '#fff' }}
             >
-              <div className="text-[13px] font-medium" style={{ color: MUTED }}>
-                최근 저장된 결과
+              <div className="text-[13px] font-medium tracking-wide" style={{ color: INDIANBOB_RED }}>
+                YOUR LATEST KYK RESULT
               </div>
 
               <div className="mt-3 text-[24px] font-medium leading-tight">
-                {profile.title ?? '우리 아이 성향 결과'}
+                {profile.title ?? 'Your child’s personality result'}
               </div>
 
               {profile.animal && (
@@ -152,9 +153,9 @@ export default async function KYKHomePage() {
                 <Link
                   href="/kyk/result"
                   className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
-                  style={{ background: BTN, color: 'white' }}
+                  style={{ background: INDIANBOB_RED, color: 'white' }}
                 >
-                  결과 페이지 보기
+                  View Result
                 </Link>
 
                 <Link
@@ -162,7 +163,7 @@ export default async function KYKHomePage() {
                   className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
                   style={{ borderColor: BORDER, color: TEXT }}
                 >
-                  다시 해보기
+                  Retake KYK
                 </Link>
               </div>
             </div>
