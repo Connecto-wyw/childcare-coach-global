@@ -33,7 +33,7 @@ export default async function AuthCodeErrorPage({
   const user = data?.user
 
   // ✅ 이미 로그인 된 상태면 에러 페이지 보여주지 말고 코치로 돌려보냄
-  // if (user) redirect('/coach')
+  if (user) redirect('/coach')
 
   // ✅ message가 없으면 'Unknown' 대신 자연스러운 문구로
   const msgRaw = searchParams?.message
