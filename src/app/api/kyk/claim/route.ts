@@ -109,11 +109,11 @@ export async function POST(_req: NextRequest) {
     const computed = computeResultFromAnswers(draft.answers)
 
     // 5) 결과 저장 (서비스 롤)
-    const { error: insertError } = await supabaseAdmin.from('kyk_results').insert({
+    const { error: insertError } = await supabaseAdmin.from('kyk_results').upsert({
       user_id: user.id,
       draft_id: draftId,
       computed, // jsonb
-    })
+    }, { onConflict: 'user_id' })
 
     if (insertError) {
       return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 })
