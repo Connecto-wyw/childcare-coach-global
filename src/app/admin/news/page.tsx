@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Tables } from '@/lib/database.types'
+import TranslationInput, { I18nValues } from '@/components/admin/TranslationInput'
 
 type NewsPost = Tables<'news_posts'>
 
@@ -48,8 +49,12 @@ export default function AdminNewsPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
-  // ✅ DB 컬럼명은 content
+  const [titleI18n, setTitleI18n] = useState<I18nValues | null>(null)
+  
   const [content, setContent] = useState('')
+  const [contentI18n, setContentI18n] = useState<I18nValues | null>(null)
+
+  const [rawI18nData, setRawI18nData] = useState<{ title?: any; content?: any }>({})
 
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
@@ -78,14 +83,15 @@ export default function AdminNewsPage() {
     // ✅ DB에 없는 detail_markdown 절대 select하지 말 것
     const { data, error } = await supabase
       .from('news_posts')
-      .select('id, title, slug, content, created_at, user_id, cover_image_url, category')
+      .select('id, title, slug, content, created_at, user_id, cover_image_url, category, title_i18n, content_i18n')
       .order('created_at', { ascending: false })
 
     if (error) {
+      console.error(error)
       setErr(error.message)
       return
     }
-    setNewsList((data ?? []) as NewsPost[])
+    setNewsList((data as any) ?? [])
   }
 
   useEffect(() => {
@@ -126,7 +132,10 @@ export default function AdminNewsPage() {
   const clearForm = () => {
     setEditingId(null)
     setTitle('')
+    setTitleI18n(null)
     setContent('')
+    setContentI18n(null)
+    setRawI18nData({})
     setSlug('')
     setSlugTouched(false)
     setShowAdvanced(false)
@@ -179,13 +188,14 @@ export default function AdminNewsPage() {
       const uploadedCoverUrl = await uploadCoverIfNeeded(s)
 
       if (editingId) {
-        // ✅ update는 content로
         const { error } = await supabase
           .from('news_posts')
           .update({
             title: t,
+            title_i18n: titleI18n,
             slug: s,
             content: c,
+            content_i18n: contentI18n,
             cover_image_url: uploadedCoverUrl,
           })
           .eq('id', editingId)
@@ -196,8 +206,10 @@ export default function AdminNewsPage() {
         const { error } = await supabase.from('news_posts').insert([
           {
             title: t,
+            title_i18n: titleI18n,
             slug: s,
             content: c,
+            content_i18n: contentI18n,
             user_id: user?.id ?? null,
             cover_image_url: uploadedCoverUrl,
           } as any,
@@ -223,8 +235,10 @@ export default function AdminNewsPage() {
 
     setEditingId(post.id)
     setTitle(post.title ?? '')
-    // ✅ content 사용
+    setTitleI18n((post as any).title_i18n ?? null)
     setContent((post as any).content ?? '')
+    setContentI18n((post as any).content_i18n ?? null)
+    setRawI18nData({ title: (post as any).title_i18n, content: (post as any).content_i18n })
     setSlug(post.slug ?? '')
     setSlugTouched(true)
     setShowAdvanced(false)
@@ -304,20 +318,28 @@ export default function AdminNewsPage() {
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-2">{editingId ? 'Edit News' : 'Create News'}</h2>
 
-        <input
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+        <TranslationInput
+          label="News Title"
+          baseString={title}
+          i18nData={rawI18nData.title}
           disabled={!canInteract}
-          className="w-full mb-2 p-2 bg-gray-800 text-white rounded disabled:opacity-60"
+          onChange={(en, localized) => {
+            setTitle(en)
+            setTitleI18n(localized)
+          }}
         />
 
-        <textarea
-          placeholder="Content (Markdown or plain text)"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
+        <TranslationInput
+          label="News Content (Markdown or plain text)"
+          baseString={content}
+          i18nData={rawI18nData.content}
+          isTextArea
           disabled={!canInteract}
-          className="w-full mb-3 p-2 h-40 bg-gray-800 text-white rounded disabled:opacity-60"
+          maxLengthHint="Long markdown may take time to auto-translate and require link formatting checks."
+          onChange={(en, localized) => {
+            setContent(en)
+            setContentI18n(localized)
+          }}
         />
 
         <div className="mb-4">

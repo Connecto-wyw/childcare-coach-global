@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/app/providers'
 import type { Database } from '@/lib/database.types'
 import { calcTeamItemPricing } from '@/lib/teamPricing'
+import { useI18n } from '@/i18n/I18nProvider'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 type TeamCard = {
   id: string
@@ -16,6 +18,8 @@ type TeamCard = {
   tag2: string | null
   image_url: string | null
   created_at: string
+  name_i18n?: any
+  purpose_i18n?: any
 }
 
 type TeamItemRow = Database['public']['Tables']['team_items']['Row']
@@ -25,6 +29,7 @@ const FALLBACK_IMG =
 
 export default function TeamPage() {
   const supabase = useSupabase()
+  const { locale } = useI18n()
 
   const [teams, setTeams] = useState<TeamCard[]>([])
   const [teamItems, setTeamItems] = useState<TeamItemRow[]>([])
@@ -33,15 +38,19 @@ export default function TeamPage() {
   const fetchAll = async () => {
     setLoading(true)
 
-    const [{ data: items, error: itemsError }, { data: teamsData, error: teamsError }] =
-      await Promise.all([
-        supabase
-          .from('team_items')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false }),
-        supabase.rpc('get_teams_with_counts'),
-      ])
+    const [
+      { data: items, error: itemsError },
+      { data: teamsData, error: teamsError },
+      { data: teamsI18n, error: i18nError },
+    ] = await Promise.all([
+      supabase
+        .from('team_items')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false }),
+      supabase.rpc('get_teams_with_counts'),
+      (supabase as any).from('teams').select('id, name_i18n, purpose_i18n'),
+    ])
 
     if (itemsError) {
       console.error('team_items error', itemsError)
@@ -54,7 +63,15 @@ export default function TeamPage() {
       console.error('get_teams_with_counts error', teamsError)
       setTeams([])
     } else {
-      setTeams((teamsData ?? []) as TeamCard[])
+      const mapped = (teamsData ?? []) as TeamCard[]
+      if (teamsI18n && !i18nError) {
+        const i18nMap = new Map<string, any>(teamsI18n.map((t: any) => [String(t.id), t]))
+        mapped.forEach((t: any) => {
+          t.name_i18n = i18nMap.get(String(t.id))?.name_i18n
+          t.purpose_i18n = i18nMap.get(String(t.id))?.purpose_i18n
+        })
+      }
+      setTeams(mapped)
     }
 
     setLoading(false)
@@ -87,7 +104,11 @@ export default function TeamPage() {
                 <p className="text-gray-400 mt-3">등록된 TEAM ITEM이 없습니다.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                  {teamItems.map((it) => (
+                  {teamItems.map((it) => {
+                    const resolvedTitle = resolveI18n(it.title, (it as any).title_i18n, locale)
+                    const resolvedDesc = resolveI18n(it.description, (it as any).description_i18n, locale)
+                    
+                    return (
                     <Link
                       key={it.id}
                       href={`/team-itemss/${it.slug}`}
@@ -97,16 +118,16 @@ export default function TeamPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={it.cover_image_url || FALLBACK_IMG}
-                          alt={it.title}
+                          alt={resolvedTitle}
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
                       </div>
 
                       <div className="p-4">
-                        <div className="text-lg font-semibold line-clamp-1">{it.title}</div>
+                        <div className="text-lg font-semibold line-clamp-1">{resolvedTitle}</div>
                         <div className="text-sm text-gray-300 mt-1 line-clamp-2 min-h-[40px]">
-                          {it.description || ''}
+                          {resolvedDesc || ''}
                         </div>
 
                         <div className="flex gap-2 mt-3 flex-wrap">
@@ -126,7 +147,7 @@ export default function TeamPage() {
                         </div>
                       </div>
                     </Link>
-                  ))}
+                  )})}
                 </div>
               )}
             </section>
@@ -139,7 +160,11 @@ export default function TeamPage() {
                 <p className="text-gray-400 mt-3">등록된 TEAM이 없습니다.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                  {teams.map((t) => (
+                  {teams.map((t) => {
+                    const resolvedName = resolveI18n(t.name, t.name_i18n, locale)
+                    const resolvedPurpose = resolveI18n(t.purpose, t.purpose_i18n, locale)
+                    
+                    return (
                     <Link
                       key={t.id}
                       href={`/team/${t.id}`}
@@ -149,17 +174,17 @@ export default function TeamPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={t.image_url || FALLBACK_IMG}
-                          alt={t.name}
+                          alt={resolvedName}
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
                       </div>
 
                       <div className="p-4">
-                        <div className="text-lg font-semibold line-clamp-1">{t.name}</div>
+                        <div className="text-lg font-semibold line-clamp-1">{resolvedName}</div>
 
                         <div className="text-sm text-gray-300 mt-1 line-clamp-2 min-h-[40px]">
-                          {t.purpose || '팀 목적이 아직 등록되지 않았습니다.'}
+                          {resolvedPurpose || '팀 목적이 아직 등록되지 않았습니다.'}
                         </div>
 
                         <div className="text-sm text-gray-400 mt-3">
@@ -180,7 +205,7 @@ export default function TeamPage() {
                         </div>
                       </div>
                     </Link>
-                  ))}
+                  )})}
                 </div>
               )}
             </section>

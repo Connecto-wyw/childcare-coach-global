@@ -4,7 +4,8 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import PageHeader from '@/components/layout/PageHeader'
-import { getDictionary } from '@/i18n'
+import { getDictionary, getLocale } from '@/i18n'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,7 @@ export const revalidate = 0
 type TeamRow = Pick<
   Database['public']['Tables']['teams']['Row'],
   'id' | 'name' | 'purpose' | 'image_url' | 'tag1' | 'tag2' | 'created_at'
->
+> & { name_i18n?: any; purpose_i18n?: any }
 
 async function createSupabaseServer() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -70,7 +71,7 @@ async function fetchTeams(sb: Awaited<ReturnType<typeof createSupabaseServer>>) 
   // 여기선 "teams" 기본 + 각 팀별 team_members count를 추가로 조회(간단/확실).
   const { data, error } = await anySb
     .from('teams')
-    .select('id,name,purpose,image_url,tag1,tag2,created_at')
+    .select('id,name,name_i18n,purpose,purpose_i18n,image_url,tag1,tag2,created_at')
     .order('created_at', { ascending: false })
 
   if (error) return [] as TeamRow[]
@@ -115,6 +116,7 @@ export default async function TeamPage() {
   const teamIds = teams.map((t) => String(t.id))
   const countMap = await getParticipantCountMap(supabase, teamIds)
   const t = await getDictionary('team')
+  const locale = await getLocale()
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
@@ -128,12 +130,12 @@ export default async function TeamPage() {
         {teams.length === 0 ? (
           <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">{t.no_teams}</div>
         ) : (
-          <ul className="divide-y divide-[#eeeeee]">
-            {teams.map((tm) => {
-              const id = String(tm.id)
-              const name = safeText(tm.name) || t.untitled
-              const purpose = safeText(tm.purpose)
-              const cover = safeText(tm.image_url)
+            <ul className="divide-y divide-[#eeeeee]">
+              {teams.map((tm) => {
+                const id = String(tm.id)
+                const name = safeText(resolveI18n(tm.name, tm.name_i18n, locale)) || t.untitled
+                const purpose = safeText(resolveI18n(tm.purpose, tm.purpose_i18n, locale))
+                const cover = safeText(tm.image_url)
               const tag1 = safeText(tm.tag1)
               const tag2 = safeText(tm.tag2)
               const joined = Number(countMap.get(id) ?? 0)

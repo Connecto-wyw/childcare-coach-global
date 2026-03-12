@@ -89,13 +89,13 @@ function adminDb() {
  * - Coach 페이지에서 인기 키워드를 보여주려면 GET은 공개로 두는 게 맞음.
  * - 대신 write(POST/PUT/DELETE)는 관리자만 허용.
  */
-export async function GET() {
-  try {
-    const admin = adminDb()
-    const { data, error } = await admin
-      .from(TABLE)
-      .select('id, keyword, order')
-      .order('order', { ascending: true })
+  export async function GET() {
+    try {
+      const admin = adminDb()
+      const { data, error } = await admin
+        .from(TABLE)
+        .select('id, keyword, order, keyword_i18n')
+        .order('order', { ascending: true })
 
     if (error) return jsonErr(500, 'db_error', error.message)
     return NextResponse.json({ ok: true, data: data ?? [] })
@@ -116,6 +116,7 @@ export async function POST(req: Request) {
   }
 
   const keyword = String(body?.keyword ?? '').trim()
+  const keyword_i18n = body?.keyword_i18n ?? null
   const order = Number(body?.order)
 
   if (!keyword) return jsonErr(400, 'bad_request', 'keyword is required')
@@ -123,7 +124,7 @@ export async function POST(req: Request) {
 
   try {
     const admin = adminDb()
-    const { error } = await admin.from(TABLE).insert([{ keyword, order } as any])
+    const { error } = await admin.from(TABLE).insert([{ keyword, keyword_i18n, order } as any])
     if (error) return jsonErr(500, 'db_error', error.message)
     return NextResponse.json({ ok: true })
   } catch (e: any) {
@@ -144,6 +145,7 @@ export async function PUT(req: Request) {
 
   const id = String(body?.id ?? '').trim()
   const keyword = String(body?.keyword ?? '').trim()
+  const keyword_i18n = body?.keyword_i18n ?? null
   const order = Number(body?.order)
 
   if (!id) return jsonErr(400, 'bad_request', 'id is required')
@@ -152,7 +154,7 @@ export async function PUT(req: Request) {
 
   try {
     const admin = adminDb()
-    const { error } = await admin.from(TABLE).update({ keyword, order } as any).eq('id', id)
+    const { error } = await admin.from(TABLE).update({ keyword, keyword_i18n, order } as any).eq('id', id)
     if (error) return jsonErr(500, 'db_error', error.message)
     return NextResponse.json({ ok: true })
   } catch (e: any) {

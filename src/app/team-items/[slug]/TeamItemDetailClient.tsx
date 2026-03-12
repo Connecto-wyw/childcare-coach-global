@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { Database } from '@/lib/database.types'
 import { calcTeamItemPricing } from '@/lib/teamPricing'
+import { useI18n } from '@/i18n/I18nProvider'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 type TeamItemRow = Database['public']['Tables']['team_items']['Row']
 
@@ -31,6 +33,7 @@ export default function TeamItemDetailClient({
   const [count, setCount] = useState<number>(initialParticipantCount)
   const [joining, setJoining] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const { locale } = useI18n()
 
   const pricing = useMemo(() => {
     return calcTeamItemPricing({
@@ -113,14 +116,18 @@ export default function TeamItemDetailClient({
     }
   }
 
+  const resolvedTitle = resolveI18n(item.title, (item as any).title_i18n, locale)
+  const resolvedDesc = resolveI18n(item.description, (item as any).description_i18n, locale)
+  const resolvedDetail = resolveI18n(item.detail_markdown, (item as any).detail_markdown_i18n, locale)
+
   return (
     <main className="min-h-screen bg-[#333333] text-[#eae3de] font-sans">
       <div className="max-w-5xl mx-auto px-4 py-10">
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">{item.title}</h1>
-            <p className="text-white/70 mt-2">{item.description || ''}</p>
+            <h1 className="text-3xl font-bold">{resolvedTitle}</h1>
+            <p className="text-white/70 mt-2">{resolvedDesc || ''}</p>
 
             <div className="flex flex-wrap gap-2 mt-4">
               {(item.tags ?? []).map((tag) => (
@@ -143,7 +150,7 @@ export default function TeamItemDetailClient({
         <div className="mt-6 rounded-2xl overflow-hidden border border-white/10 bg-[#111]">
           <img
             src={item.cover_image_url || FALLBACK_IMG}
-            alt={item.title}
+            alt={resolvedTitle}
             className="w-full max-h-[520px] object-cover"
           />
         </div>
@@ -229,7 +236,7 @@ export default function TeamItemDetailClient({
         <section className="mt-8 rounded-2xl bg-[#222] border border-gray-700 p-6">
           <h2 className="text-xl font-semibold mb-3">Details</h2>
           <div className="prose prose-invert max-w-none prose-p:leading-relaxed">
-            <ReactMarkdown>{item.detail_markdown || ''}</ReactMarkdown>
+            <ReactMarkdown>{resolvedDetail || ''}</ReactMarkdown>
           </div>
         </section>
 

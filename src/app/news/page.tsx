@@ -4,7 +4,8 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import PageHeader from '@/components/layout/PageHeader'
-import { getDictionary } from '@/i18n'
+import { getDictionary, getLocale } from '@/i18n'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,6 +13,7 @@ export const revalidate = 0
 type NewsRow = {
   id: string
   title: string
+  title_i18n?: any
   slug: string
   created_at: string | null
   cover_image_url: string | null
@@ -52,7 +54,7 @@ function formatDate(d: string | null) {
 }
 
 async function fetchNewsList(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
-  const base = 'id, title, slug, created_at, cover_image_url'
+  const base = 'id, title, title_i18n, slug, created_at, cover_image_url'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anySb: any = sb
 
@@ -61,7 +63,7 @@ async function fetchNewsList(sb: Awaited<ReturnType<typeof createSupabaseServer>
 
   const try2 = await sb.from('news_posts').select(base).order('created_at', { ascending: false })
   if (try2.error) return []
-  return (try2.data ?? []) as NewsRow[]
+  return ((try2.data as any) ?? []) as NewsRow[]
 }
 
 function CategoryPill({ label }: { label: string }) {
@@ -74,6 +76,7 @@ function CategoryPill({ label }: { label: string }) {
 
 export default async function NewsPage() {
   const supabase = await createSupabaseServer()
+  const locale = await getLocale()
   const news = await fetchNewsList(supabase)
   const t = await getDictionary('news')
 
@@ -92,6 +95,7 @@ export default async function NewsPage() {
               const date = formatDate(n.created_at)
               const category = (n.category && String(n.category).trim()) || 'Research'
               const cover = n.cover_image_url ? String(n.cover_image_url).trim() : ''
+              const resolvedTitle = resolveI18n(n.title, n.title_i18n, locale)
 
               return (
                 <li key={n.id} className="border-b border-[#eeeeee]">
@@ -112,7 +116,7 @@ export default async function NewsPage() {
                           <div className="text-[15px] text-[#b4b4b4] font-Light">{date}</div>
                         </div>
 
-                        <h2 className="mt-3 text-[20px] sm:text-[20px] leading-tight line-clamp-3">{n.title}</h2>
+                        <h2 className="mt-3 text-[20px] sm:text-[20px] leading-tight line-clamp-3">{resolvedTitle}</h2>
                       </div>
                     </div>
                   </Link>

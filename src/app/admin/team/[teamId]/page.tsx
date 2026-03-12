@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Database } from '@/lib/database.types'
 import MarkdownEditor from '@/components/admin/MarkdownEditor'
+import TranslationInput, { I18nValues } from '@/components/admin/TranslationInput'
 
 
 const BUCKET = 'team-images'
@@ -51,6 +52,7 @@ export default function AdminTeamDetailSettingsPage() {
 
   // teams 기본 필드(기존 유지)
   const [name, setName] = useState('')
+  const [nameI18n, setNameI18n] = useState<I18nValues | null>(null)
   const [purpose, setPurpose] = useState('')
   const [tag1, setTag1] = useState('')
   const [tag2, setTag2] = useState('')
@@ -60,7 +62,11 @@ export default function AdminTeamDetailSettingsPage() {
   // ✅ 상세설정(A): 상세 이미지 + 상세 텍스트
   const [detailImageUrl, setDetailImageUrl] = useState<string>('') // teams.detail_image_url
   const [detailImageFile, setDetailImageFile] = useState<File | null>(null)
+  
   const [detailMarkdown, setDetailMarkdown] = useState('') // teams.detail_markdown
+  const [detailMarkdownI18n, setDetailMarkdownI18n] = useState<I18nValues | null>(null)
+  
+  const [rawI18nData, setRawI18nData] = useState<{ name?: any; detail_markdown?: any }>({})
 
   // ✅ 가격설정(A): base/min/currency/discount_steps
   const [basePrice, setBasePrice] = useState<number>(0)
@@ -96,7 +102,7 @@ export default function AdminTeamDetailSettingsPage() {
     const [{ data: team, error: teamErr }, { data: pricing, error: pricingErr }] = await Promise.all([
       supabase
         .from('teams')
-        .select('id,name,purpose,tag1,tag2,image_url,detail_image_url,detail_markdown')
+        .select('id,name,purpose,tag1,tag2,image_url,detail_image_url,detail_markdown,name_i18n,detail_markdown_i18n')
         .eq('id', teamId)
         .maybeSingle(),
       supabase
@@ -112,13 +118,20 @@ export default function AdminTeamDetailSettingsPage() {
       return
     }
 
-    setName(team.name ?? '')
-    setPurpose(team.purpose ?? '')
-    setTag1(team.tag1 ?? '')
-    setTag2(team.tag2 ?? '')
-    setThumbUrl(team.image_url ?? '')
+    setName((team as any).name ?? '')
+    setNameI18n((team as any).name_i18n ?? null)
+    setPurpose((team as any).purpose ?? '')
+    setTag1((team as any).tag1 ?? '')
+    setTag2((team as any).tag2 ?? '')
+    setThumbUrl((team as any).image_url ?? '')
     setDetailImageUrl((team as any).detail_image_url ?? '')
     setDetailMarkdown((team as any).detail_markdown ?? '')
+    setDetailMarkdownI18n((team as any).detail_markdown_i18n ?? null)
+    
+    setRawI18nData({
+      name: (team as any).name_i18n,
+      detail_markdown: (team as any).detail_markdown_i18n
+    })
 
     if (pricingErr) {
       console.error('[team_pricing_rules] error:', pricingErr)
@@ -224,8 +237,9 @@ export default function AdminTeamDetailSettingsPage() {
     }
 
     // 2) teams 업데이트 (기존 입력 유지 + 상세 입력 추가)
-    const teamPayload: Partial<TeamRow> & { detail_image_url?: string | null; detail_markdown?: string | null } = {
+    const teamPayload: Partial<TeamRow> & { detail_image_url?: string | null; detail_markdown?: string | null; name_i18n?: any; detail_markdown_i18n?: any } = {
       name: name.trim(),
+      name_i18n: nameI18n,
       purpose: purpose.trim() ? purpose.trim() : null,
       tag1: tag1.trim() ? tag1.trim() : null,
       tag2: tag2.trim() ? tag2.trim() : null,
@@ -233,6 +247,7 @@ export default function AdminTeamDetailSettingsPage() {
       // ✅ A: 상세용
       detail_image_url: finalDetailImg,
       detail_markdown: detailMarkdown.trim() ? detailMarkdown.trim() : null,
+      detail_markdown_i18n: detailMarkdownI18n,
     }
 
     const { error: teamErr } = await supabase.from('teams').update(teamPayload as any).eq('id', teamId)
@@ -351,18 +366,27 @@ export default function AdminTeamDetailSettingsPage() {
           <h2 className="text-lg font-semibold">기본 정보</h2>
 
           <div className="mt-4 grid gap-3">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="팀 이름 (필수)"
-              className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400"
+            <TranslationInput
+              label="팀 이름 (Team Name)"
+              baseString={name}
+              i18nData={rawI18nData.name}
+              disabled={saving || uploading}
+              onChange={(en, localized) => {
+                setName(en)
+                setNameI18n(localized)
+              }}
             />
-           <MarkdownEditor
-            value={detailMarkdown}
-            onChange={setDetailMarkdown}
-            placeholder="상세 텍스트(마크다운). Bold/Heading/List를 툴바로 넣어."
-            minRows={12}
-            />
+
+            {/* MarkdownEditor is temporarily preserved for rich-text layout but will not be used inside TranslationInput directly to avoid complexity */}
+            <div className="rounded bg-[#444] p-2">
+               <div className="text-xs text-gray-300 mb-2">Original English Markdown Details (Edit Here)</div>
+               <MarkdownEditor
+                value={detailMarkdown}
+                onChange={setDetailMarkdown}
+                placeholder="상세 텍스트(마크다운). Bold/Heading/List를 툴바로 넣어."
+                minRows={12}
+               />
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <input
@@ -434,11 +458,17 @@ export default function AdminTeamDetailSettingsPage() {
               </div>
             </div>
 
-            <textarea
-              value={detailMarkdown}
-              onChange={(e) => setDetailMarkdown(e.target.value)}
-              placeholder="상세 텍스트(마크다운). 예: 소개, 일정, 준비물, 안내사항..."
-              className="w-full p-2 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-48"
+            <TranslationInput
+              label="Translated Markdown Details"
+              baseString={detailMarkdown}
+              i18nData={rawI18nData.detail_markdown}
+              isTextArea
+              disabled={saving || uploading}
+              maxLengthHint="Notice: Markdown formatting requires careful manual review after AI translation. You can auto-translate here, but verify tags."
+              onChange={(en, localized) => {
+                setDetailMarkdown(en)
+                setDetailMarkdownI18n(localized)
+              }}
             />
           </div>
         </section>

@@ -4,6 +4,8 @@
 import { useMemo, useCallback, useEffect, useState } from 'react'
 import { motion, useReducedMotion, type Variants } from 'framer-motion'
 import { useSupabase } from '@/app/providers'
+import { useI18n } from '@/i18n/I18nProvider'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 export const COACH_SET_MESSAGE_EVENT = 'coach:setMessage'
 
@@ -82,6 +84,7 @@ function buildMessageForKeyword(rawKw: string) {
 
 export default function KeywordButtons({ keywords, className, max = 12 }: Props) {
   const supabase = useSupabase()
+  const { locale } = useI18n()
 
   const reduced = useReducedMotion()
   const [dbKeywords, setDbKeywords] = useState<string[]>([])
@@ -96,11 +99,11 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
       try {
         const { data, error } = await supabase
           .from('popular_keywords')
-          .select('keyword,"order"')
+          .select('keyword,keyword_i18n,"order"')
           .order('order', { ascending: true })
 
         if (!error && data) {
-          const arr = (data as PopularKeywordRow[]).map((r) => r.keyword).filter(Boolean)
+          const arr = (data as any[]).map((r) => resolveI18n(r.keyword, r.keyword_i18n, locale)).filter(Boolean)
           if (!cancelled) setDbKeywords(arr)
         }
       } finally {

@@ -3,10 +3,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuthUser } from '@/app/providers'
+import TranslationInput, { I18nValues } from '@/components/admin/TranslationInput'
 
 type Keyword = {
   id: string
   keyword: string
+  keyword_i18n?: any
   order: number
 }
 
@@ -19,7 +21,7 @@ type ApiErr = {
 
 type AdminGetOk = {
   ok: boolean
-  data: Array<{ id: string; keyword: string; order: number | null | undefined }>
+  data: Array<{ id: string; keyword: string; keyword_i18n: any; order: number | null | undefined }>
 }
 
 async function readError(res: Response): Promise<ApiErr> {
@@ -47,6 +49,7 @@ function normalize(rows: AdminGetOk['data']): Keyword[] {
   const mapped = rows.map((r, idx) => ({
     id: String(r.id),
     keyword: String(r.keyword),
+    keyword_i18n: r.keyword_i18n,
     order: Number.isFinite(Number(r.order)) ? Number(r.order) : idx,
   }))
   mapped.sort((a, b) => a.order - b.order)
@@ -58,7 +61,10 @@ export default function KeywordAdminPage() {
   const authed = !!user
 
   const [keywords, setKeywords] = useState<Keyword[]>([])
+  
   const [newKeyword, setNewKeyword] = useState('')
+  const [newKeywordI18n, setNewKeywordI18n] = useState<I18nValues | null>(null)
+  const [rawNewI18nData, setRawNewI18nData] = useState<{ keyword?: any }>({})
 
   const [loadingList, setLoadingList] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -66,7 +72,11 @@ export default function KeywordAdminPage() {
 
   // edit state
   const [editId, setEditId] = useState<string | null>(null)
+  
   const [editKeyword, setEditKeyword] = useState('')
+  const [editKeywordI18n, setEditKeywordI18n] = useState<I18nValues | null>(null)
+  const [rawEditI18nData, setRawEditI18nData] = useState<{ keyword?: any }>({})
+  
   const [editOrder, setEditOrder] = useState<string>('')
 
   const canInteract = authed && !loadingList && !busyId
@@ -124,7 +134,7 @@ export default function KeywordAdminPage() {
       const res = await fetch('/api/keywords', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ keyword: value, order: nextOrder }),
+        body: JSON.stringify({ keyword: value, keyword_i18n: newKeywordI18n, order: nextOrder }),
       })
 
       if (!res.ok) {
@@ -138,6 +148,8 @@ export default function KeywordAdminPage() {
       }
 
       setNewKeyword('')
+      setNewKeywordI18n(null)
+      setRawNewI18nData({})
       await fetchKeywords()
     } catch (e: any) {
       setErrorMsg(`네트워크 오류(ADD): ${e?.message ?? String(e)}`)
@@ -149,6 +161,8 @@ export default function KeywordAdminPage() {
   function startEdit(k: Keyword) {
     setEditId(k.id)
     setEditKeyword(k.keyword)
+    setEditKeywordI18n(k.keyword_i18n ?? null)
+    setRawEditI18nData({ keyword: k.keyword_i18n })
     setEditOrder(String(k.order))
     setErrorMsg(null)
   }
@@ -156,6 +170,8 @@ export default function KeywordAdminPage() {
   function cancelEdit() {
     setEditId(null)
     setEditKeyword('')
+    setEditKeywordI18n(null)
+    setRawEditI18nData({})
     setEditOrder('')
   }
 
@@ -175,13 +191,13 @@ export default function KeywordAdminPage() {
       const res = await fetch('/api/keywords', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: editId, keyword: kw, order: ord }),
+        body: JSON.stringify({ id: editId, keyword: editKeyword.trim(), keyword_i18n: editKeywordI18n, order: ord }),
       })
 
       if (!res.ok) {
         const err = await readError(res)
         setErrorMsg(
-          `서버 API 오류(UPDATE): ${err.status} ${err.code}${err.detail ? ` (${err.detail})` : ''}${
+          `서버 API 오류(SAVE): ${err.status} ${err.code}${err.detail ? ` (${err.detail})` : ''}${
             err.raw ? ` | raw: ${err.raw}` : ''
           }`
         )
@@ -265,25 +281,31 @@ export default function KeywordAdminPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            className="flex-1 rounded border border-gray-600 bg-[#2b2b2b] p-2 text-[#eae3de] placeholder-gray-400"
-            placeholder="Enter a new keyword"
-            value={newKeyword}
-            onChange={(e) => setNewKeyword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newKeyword.trim() && !loadingList && !busyId) addKeyword()
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            addKeyword()
+          }}
+          className="mt-4"
+        >
+          <TranslationInput
+            label="New Keyword (English)"
+            baseString={newKeyword}
+            i18nData={rawNewI18nData.keyword}
+            disabled={!canInteract || loadingList}
+            onChange={(en, localized) => {
+              setNewKeyword(en)
+              setNewKeywordI18n(localized)
             }}
           />
           <button
-            onClick={addKeyword}
-            disabled={loadingList || !!busyId || !newKeyword.trim()}
-            className="px-4 py-2 bg-[#3EB6F1] text-black rounded disabled:opacity-50"
+            type="submit"
+            disabled={!canInteract || !newKeyword.trim() || loadingList}
+            className="w-full mt-2 rounded bg-[#3EB6F1] px-4 py-2 font-semibold text-black hover:opacity-90 disabled:opacity-50"
           >
-            {loadingList ? 'Adding…' : 'Add'}
+            + Add
           </button>
-        </div>
+        </form>
 
         <div className="flex items-center gap-2 mb-4">
           <button
@@ -310,32 +332,47 @@ export default function KeywordAdminPage() {
                     <span className="w-14 text-sm text-gray-300">#{k.order}</span>
 
                     {isEditing ? (
-                      <>
-                        <input
-                          className="flex-1 rounded border border-gray-600 bg-[#2b2b2b] p-2 text-[#eae3de]"
-                          value={editKeyword}
-                          onChange={(e) => setEditKeyword(e.target.value)}
+                      // EDIT MODE
+                      <div className="flex flex-col gap-3">
+                        <TranslationInput
+                          label="Edit Keyword"
+                          baseString={editKeyword}
+                          i18nData={rawEditI18nData.keyword}
+                          disabled={!canInteract || loadingList}
+                          onChange={(en, localized) => {
+                            setEditKeyword(en)
+                            setEditKeywordI18n(localized)
+                          }}
                         />
-                        <input
-                          className="w-24 rounded border border-gray-600 bg-[#2b2b2b] p-2 text-[#eae3de]"
-                          value={editOrder}
-                          onChange={(e) => setEditOrder(e.target.value)}
-                        />
-                        <button
-                          onClick={saveEdit}
-                          disabled={busyId === k.id}
-                          className="px-3 py-1 bg-[#3EB6F1] text-black rounded hover:opacity-90 text-sm disabled:opacity-50"
-                        >
-                          {busyId === k.id ? 'Saving…' : 'Save'}
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          disabled={busyId === k.id}
-                          className="px-3 py-1 bg-[#666] text-white rounded hover:opacity-90 text-sm disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      </>
+
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-semibold text-white/70 w-24">Order Index</label>
+                          <input
+                            type="number"
+                            value={editOrder}
+                            onChange={(e) => setEditOrder(e.target.value)}
+                            className="w-24 rounded bg-white/10 px-3 py-2 text-white focus:outline-none"
+                            placeholder="Order"
+                          />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={saveEdit}
+                            disabled={!canInteract || loadingList}
+                            className="rounded bg-[#3EB6F1] px-4 py-1.5 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            disabled={!canInteract || loadingList}
+                            className="rounded bg-white/10 px-4 py-1.5 text-sm hover:bg-white/20 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <span className="flex-1 break-words">{k.keyword}</span>
