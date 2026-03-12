@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import type { Database } from '@/lib/database.types'
+import TranslationInput, { I18nValues } from '@/components/admin/TranslationInput'
 
 type TeamWithCounts = Database['public']['Functions']['get_teams_with_counts']['Returns'][number]
 
@@ -29,7 +30,12 @@ export default function AdminTeamsPage() {
   const [editing, setEditing] = useState<TeamWithCounts | null>(null)
 
   const [name, setName] = useState('')
+  const [nameI18n, setNameI18n] = useState<I18nValues | null>(null)
+  
   const [purpose, setPurpose] = useState('')
+  const [purposeI18n, setPurposeI18n] = useState<I18nValues | null>(null)
+  
+  const [rawI18nData, setRawI18nData] = useState<{ name?: any; purpose?: any }>({})
   const [participantCount, setParticipantCount] = useState<number>(0)
   const [tag1, setTag1] = useState('')
   const [tag2, setTag2] = useState('')
@@ -41,7 +47,10 @@ export default function AdminTeamsPage() {
 
   const resetForm = () => {
     setName('')
+    setNameI18n(null)
     setPurpose('')
+    setPurposeI18n(null)
+    setRawI18nData({})
     setParticipantCount(0)
     setTag1('')
     setTag2('')
@@ -100,7 +109,7 @@ export default function AdminTeamsPage() {
     setShowModal(true)
   }
 
-  const openEdit = (t: TeamWithCounts) => {
+  const openEdit = async (t: TeamWithCounts) => {
     setEditing(t)
     setName(t.name ?? '')
     setPurpose(t.purpose ?? '')
@@ -109,6 +118,24 @@ export default function AdminTeamsPage() {
     setTag2(t.tag2 ?? '')
     setImageUrl(t.image_url ?? '')
     setImageFile(null)
+    
+    // Fetch hidden i18n JSONB data since the RPC does not return it
+    const { data } = await supabase
+      .from('teams')
+      .select('name_i18n, purpose_i18n')
+      .eq('id', t.id)
+      .maybeSingle()
+      
+    if (data) {
+      setNameI18n((data as any).name_i18n ?? null)
+      setPurposeI18n((data as any).purpose_i18n ?? null)
+      setRawI18nData({ name: (data as any).name_i18n, purpose: (data as any).purpose_i18n })
+    } else {
+      setNameI18n(null)
+      setPurposeI18n(null)
+      setRawI18nData({})
+    }
+    
     setShowModal(true)
   }
 
@@ -158,9 +185,11 @@ export default function AdminTeamsPage() {
       return
     }
 
-    const payloadForTeamsTable = {
+    const payloadForTeamsTable: any = {
       name: name.trim(),
+      name_i18n: nameI18n,
       purpose: purpose.trim() ? purpose.trim() : null,
+      purpose_i18n: purposeI18n,
       tag1: tag1.trim() ? tag1.trim() : null,
       tag2: tag2.trim() ? tag2.trim() : null,
       image_url: finalImageUrl,
@@ -353,19 +382,27 @@ export default function AdminTeamsPage() {
             <div className="bg-[#222] rounded-lg p-6 w-full max-w-lg border border-gray-700">
               <h2 className="text-2xl font-semibold mb-4 text-white">{editing ? '팀 수정' : '팀 추가'}</h2>
 
-              <input
-                type="text"
-                placeholder="팀 이름 (필수)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-2 mb-3 rounded bg-[#444] text-white placeholder-gray-400"
+              <TranslationInput
+                label="팀 이름 (Team Name)"
+                baseString={name}
+                i18nData={rawI18nData.name}
+                disabled={saving || uploading}
+                onChange={(en, localized) => {
+                  setName(en)
+                  setNameI18n(localized)
+                }}
               />
 
-              <textarea
-                placeholder="팀 목적"
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                className="w-full p-2 mb-3 rounded bg-[#444] text-white placeholder-gray-400 resize-none h-24"
+              <TranslationInput
+                label="팀 목적 (Team Purpose)"
+                baseString={purpose}
+                i18nData={rawI18nData.purpose}
+                isTextArea
+                disabled={saving || uploading}
+                onChange={(en, localized) => {
+                  setPurpose(en)
+                  setPurposeI18n(localized)
+                }}
               />
 
               <div className="grid grid-cols-2 gap-3 mb-3">

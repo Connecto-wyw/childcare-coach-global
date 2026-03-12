@@ -7,6 +7,8 @@ import type { Database } from '@/lib/database.types'
 import ShareButtonClient from './ShareButtonClient'
 import JoinButtonClient from './JoinButtonClient'
 import PageHeader from '@/components/layout/PageHeader'
+import { getLocale } from '@/i18n'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 // ✅ 마크다운 렌더 (fallback용)
 import ReactMarkdown from 'react-markdown'
@@ -23,6 +25,9 @@ type TeamRow = Pick<
 > & {
   detail_image_url: string | null
   detail_markdown: string | null
+  name_i18n?: any
+  purpose_i18n?: any
+  detail_markdown_i18n?: any
 }
 
 type PricingRow = Database['public']['Tables']['team_pricing_rules']['Row']
@@ -552,7 +557,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
 
   const { data: teamRes, error: teamErr } = await sb
     .from('teams')
-    .select('id,name,purpose,image_url,tag1,tag2,detail_image_url,detail_markdown,created_at')
+    .select('id,name,name_i18n,purpose,purpose_i18n,image_url,tag1,tag2,detail_image_url,detail_markdown,detail_markdown_i18n,created_at')
     .eq('id', teamId)
     .maybeSingle()
 
@@ -582,6 +587,11 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   }
 
   const team = teamRes as unknown as TeamRow
+  const locale = await getLocale()
+
+  const resolvedName = resolveI18n(team.name, team.name_i18n, locale)
+  const resolvedPurpose = resolveI18n(team.purpose, team.purpose_i18n, locale)
+  const resolvedDetailMarkdown = resolveI18n(team.detail_markdown, team.detail_markdown_i18n, locale)
 
   // ✅ 기존 TEAM 참여자수(가격/Joined 뱃지용)
   const participantCount = await getParticipantCount(sb, teamId)
@@ -636,13 +646,13 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
 
           <div className="p-6">
             <div className="flex items-center justify-between gap-4">
-              <div className="text-[28px] font-semibold leading-tight">{team.name}</div>
+              <div className="text-[28px] font-semibold leading-tight">{resolvedName}</div>
               <div className="shrink-0 rounded-full bg-[#f2f2f2] px-4 py-2 text-[13px] font-medium text-[#6b6b6b]">
                 Joined {participantCount}
               </div>
             </div>
 
-            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">{team.purpose ?? 'No description yet.'}</div>
+            <div className="mt-3 text-[18px] leading-7 text-[#3a3a3a]">{resolvedPurpose || 'No description yet.'}</div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {team.tag1 ? (
@@ -778,7 +788,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
 
                 <div className="mt-4 prose max-w-none prose-p:my-2 prose-li:my-1 prose-headings:mt-4 prose-headings:mb-2">
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                    {team.detail_markdown || FALLBACK_DETAIL_TEXT}
+                    {resolvedDetailMarkdown || FALLBACK_DETAIL_TEXT}
                   </ReactMarkdown>
                 </div>
               </div>

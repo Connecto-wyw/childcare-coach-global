@@ -5,6 +5,8 @@ export const runtime = 'nodejs'
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
+import { resolveI18n } from '@/lib/i18nFallback'
+import { getLocale } from '@/i18n'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -31,11 +33,13 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
   const supabase = admin()
 
-  const { data, error } = await supabase
+  const { data: rawData, error } = await (supabase as any)
     .from('news_posts')
-    .select('id, title, slug, content, created_at')
+    .select('id, title, title_i18n, slug, content, content_i18n, created_at')
     .eq('slug', slug)
     .maybeSingle()
+
+  const data = rawData as any
 
   if (error) {
     return (
@@ -63,11 +67,15 @@ export default async function NewsDetailPage({ params }: PageProps) {
     )
   }
 
+  const locale = await getLocale()
+  const resolvedTitle = resolveI18n(data.title, (data as any).title_i18n, locale)
+  const resolvedContent = resolveI18n(data.content, (data as any).content_i18n, locale)
+
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight">
-          {data.title}
+          {resolvedTitle}
         </h1>
 
         <p className="mt-2 text-[14px] text-[#8a8a8a]">
@@ -77,7 +85,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
         <div className="mt-8 border-t border-[#eeeeee] pt-8">
           {/* ✅ plain text 줄바꿈/문단 살리기 */}
           <article className="whitespace-pre-wrap leading-7 text-[16px]">
-            {data.content ?? ''}
+            {resolvedContent ?? ''}
           </article>
         </div>
       </div>
