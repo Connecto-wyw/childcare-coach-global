@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import { useAuthUser } from '@/app/providers'
 import { useTranslation } from '@/i18n/I18nProvider'
 
-type ChatBoxProps = { systemPrompt?: string }
+type ChatBoxProps = { systemPrompt?: string; initialPrefill?: string }
 type ChatRole = 'user' | 'assistant'
 
 type ChatMessage = {
@@ -116,7 +116,7 @@ If you would like to explore more trending parenting items from Korea,
 
 You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
 
-export default function ChatBox({ systemPrompt }: ChatBoxProps) {
+export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) {
   // ✅ user는 "있으면 쓰고, 없어도 OK"
   const { user } = useAuthUser()
   const t = useTranslation('coach')
@@ -133,6 +133,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
   const chatBarRef = useRef<HTMLDivElement | null>(null)
 
   const didMountRef = useRef(false)
+  const prefillFiredRef = useRef(false)
   const prevMsgLenRef = useRef(0)
 
   useEffect(() => {
@@ -219,6 +220,7 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     },
     [updateMessage]
   )
+
 
   async function safeJsonParse<T>(raw: string): Promise<T | null> {
     try {
@@ -317,6 +319,25 @@ export default function ChatBox({ systemPrompt }: ChatBoxProps) {
     },
     [input, sessionId, push, systemPrompt, user?.id, typewriterAppend]
   )
+
+  // ✅ Auto-Submit Prefill Once
+  useEffect(() => {
+    if (initialPrefill && !prefillFiredRef.current && initialPrefill.trim() !== '') {
+      prefillFiredRef.current = true
+      
+      // Auto trigger the ask function. Wait a tiny bit for UI to settle.
+      setTimeout(() => {
+        ask(initialPrefill)
+        
+        // Clean up the URL to prevent refresh double submits
+        try {
+          const url = new URL(window.location.href)
+          url.searchParams.delete('prefill')
+          window.history.replaceState({}, '', url.toString())
+        } catch {}
+      }, 300)
+    }
+  }, [initialPrefill, ask])
 
   // ✅ 프리셋/키워드 클릭 이벤트: 로그인 없이도 즉시 질문 실행
   useEffect(() => {

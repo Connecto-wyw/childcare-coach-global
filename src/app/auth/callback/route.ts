@@ -39,6 +39,9 @@ function safeNextPath(raw: string | null) {
 export async function GET(req: Request) {
   const url = new URL(req.url)
 
+  console.log('[AUTH CALLBACK] Full URL:', req.url);
+  console.log('[AUTH CALLBACK] next param raw:', url.searchParams.get('next'));
+
   const code = url.searchParams.get('code')
   const error = url.searchParams.get('error')
   const errorDescription = url.searchParams.get('error_description')

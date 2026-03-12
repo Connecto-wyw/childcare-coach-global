@@ -8,6 +8,8 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
+import { computeMBTI, MBTI_TO_TCI, MBTI_PERCENTAGES } from '@/lib/kykScoring'
+
 const DRAFT_COOKIE = 'kyk_draft'
 
 function admin() {
@@ -18,18 +20,33 @@ function admin() {
   })
 }
 
-// ✅ 여기서 “결과 계산”은 너가 가진 로직으로 대체하면 됨.
-// 지금은 예시로 computed에 answers 그대로 넣음.
 function computeResultFromAnswers(answers: any) {
-  // TODO: 너의 MBTI/동물/문구 매핑 로직으로 교체
+  const mbti = computeMBTI(answers)
+  const tci = MBTI_TO_TCI[mbti]
+  const percentage = MBTI_PERCENTAGES[mbti]
+  const typeKey = mbti.toLowerCase()
+
+  const colors: Record<string, string> = {
+    INTJ: '#8B572A', INTP: '#4A90E2', INFJ: '#50E3C2', INFP: '#B8E986',
+    ISTJ: '#D0021B', ISTP: '#F5A623', ISFJ: '#417505', ISFP: '#9013FE',
+    ENTJ: '#8B572A', ENTP: '#4A90E2', ENFJ: '#50E3C2', ENFP: '#B8E986',
+    ESTJ: '#D0021B', ESTP: '#F5A623', ESFJ: '#417505', ESFP: '#9013FE',
+  }
+
   return {
-    primary_type: 'INTP',
-    color: 'BLUE',
+    primary_type: mbti,
+    color: colors[mbti] || '#3497f3',
+    percentage,
+    tci,
     profile: {
-      animal: 'animal_fish',
-      title: 'title_fish_honest',
-      summary: 'summary_fish',
-      keywords: ['keyword_learning_routine', 'keyword_focus', 'keyword_friends'], // 결과 페이지 하단 3개 키워드
+      animal: `animal_${typeKey}`,
+      title: `title_${typeKey}`,
+      summary: `summary_${typeKey}`,
+      keywords: [
+        `keyword_${typeKey}_1`,
+        `keyword_${typeKey}_2`,
+        `keyword_${typeKey}_3`,
+      ],
     },
   }
 }
@@ -92,11 +109,11 @@ export async function POST(_req: NextRequest) {
     const computed = computeResultFromAnswers(draft.answers)
 
     // 5) 결과 저장 (서비스 롤)
-    const { error: insertError } = await supabaseAdmin.from('kyk_results').insert({
+    const { error: insertError } = await supabaseAdmin.from('kyk_results').upsert({
       user_id: user.id,
       draft_id: draftId,
       computed, // jsonb
-    })
+    }, { onConflict: 'user_id' })
 
     if (insertError) {
       return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 })

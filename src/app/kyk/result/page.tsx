@@ -117,7 +117,25 @@ export default async function KYKResultPage() {
 
   const computed = (data.computed ?? {}) as unknown as Computed
   const profile = computed.profile ?? {}
-  const keywords = Array.isArray(profile.keywords) ? profile.keywords.slice(0, 3) : []
+  
+  // 1. Load admin-configured keywords override from DB
+  let adminKeywords: string[] = []
+  if (computed.primary_type) {
+    const { data: kwData } = await supabase
+      .from('kyk_admin_keywords' as any)
+      .select('keywords')
+      .eq('mbti_type', computed.primary_type.toLowerCase())
+      .maybeSingle() as any
+      
+    if (kwData?.keywords && Array.isArray(kwData.keywords)) {
+      adminKeywords = kwData.keywords.filter(Boolean)
+    }
+  }
+
+  // 2. Fallback to dictionary keys if DB rows are not populated yet
+  const keywords = adminKeywords.length > 0
+    ? adminKeywords.slice(0, 3) 
+    : (Array.isArray(profile.keywords) ? profile.keywords.slice(0, 3) : [])
 
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>

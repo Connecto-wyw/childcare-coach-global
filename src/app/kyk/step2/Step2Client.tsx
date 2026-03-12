@@ -12,7 +12,8 @@ const BTN = '#3497f3'
 
 export default function Step2Client({ dict }: { dict: any }) {
   const router = useRouter()
-  const [answers, setAnswers] = useState<KYKAnswers>(() => loadLocalAnswers())
+  const [answers, setAnswers] = useState<KYKAnswers>({ q1_adjectives: [], likert: {} })
+  const [mounted, setMounted] = useState(false)
 
   const questions = useMemo(() => Q2_TO_Q13.slice(0, 6), []) // q2~q7
   const isComplete = useMemo(
@@ -22,6 +23,8 @@ export default function Step2Client({ dict }: { dict: any }) {
 
   useEffect(() => {
     ensureDraftStarted()
+    setAnswers(loadLocalAnswers())
+    setMounted(true)
   }, [])
 
   useEffect(() => {
@@ -44,6 +47,8 @@ export default function Step2Client({ dict }: { dict: any }) {
   function onBack() {
     router.push('/kyk')
   }
+
+  if (!mounted) return null
 
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>

@@ -159,7 +159,16 @@ const dicts = {
         "summary_fish": "A thinker type who enjoys deep exploration and analysis.",
         "keyword_learning_routine": "Learning routine",
         "keyword_focus": "Focus",
-        "keyword_friends": "Friendships"
+        "keyword_friends": "Friendships",
+        ...['intj', 'intp', 'infj', 'infp', 'istj', 'istp', 'isfj', 'isfp', 'entj', 'entp', 'enfj', 'enfp', 'estj', 'estp', 'esfj', 'esfp'].reduce((acc, type) => {
+          acc[`animal_${type}`] = `Animal ${type.toUpperCase()}`
+          acc[`title_${type}`] = `Title ${type.toUpperCase()}`
+          acc[`summary_${type}`] = `Summary for ${type.toUpperCase()}`
+          acc[`keyword_${type}_1`] = `Keyword 1`
+          acc[`keyword_${type}_2`] = `Keyword 2`
+          acc[`keyword_${type}_3`] = `Keyword 3`
+          return acc
+        }, {})
       }
     }
   },
@@ -803,7 +812,16 @@ const dicts = {
         "summary_fish": "Tipe pemikir yang menyukai eksplorasi dan analisis mendalam.",
         "keyword_learning_routine": "Rutinitas belajar",
         "keyword_focus": "Fokus",
-        "keyword_friends": "Pertemanan"
+        "keyword_friends": "Pertemanan",
+        ...['intj', 'intp', 'infj', 'infp', 'istj', 'istp', 'isfj', 'isfp', 'entj', 'entp', 'enfj', 'enfp', 'estj', 'estp', 'esfj', 'esfp'].reduce((acc, type) => {
+          acc[`animal_${type}`] = `Hewan ${type.toUpperCase()}`
+          acc[`title_${type}`] = `Judul ${type.toUpperCase()}`
+          acc[`summary_${type}`] = `Ringkasan untuk ${type.toUpperCase()}`
+          acc[`keyword_${type}_1`] = `Katakunci 1`
+          acc[`keyword_${type}_2`] = `Katakunci 2`
+          acc[`keyword_${type}_3`] = `Katakunci 3`
+          return acc
+        }, {})
       }
     }
   }

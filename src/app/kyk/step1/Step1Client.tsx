@@ -22,7 +22,8 @@ const EMPTY_ANSWERS: KYKAnswers = {
 
 export default function Step1Client({ dict }: { dict: any }) {
   const router = useRouter()
-  const [answers, setAnswers] = useState<KYKAnswers>(() => loadLocalAnswers())
+  const [answers, setAnswers] = useState<KYKAnswers>(EMPTY_ANSWERS)
+  const [mounted, setMounted] = useState(false)
 
   const selected = answers.q1_adjectives
 
@@ -42,7 +43,11 @@ export default function Step1Client({ dict }: { dict: any }) {
       const nextUrl =
         window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
       window.history.replaceState({}, '', nextUrl)
+    } else {
+      setAnswers(loadLocalAnswers())
     }
+
+    setMounted(true)
   }, [])
 
   useEffect(() => {
@@ -83,6 +88,8 @@ export default function Step1Client({ dict }: { dict: any }) {
   function onBack() {
     router.push('/kyk')
   }
+
+  if (!mounted) return null
 
   return (
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>

@@ -129,7 +129,15 @@ async function getOngoingTeams(supabase: Awaited<ReturnType<typeof createSupabas
   return (data as TeamRow[]).map(mapTeamRowToCard)
 }
 
-export default async function CoachPage() {
+export default async function CoachPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const resolvedParams = await searchParams
+  const prefillRaw = resolvedParams?.prefill
+  const initialPrefill = typeof prefillRaw === 'string' ? prefillRaw : undefined
+
   const supabase = await createSupabaseServer()
   const locale = await getLocale()
   const t = await getDictionary('coach')
@@ -174,7 +182,7 @@ export default async function CoachPage() {
 
         <section className="mb-8">
           {/* ✅ 게스트/로그인 모두 가능. ChatBox 내부에서 로그인 강제하면 안 됨 */}
-          <ChatBox />
+          <ChatBox initialPrefill={initialPrefill} />
         </section>
 
         <section className="mb-8">
