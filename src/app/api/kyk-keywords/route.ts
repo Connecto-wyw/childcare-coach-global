@@ -11,64 +11,10 @@ export const revalidate = 0
 
 const TABLE = 'kyk_admin_keywords' as any
 
+import { requireAdminAuth } from '@/lib/auth/isAdmin'
+
 function jsonErr(status: number, error: string, detail?: string) {
   return NextResponse.json({ ok: false, error, detail }, { status })
-}
-
-function parseAllowEmails() {
-  const raw = process.env.ADMIN_EMAILS || ''
-  return raw
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-}
-
-async function requireAdminEmail() {
-  const cookieStore = await cookies()
-
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {}
-        },
-      },
-    }
-  )
-
-  const { data, error } = await supabase.auth.getUser()
-  if (error) return { ok: false as const, status: 401, error: 'not_authenticated', detail: error.message }
-  const user = data?.user
-  if (!user) return { ok: false as const, status: 401, error: 'not_authenticated', detail: 'No user session.' }
-
-  const allow = parseAllowEmails()
-  if (allow.length === 0) {
-    return {
-      ok: false as const,
-      status: 403,
-      error: 'admin_emails_not_configured',
-      detail: 'Set ADMIN_EMAILS env (comma-separated).',
-    }
-  }
-
-  const email = (user.email || '').toLowerCase()
-  if (!email || !allow.includes(email)) {
-    return {
-      ok: false as const,
-      status: 403,
-      error: 'not_allowed_email',
-      detail: `Email not allowed: ${user.email ?? '(no email)'}`,
-    }
-  }
-
-  return { ok: true as const, user }
 }
 
 function adminDb() {
@@ -101,8 +47,8 @@ export async function GET() {
 
 // POST: authenticated admin update for a given mbti_type
 export async function POST(req: Request) {
-  const gate = await requireAdminEmail()
-  if (!gate.ok) return jsonErr(gate.status, gate.error, gate.detail)
+  const auth = await requireAdminAuth()
+  if (!auth.ok) return jsonErr(auth.status, auth.error, auth.detail)
 
   let body: any = null
   try {

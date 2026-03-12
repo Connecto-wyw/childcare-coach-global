@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
+import { requireAdminAuth } from '@/lib/auth/isAdmin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,48 +11,9 @@ const MAX_INPUT_LENGTH = 5000
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Authenticate Request via Supabase Server Client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-            } catch {}
-          },
-        },
-      }
-    )
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser()
-    const user = authData?.user
-
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
-    }
-
-    // 2. Exact Admin Privilege Check (Environment + DB Profile)
-    const adminEmails = (process.env.ADMIN_EMAILS || '')
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-    const isEmailAdmin = user.email && adminEmails.includes(user.email.toLowerCase())
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .maybeSingle()
-    const isProfileAdmin = profile?.is_admin === true
-
-    if (!isEmailAdmin && !isProfileAdmin) {
-      return NextResponse.json({ error: 'Forbidden. Admin privileges required.' }, { status: 403 })
+    const auth = await requireAdminAuth()
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.detail }, { status: auth.status })
     }
 
     // 3. Payload Extraction and Empty/Length Policies
