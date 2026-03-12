@@ -6,9 +6,6 @@ import { useState } from 'react'
 import TranslationInput, { I18nValues } from '@/components/admin/TranslationInput'
 import { createTeamItemAction } from './actions' // We will extract the server action to a separate file to support 'use client'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default function NewTeamItemPage() {
   const [title, setTitle] = useState('')
   const [titleI18n, setTitleI18n] = useState<I18nValues | null>(null)
