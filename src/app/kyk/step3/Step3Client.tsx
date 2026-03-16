@@ -140,17 +140,23 @@ export default function Step3Client({ dict }: { dict: any }) {
     ;(async () => {
       setBusy(true)
       try {
-        // ✅ 1) Ensure the draft cookie is alive. It might have been lost if Safari/Chrome blocked Lax cookies during OAuth.
-        await ensureDraftStarted()
+        // ✅ 1) Ensure the draft cookie is alive. Google OAuth redirect often drops 'Lax' cookies in some browsers.
+        // We must await the /api/kyk/start request which sets the cookie.
+        await fetch('/api/kyk/start', { method: 'POST' })
+        
         // ✅ 2) Save current local answers to the newly forced server draft
-        await saveDraft(answers)
+        await fetch('/api/kyk/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers }),
+        })
+        
         // ✅ 3) Generate the final result and migrate to /kyk/result
         await claimAndGoResult()
       } finally {
         setBusy(false)
         params.delete('after')
-        const nextUrl =
-          window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
+        const nextUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
         window.history.replaceState({}, '', nextUrl)
       }
     })()
