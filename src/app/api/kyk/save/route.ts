@@ -24,13 +24,13 @@ type SaveBody = {
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const draftId = cookieStore.get(DRAFT_COOKIE)?.value
+    const body = (await req.json().catch(() => null)) as SaveBody & { draft_id?: string } | null
+    const draftId = cookieStore.get(DRAFT_COOKIE)?.value || body?.draft_id
 
     if (!draftId) {
       return NextResponse.json({ ok: false, error: 'no draft' }, { status: 400 })
     }
 
-    const body = (await req.json().catch(() => null)) as SaveBody | null
     if (!body?.answers) {
       return NextResponse.json({ ok: false, error: 'missing answers' }, { status: 400 })
     }
