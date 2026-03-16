@@ -53,8 +53,8 @@ export default function GateClient({ dict }: { dict: any }) {
       setBusyLogin(true)
       setError(null)
 
+      document.cookie = 'kyk_auth_return=/kyk/gate; path=/; max-age=300; SameSite=Lax'
       const callbackUrl = new URL('/auth/callback', window.location.origin)
-      callbackUrl.searchParams.set('next', '/kyk/gate')
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
