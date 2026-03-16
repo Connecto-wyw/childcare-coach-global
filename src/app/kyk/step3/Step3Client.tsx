@@ -173,8 +173,8 @@ export default function Step3Client({ dict }: { dict: any }) {
     setLoginErr(null)
     setShowLoginModal(false)
 
-    const nextParam = encodeURIComponent('/kyk/step3?after=login')
-    const callbackUrl = new URL(`/auth/callback?next=${nextParam}`, window.location.origin)
+    sessionStorage.setItem('kyk_auth_return', '/kyk/step3?after=login')
+    const callbackUrl = new URL(`/auth/callback`, window.location.origin)
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

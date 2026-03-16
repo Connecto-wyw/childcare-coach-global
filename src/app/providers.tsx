@@ -39,12 +39,24 @@ export function Providers({ children }: PropsWithChildren) {
       })
     }
 
+    // ✅ 딥링크 리다이렉트 헬퍼
+    const checkAuthReturn = (sessionUser: User | null) => {
+      if (sessionUser && typeof window !== 'undefined') {
+        const returnUrl = sessionStorage.getItem('kyk_auth_return')
+        if (returnUrl) {
+          sessionStorage.removeItem('kyk_auth_return')
+          window.location.href = returnUrl
+        }
+      }
+    }
+
     // 1) 초기 세션 로드
     supabase.auth
       .getSession()
       .then(({ data }) => {
         const session: Session | null = data.session ?? null
         setAuthSafe({ user: session?.user ?? null, loading: false })
+        checkAuthReturn(session?.user ?? null)
       })
       .catch(() => {
         setAuthSafe({ user: null, loading: false })
@@ -53,6 +65,7 @@ export function Providers({ children }: PropsWithChildren) {
     // 2) 세션 변화 구독
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthSafe({ user: session?.user ?? null, loading: false })
+      checkAuthReturn(session?.user ?? null)
     })
 
     return () => {
