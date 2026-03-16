@@ -140,6 +140,11 @@ export default function Step3Client({ dict }: { dict: any }) {
     ;(async () => {
       setBusy(true)
       try {
+        // ✅ 1) Ensure the draft cookie is alive. It might have been lost if Safari/Chrome blocked Lax cookies during OAuth.
+        await ensureDraftStarted()
+        // ✅ 2) Save current local answers to the newly forced server draft
+        await saveDraft(answers)
+        // ✅ 3) Generate the final result and migrate to /kyk/result
         await claimAndGoResult()
       } finally {
         setBusy(false)
@@ -175,6 +180,7 @@ export default function Step3Client({ dict }: { dict: any }) {
 
     sessionStorage.setItem('kyk_auth_return', '/kyk/step3?after=login')
     const callbackUrl = new URL(`/auth/callback`, window.location.origin)
+    callbackUrl.searchParams.set('next', '/kyk/step3?after=login')
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

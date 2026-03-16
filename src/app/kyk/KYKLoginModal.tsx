@@ -35,11 +35,15 @@ export default function KYKLoginModal({
       // ✅ 로그인 후 돌아올 위치를 /kyk/step3 로 고정하고
       // ✅ after=login 파라미터를 붙여서 “지금은 로그인 직후다” 상태를 만들자
       sessionStorage.setItem('kyk_auth_return', '/kyk/step3?after=login')
-      const redirectTo = `${window.location.origin}/auth/callback`
+      const callbackUrl = new URL('/auth/callback', window.location.origin)
+      callbackUrl.searchParams.set('next', '/kyk/step3?after=login')
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo },
+        options: { 
+          redirectTo: callbackUrl.toString(),
+          queryParams: { prompt: 'select_account' }
+        },
       })
 
       if (error) setError(error.message)
