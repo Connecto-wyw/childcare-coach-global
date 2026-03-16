@@ -45,7 +45,13 @@ export async function GET(req: Request) {
   const code = url.searchParams.get('code')
   const error = url.searchParams.get('error')
   const errorDescription = url.searchParams.get('error_description')
-  const nextPath = safeNextPath(url.searchParams.get('next'))
+  const cookieStore = await cookies()
+
+  // 1. URL의 next 파라미터 확인 (호환성 유지)
+  // 2. 만약 없거나 짤렸다면, 우리가 심어둔 kyk_auth_return 쿠키 확인
+  const fallbackNext = cookieStore.get('kyk_auth_return')?.value || null
+  const rawNext = url.searchParams.get('next') || fallbackNext
+  const nextPath = safeNextPath(rawNext)
 
   if (error) {
     const msg = errorDescription ? `${error}: ${errorDescription}` : error
@@ -60,12 +66,13 @@ export async function GET(req: Request) {
     )
   }
 
-  const cookieStore = await cookies()
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
   const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
 
   const res = NextResponse.redirect(new URL(nextPath, url.origin))
+
+  // ✅ 사용한 리다이렉트 쿠키 삭제
+  res.cookies.set('kyk_auth_return', '', { maxAge: 0, path: '/' })
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnon, {
     cookies: {
