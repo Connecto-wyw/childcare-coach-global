@@ -36,6 +36,7 @@ export default function KYKLoginModal({
       // 쿠키를 사용해 auth/callback 라우트에서 읽을 수 있도록 함
       document.cookie = 'kyk_auth_return=/kyk/step3?after=login; path=/; max-age=300; SameSite=Lax'
       const callbackUrl = new URL('/auth/callback', window.location.origin)
+      callbackUrl.searchParams.set('next', '/kyk/step3?after=login')
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
