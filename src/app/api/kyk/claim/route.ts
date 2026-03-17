@@ -85,7 +85,8 @@ export async function POST(_req: NextRequest) {
     }
 
     // 2) draft id 체크
-    const draftId = cookieStore.get(DRAFT_COOKIE)?.value
+    const body = await _req.json().catch(() => null)
+    const draftId = cookieStore.get(DRAFT_COOKIE)?.value || body?.draft_id
     if (!draftId) {
       return NextResponse.json({ ok: false, error: 'no draft' }, { status: 400 })
     }

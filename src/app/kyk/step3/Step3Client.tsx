@@ -111,10 +111,15 @@ export default function Step3Client({ dict }: { dict: any }) {
     }))
   }
 
-  async function claimAndGoResult() {
+  async function claimAndGoResult(forceDraftId?: string) {
     setClaimErr(null)
 
-    const res = await fetch('/api/kyk/claim', { method: 'POST' })
+    const bodyObj = forceDraftId ? { draft_id: forceDraftId } : undefined
+    const res = await fetch('/api/kyk/claim', { 
+      method: 'POST',
+      headers: forceDraftId ? { 'Content-Type': 'application/json' } : undefined,
+      body: bodyObj ? JSON.stringify(bodyObj) : undefined
+    })
     const json = await res.json().catch(() => ({}))
 
     if (res.ok && json?.ok) {
@@ -140,19 +145,20 @@ export default function Step3Client({ dict }: { dict: any }) {
     ;(async () => {
       setBusy(true)
       try {
-        // ✅ 1) Ensure the draft cookie is alive. Google OAuth redirect often drops 'Lax' cookies in some browsers.
-        // We must await the /api/kyk/start request which sets the cookie.
-        await fetch('/api/kyk/start', { method: 'POST' })
+        // ✅ 1) Ensure the draft cookie is alive and extract draft ID directly.
+        const startRes = await fetch('/api/kyk/start', { method: 'POST' })
+        const startJson = await startRes.json().catch(() => ({}))
+        const forcedDraftId = startJson.draft_id
         
         // ✅ 2) Save current local answers to the newly forced server draft
         await fetch('/api/kyk/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers }),
+          body: JSON.stringify({ answers, draft_id: forcedDraftId }),
         })
         
         // ✅ 3) Generate the final result and migrate to /kyk/result
-        await claimAndGoResult()
+        await claimAndGoResult(forcedDraftId)
       } finally {
         setBusy(false)
         params.delete('after')
