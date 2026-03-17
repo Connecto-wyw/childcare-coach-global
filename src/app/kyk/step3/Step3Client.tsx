@@ -192,7 +192,6 @@ export default function Step3Client({ dict }: { dict: any }) {
 
     document.cookie = 'kyk_auth_return=/kyk/step3?after=login; path=/; max-age=300; SameSite=Lax'
     const callbackUrl = new URL(`/auth/callback`, window.location.origin)
-    callbackUrl.searchParams.set('next', '/kyk/step3?after=login')
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
