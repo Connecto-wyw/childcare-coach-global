@@ -150,7 +150,7 @@ export default async function KYKResultPage() {
         <section className="mt-10">
           <div className="rounded-lg border p-6" style={{ borderColor: BORDER }}>
             <div className="text-[14px] font-medium" style={{ color: MUTED }}>
-              {profile.animal ? dict.computed[profile.animal as keyof typeof dict.computed] : 'Result'}
+              {profile.animal ? dict.computed[profile.animal as keyof typeof dict.computed] : (dict.result.title || 'Result')}
             </div>
 
             <div className="mt-2 text-[22px] font-medium leading-tight">
