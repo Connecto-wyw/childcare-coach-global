@@ -1,5 +1,6 @@
 // src/app/admin/team/[teamId]/activities/page.tsx
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { requireAdmin } from '@/lib/adminguard'
 import ActivitiesClient from './ActivitiesClient'
 import type { Tables } from '@/lib/database.types'
@@ -51,12 +52,12 @@ export default async function AdminTeamActivitiesPage({
               Team: <span className="text-[#0e0e0e]">{team.name}</span>
             </p>
           </div>
-          <a
+          <Link
             href="/admin/team"
             className="text-[13px] font-semibold text-[#3497f3] hover:underline underline-offset-2"
           >
             ← Back to Teams
-          </a>
+          </Link>
         </div>
 
         <div className="mt-8">

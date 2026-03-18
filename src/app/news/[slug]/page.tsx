@@ -33,13 +33,22 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
   const supabase = admin()
 
-  const { data: rawData, error } = await (supabase as any)
+  const { data: rawData, error } = await supabase
     .from('news_posts')
     .select('id, title, title_i18n, slug, content, content_i18n, created_at')
     .eq('slug', slug)
     .maybeSingle()
 
-  const data = rawData as any
+  type NewsPost = {
+    id: string
+    title: string | null
+    title_i18n: Record<string, string> | null
+    slug: string
+    content: string | null
+    content_i18n: Record<string, string> | null
+    created_at: string | null
+  }
+  const data = rawData as unknown as NewsPost
 
   if (error) {
     return (
@@ -68,8 +77,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
   }
 
   const locale = await getLocale()
-  const resolvedTitle = resolveI18n(data.title, (data as any).title_i18n, locale)
-  const resolvedContent = resolveI18n(data.content, (data as any).content_i18n, locale)
+  const resolvedTitle = resolveI18n(data.title ?? '', data.title_i18n as Record<string, string>, locale)
+  const resolvedContent = resolveI18n(data.content ?? '', data.content_i18n as Record<string, string>, locale)
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">

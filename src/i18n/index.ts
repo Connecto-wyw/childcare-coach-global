@@ -10,20 +10,15 @@ export const COOKIE_NAME = 'NEXT_LOCALE'
 function getDictionaryLoader(locale: Locale) {
   switch (locale) {
     case 'ko':
-      // @ts-ignore
       return () => import('./messages/ko/index')
     case 'th':
-      // @ts-ignore
       return () => import('./messages/th/index')
     case 'ms':
-      // @ts-ignore
       return () => import('./messages/ms/index')
     case 'id':
-      // @ts-ignore
       return () => import('./messages/id/index')
     case 'en':
     default:
-      // @ts-ignore
       return () => import('./messages/en/index')
   }
 }
