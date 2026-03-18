@@ -77,7 +77,7 @@ function Modal({
   )
 }
 
-export default function Step3Client({ dict }: { dict: any }) {
+export default function Step3Client({ dict }: { dict: Record<string, any> }) {
   const router = useRouter()
   const supabase = useMemo(() => createClientComponentClient<Database>(), [])
 
@@ -179,8 +179,9 @@ export default function Step3Client({ dict }: { dict: any }) {
     try {
       await saveDraft(answers)
       await claimAndGoResult()
-    } catch (e: any) {
-      setClaimErr(e?.message ?? 'Failed to continue.')
+    } catch (e) {
+      const err = e as Error
+      setClaimErr(err?.message ?? 'Failed to continue.')
     } finally {
       setBusy(false)
     }

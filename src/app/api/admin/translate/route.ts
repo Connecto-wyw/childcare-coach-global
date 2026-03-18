@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
-import type { Database } from '@/lib/database.types'
 import { requireAdminAuth } from '@/lib/auth/isAdmin'
 
 export const runtime = 'nodejs'
@@ -17,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Payload Extraction and Empty/Length Policies
-    const body = await req.json().catch(() => ({} as any))
+    const body = await req.json().catch(() => ({}) as Record<string, unknown>)
     const text = typeof body.text === 'string' ? body.text.trim() : ''
 
     if (!text) {
@@ -101,9 +98,9 @@ CRITICAL RULES:
       return NextResponse.json({ error: 'Failed to parse JSON translation structure.' }, { status: 502 })
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'Internal server error while translating.', details: error.message },
+      { error: 'Internal server error while translating.', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
