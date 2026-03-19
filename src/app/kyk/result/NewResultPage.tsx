@@ -58,34 +58,29 @@ interface TCIBarChartProps {
   levelLabel: string
 }
 
-function TCIBarChart({ abbr, name, segments, levelLabel }: TCIBarChartProps) {
+function TCIBarChart({ abbr, name, segments, levelLabel, barColor }: TCIBarChartProps & { barColor: string }) {
   return (
-    <div className="flex items-center gap-3 py-1.5">
-      {/* 약어 */}
-      <span className="w-7 shrink-0 text-center text-[11px] font-bold text-blue-400">
-        {abbr}
-      </span>
+    <div className="flex items-center justify-between py-2 text-[12px]">
+      {/* 라벨 영역 */}
+      <div className="flex items-center gap-1.5 w-28 shrink-0">
+        <span className="text-gray-300">{abbr}</span>
+        <span className="text-white font-medium">{name}</span>
+      </div>
 
-      {/* 한국어 이름 */}
-      <span className="w-24 shrink-0 text-[11px] text-gray-400">{name}</span>
-
-      {/* 4칸 세그먼트 바 */}
-      <div className="flex gap-1.5">
+      {/* 4칸 세그먼트 바 (간격 없는 박스) */}
+      <div className="flex w-32 h-[18px]">
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className={[
-              'h-5 w-9 rounded-sm transition-colors',
-              i <= segments
-                ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'
-                : 'bg-gray-700',
-            ].join(' ')}
+            className={`flex-1 border-[#111] border-r last:border-r-0 ${
+              i <= segments ? barColor : 'bg-[#333]'
+            }`}
           />
         ))}
       </div>
 
       {/* 레벨 텍스트 */}
-      <span className="ml-1 text-[11px] text-gray-300">{levelLabel}</span>
+      <span className="w-16 text-right text-gray-300">{levelLabel}</span>
     </div>
   )
 }
@@ -132,40 +127,34 @@ export default function NewResultPage({
 
   const themeVars = {
     Blue: {
-      stroke: '#60a5fa', avatarBg: 'bg-blue-900/30 border-blue-500/40 shadow-[0_0_30px_rgba(59,130,246,0.25)]',
-      textLight: 'text-blue-300', textMain: 'text-blue-400', badgeBg: 'bg-blue-600/20 ring-blue-500/30',
-      badgeNum: 'text-blue-200',
-      tagLink: 'border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20',
-      checkMark: 'text-blue-400', cardBorder: 'border-blue-900/50',
-      typeBadge: 'bg-blue-700/30 text-blue-300', btnPrimary: 'bg-blue-600 hover:bg-blue-500 shadow-[0_4px_14px_rgba(59,130,246,0.4)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.6)]'
+      darkTone: 'var(--blue-dark, #0f3b75)',
+      lightTone: 'var(--blue-light, #2b99cc)',
+      textColor: 'text-[#38bdf8]',
+      barColor: 'bg-[#2b99cc]'
     },
     Red: {
-      stroke: '#f87171', avatarBg: 'bg-red-900/30 border-red-500/40 shadow-[0_0_30px_rgba(248,113,113,0.25)]',
-      textLight: 'text-red-300', textMain: 'text-red-400', badgeBg: 'bg-red-600/20 ring-red-500/30',
-      badgeNum: 'text-red-200', tagLink: 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20',
-      checkMark: 'text-red-400', cardBorder: 'border-red-900/50',
-      typeBadge: 'bg-red-700/30 text-red-300', btnPrimary: 'bg-red-600 hover:bg-red-500 shadow-[0_4px_14px_rgba(220,38,38,0.4)] hover:shadow-[0_4px_20px_rgba(220,38,38,0.6)]'
+      darkTone: 'var(--red-dark, #7f1d1d)',
+      lightTone: 'var(--red-light, #ef4444)',
+      textColor: 'text-[#ef4444]',
+      barColor: 'bg-[#ef4444]'
     },
     Green: {
-      stroke: '#34d399', avatarBg: 'bg-emerald-900/30 border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.25)]',
-      textLight: 'text-emerald-300', textMain: 'text-emerald-400', badgeBg: 'bg-emerald-600/20 ring-emerald-500/30',
-      badgeNum: 'text-emerald-200', tagLink: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20',
-      checkMark: 'text-emerald-400', cardBorder: 'border-emerald-900/50',
-      typeBadge: 'bg-emerald-700/30 text-emerald-300', btnPrimary: 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_4px_14px_rgba(5,150,105,0.4)] hover:shadow-[0_4px_20px_rgba(5,150,105,0.6)]'
+      darkTone: 'var(--green-dark, #064e3b)',
+      lightTone: 'var(--green-light, #10b981)',
+      textColor: 'text-[#10b981]',
+      barColor: 'bg-[#10b981]'
     },
     Yellow: {
-      stroke: '#fbbf24', avatarBg: 'bg-amber-900/30 border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.25)]',
-      textLight: 'text-amber-300', textMain: 'text-amber-400', badgeBg: 'bg-amber-600/20 ring-amber-500/30',
-      badgeNum: 'text-amber-200', tagLink: 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20',
-      checkMark: 'text-amber-400', cardBorder: 'border-amber-900/50',
-      typeBadge: 'bg-amber-700/30 text-amber-300', btnPrimary: 'bg-amber-600 hover:bg-amber-500 shadow-[0_4px_14px_rgba(217,119,6,0.4)] hover:shadow-[0_4px_20px_rgba(217,119,6,0.6)]'
+      darkTone: 'var(--yellow-dark, #713f12)',
+      lightTone: 'var(--yellow-light, #eab308)',
+      textColor: 'text-[#facc15]',
+      barColor: 'bg-[#eab308]'
     },
     White: {
-      stroke: '#cbd5e1', avatarBg: 'bg-slate-800/50 border-slate-500/40 shadow-[0_0_30px_rgba(148,163,184,0.25)]',
-      textLight: 'text-slate-300', textMain: 'text-slate-400', badgeBg: 'bg-slate-600/30 ring-slate-500/30',
-      badgeNum: 'text-slate-200', tagLink: 'border-slate-500/40 bg-slate-500/20 text-slate-300 hover:bg-slate-500/30',
-      checkMark: 'text-slate-400', cardBorder: 'border-slate-800/80',
-      typeBadge: 'bg-slate-700/50 text-slate-300', btnPrimary: 'bg-slate-600 hover:bg-slate-500 shadow-[0_4px_14px_rgba(71,85,105,0.4)] hover:shadow-[0_4px_20px_rgba(71,85,105,0.6)]'
+      darkTone: 'var(--white-dark, #475569)',
+      lightTone: 'var(--white-light, #94a3b8)',
+      textColor: 'text-white',
+      barColor: 'bg-[#94a3b8]'
     }
   }
 
@@ -183,135 +172,111 @@ export default function NewResultPage({
 
 
   return (
-    <main className="min-h-screen bg-[#0a0f1e] text-white">
+    <main className="min-h-screen bg-[#1c1c1c] text-white">
+      {/* ── 헤더: V-shape 배경 + 동물 이미지 + 제목 ─────────────────────────── */}
+      <div className="relative overflow-hidden bg-[#151515] pb-10 pt-20 text-center">
+        {/* V 자 배경 도형 */}
+        <div className="absolute left-0 top-0 w-1/2 h-full opacity-90 origin-top-left -skew-x-[35deg]" style={{ background: theme.darkTone }}></div>
+        <div className="absolute right-0 top-0 w-1/2 h-full opacity-90 origin-top-right skew-x-[35deg]" style={{ background: theme.lightTone }}></div>
+        <div className="absolute inset-0 z-0 flex items-start justify-center pt-2">
+           {/* 상단 햄버거 메뉴 아이콘 (장식용) */}
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </div>
 
-      {/* ── 헤더: 삼각형 패턴 + 동물 이미지 + 제목 ─────────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-b from-[#0d1f3c] to-[#0a0f1e] pb-10 pt-14 text-center">
-
-        {/* 삼각형(폴리곤) 반복 패턴 SVG */}
-        <svg
-          className="absolute inset-0 h-full w-full opacity-[0.07]"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <defs>
-            <pattern
-              id="kyk-triangles"
-              x="0"
-              y="0"
-              width="48"
-              height="48"
-              patternUnits="userSpaceOnUse"
-            >
-              <polygon points="24,2 46,46 2,46" fill="none" stroke={theme.stroke} strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#kyk-triangles)" />
-        </svg>
-
-        {/* 동물 캐릭터 이미지 */}
-        <div className={`relative mx-auto mb-4 flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 ${theme.avatarBg}`}>
+        {/* 동물 캐릭터 이미지 (테두리 없음) */}
+        <div className="relative z-10 mx-auto mb-6 flex h-40 w-40 items-center justify-center">
           <img 
             src={`/animals/${adjectiveColor}_${fileAnimalName}.png`} 
             alt={`${fullAnimalName} 이미지`} 
-            className="h-full w-full object-cover p-2" 
+            className="h-full w-full object-contain" 
           />
         </div>
 
-        {/* 아이 이름 대신 형용사+동물만 노출 */}
-        <p className={`relative text-[13px] font-medium tracking-widest ${theme.textLight} uppercase`}>
-          {fullAnimalName}
-        </p>
-        <h2 className="relative mt-2 text-[20px] font-bold text-white">
-          {title ?? '결과를 불러오는 중...'}
+        {/* 타이틀 및 요약 (어린이 이름 생략) */}
+        <h2 className={`relative z-10 text-[24px] font-bold ${theme.textColor}`}>
+          {title ? `${title}형` : '결과를 불러오는 중...'}
         </h2>
 
-        {/* 유형 비율 뱃지 */}
         {percentage !== null && (
-          <div className={`relative mt-4 inline-block rounded-full px-4 py-1 text-[13px] font-medium ${theme.textLight} ${theme.badgeBg} ring-1`}>
-            같은 유형의 사람&nbsp;
-            <span className={`font-bold ${theme.badgeNum}`}>{percentage}%</span>
+          <div className="relative z-10 mt-6 text-[15px] font-bold text-white">
+            같은 유형의 사람 {percentage}%
+          </div>
+        )}
+
+        {leadSummary && (
+          <div className="relative z-10 mt-2 text-[13px] text-gray-300 leading-relaxed max-w-[260px] mx-auto break-keep">
+            {leadSummary.split(',').map((part, i, arr) => (
+              <p key={i}>{part}{i < arr.length - 1 ? ',' : ''}</p>
+            ))}
           </div>
         )}
       </div>
 
       {/* ── 본문 ─────────────────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-xl px-5 pb-16 pt-8">
-
-        {/* 키워드 태그 버튼 (최대 4개) */}
-        {keywords.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-2">
-            {keywords.slice(0, 4).map((kw) => (
-              <Link
-                key={kw}
-                href={`/coach?prefill=${encodeURIComponent(kw)}`}
-                className={`rounded-full border px-4 py-1.5 text-[12px] font-semibold transition-colors ${theme.tagLink}`}
-              >
-                {kw}
-              </Link>
-            ))}
+      <div className="w-full bg-[#2a2a2a] py-8 px-6">
+        {/* ── TCI 기질 프로파일 바 차트 ────────────────────────────────────── */}
+        {tciProfile && (
+          <div className="max-w-xs mx-auto flex flex-col gap-1">
+            {TCI_DIMENSIONS.map(({ key, abbr, name }) => {
+              const score = tciProfile[key] as TCIScore | undefined
+              const levelLabel = score ? TCI_SCORE_TO_LEVEL[score] : '보통'
+              const segments = LEVEL_TO_SEGMENTS[levelLabel] ?? 2
+              return (
+                <TCIBarChart
+                  key={key}
+                  abbr={abbr}
+                  name={name}
+                  segments={segments}
+                  levelLabel={levelLabel}
+                  barColor={theme.barColor}
+                />
+              )
+            })}
           </div>
         )}
 
-        {/* 리드 요약 텍스트 */}
-        {leadSummary && (
-          <p className="text-[14px] leading-relaxed text-gray-300">{leadSummary}</p>
+        {/* 키워드 태그 버튼 (최대 4개) */}
+        {keywords.length > 0 && (
+          <div className="mt-8 flex justify-center gap-2">
+            {keywords.slice(0, 4).map((kw) => (
+              <div
+                key={kw}
+                className="border border-gray-400 bg-[#222] px-5 py-1 text-[13px] font-medium text-gray-200"
+              >
+                {kw.replace('#', '')}
+              </div>
+            ))}
+          </div>
         )}
+      </div>
 
-        {/* 체크리스트 (요약 두 번째 단락 이후) */}
+      <div className="mx-auto max-w-xl px-6 pb-16 pt-8 text-gray-200">
+        <p className="text-[13px] leading-relaxed mb-6">
+          {checkItems.length > 0 ? checkItems.join(' ') : '결과가 준비 중입니다.'}
+        </p>
+
+        {/* 체크리스트 - 불릿 포인트 스타일 */}
         {checkItems.length > 0 && (
-          <ul className="mt-5 space-y-3">
+          <ul className="list-disc list-inside space-y-2 text-[13px]">
             {checkItems.map((item, idx) => (
-              <li key={idx} className="flex items-start gap-2.5 text-[13px] text-gray-300">
-                <span className={`mt-0.5 shrink-0 ${theme.checkMark}`}>✓</span>
-                <span className="leading-relaxed">{item}</span>
+              <li key={idx} className="leading-relaxed">
+                {item}
               </li>
             ))}
           </ul>
         )}
 
-        {/* ── TCI 기질 프로파일 바 차트 ────────────────────────────────────── */}
-        {tciProfile && (
-          <div className={`mt-8 rounded-2xl border ${theme.cardBorder} bg-[#111827] px-6 py-5`}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[13px] font-bold text-gray-200">기질 프로파일</h3>
-              {mbtiType && (
-                <span className={`rounded px-2 py-0.5 text-[11px] font-bold tracking-widest ${theme.typeBadge}`}>
-                  {mbtiType}
-                </span>
-              )}
-            </div>
-
-            <div className="divide-y divide-gray-800">
-              {TCI_DIMENSIONS.map(({ key, abbr, name }) => {
-                const score = tciProfile[key] as TCIScore | undefined
-                const levelLabel = score ? TCI_SCORE_TO_LEVEL[score] : '보통'
-                const segments = LEVEL_TO_SEGMENTS[levelLabel] ?? 2
-                return (
-                  <TCIBarChart
-                    key={key}
-                    abbr={abbr}
-                    name={name}
-                    segments={segments}
-                    levelLabel={levelLabel}
-                  />
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {/* ── 액션 버튼 ────────────────────────────────────────────────────── */}
-        <div className="mt-8 flex gap-3">
+        <div className="mt-10 flex gap-3">
           <Link
             href="/coach"
-            className={`flex-1 rounded-xl py-3 text-center text-[14px] font-semibold text-white transition-all ${theme.btnPrimary}`}
+            className={`flex-1 border border-transparent py-4 text-center text-[15px] font-bold text-white transition-opacity hover:opacity-90 ${theme.barColor}`}
           >
             AI 코치 상담하기
           </Link>
           <Link
             href="/kyk/step1?restart=1"
-            className="rounded-xl border border-gray-700 px-5 py-3 text-[14px] font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white"
+            className="border border-gray-500 bg-transparent px-6 py-4 text-[15px] font-bold text-gray-300 transition-colors hover:text-white"
           >
             다시 검사
           </Link>
