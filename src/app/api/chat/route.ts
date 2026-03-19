@@ -7,6 +7,7 @@ import type { Database } from '@/lib/database.types'
 import { getSystemPrompt, KYKProfile, LOCALE_LANGUAGE } from '@/lib/systemPrompt'
 import { MBTI_TO_TCI } from '@/lib/kykScoring'
 import type { MBTIType, TCIScore } from '@/lib/kykScoring'
+import { getKYKTypeProfile } from '@/lib/kykProfiles'
 import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
@@ -37,10 +38,12 @@ function buildKYKProfile(mbtiType: string): KYKProfile | null {
     `CO:${TCI_LEVEL[tci.CO as TCIScore]}`,
     `ST:${TCI_LEVEL[tci.ST as TCIScore]}`,
   ].join(', ')
+  const typeProfile = getKYKTypeProfile(upper)
   return {
     mbtiType: upper,
-    typeName: MBTI_TYPE_NAMES[upper] ?? upper,
+    typeName: typeProfile?.typeName ?? MBTI_TYPE_NAMES[upper] ?? upper,
     tciSummary,
+    description: typeProfile?.description ?? '',
   }
 }
 

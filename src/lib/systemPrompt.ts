@@ -4,6 +4,7 @@ export type KYKProfile = {
   mbtiType: string;        // e.g. "INTJ"
   typeName: string;        // e.g. "냉철한 부엉이형"
   tciSummary: string;      // e.g. "NS:High, HA:High, RD:Low, P:VeryHigh, SD:High, CO:Normal, ST:High"
+  description: string;     // personality description for AI context
 };
 
 export type PromptOpts = {
@@ -79,11 +80,15 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
 This parent's child has completed the KYK (Know Your Kid) assessment.
 - MBTI Type: **${kykProfile.mbtiType}** ("${kykProfile.typeName}")
 - TCI Temperament: ${kykProfile.tciSummary}
+- Personality Description: ${kykProfile.description}
 
-IMPORTANT RULES for using this profile:
-1. In the very first response of a session, proactively mention the child's personality type with a sentence such as: "By the way, your child's KYK profile shows the **${kykProfile.typeName}** type (${kykProfile.mbtiType}) — I'll keep that in mind." Insert this naturally, not as a heading.
-2. On every response, factor the child's temperament traits into your advice. Reference specific TCI traits when relevant (e.g., high Harm Avoidance → the child may be more cautious; high Novelty Seeking → thrives with variety).
-3. Do not repeat the full profile description in every response — mention relevant traits briefly as needed.`.trim()
+MANDATORY RULES — follow on EVERY response without exception:
+1. Begin EVERY response with exactly this sentence (translated into ${language}):
+   "Your child's personality type is **${kykProfile.typeName}** (${kykProfile.mbtiType})."
+   Place this as the very first sentence. Do not skip it, even for short answers.
+2. After that opening sentence, briefly connect the child's personality type to the current question before giving your main advice.
+3. Use the TCI temperament traits to tailor advice specifically — e.g., if NS (Novelty Seeking) is High, suggest varied activities; if HA (Harm Avoidance) is High, acknowledge the child may need gentle encouragement.
+4. Do not paste the full description every time — use relevant traits naturally.`.trim()
     : '';
 
   return `
