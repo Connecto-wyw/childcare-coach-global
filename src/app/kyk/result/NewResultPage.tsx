@@ -172,6 +172,15 @@ export default function NewResultPage({
   const theme = themeVars[adjectiveColor as keyof typeof themeVars] || themeVars.Blue
   const fullAnimalName = `${adjectiveColor} ${animal ?? '부엉이'}`
 
+  const MBTI_TO_KOR_ANIMAL: Record<string, string> = {
+    INTJ: '부엉이', INTP: '물고기', INFJ: '풍뎅이', INFP: '나비',
+    ISTJ: '물고기', ISTP: '부엉이', ISFJ: '나비', ISFP: '풍뎅이',
+    ENTJ: '호랑이', ENTP: '늑대', ENFJ: '돌고래', ENFP: '말',
+    ESTJ: '늑대', ESTP: '호랑이', ESFJ: '말', ESFP: '돌고래',
+  }
+  
+  const fileAnimalName = primaryType ? MBTI_TO_KOR_ANIMAL[primaryType.toUpperCase()] || '부엉이' : '부엉이'
+
 
   return (
     <main className="min-h-screen bg-[#0a0f1e] text-white">
@@ -203,20 +212,17 @@ export default function NewResultPage({
         {/* 동물 캐릭터 이미지 */}
         <div className={`relative mx-auto mb-4 flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 ${theme.avatarBg}`}>
           <img 
-            src={`/animals/${adjectiveColor}_${animal ?? '부엉이'}.png`} 
+            src={`/animals/${adjectiveColor}_${fileAnimalName}.png`} 
             alt={`${fullAnimalName} 이미지`} 
             className="h-full w-full object-cover p-2" 
           />
         </div>
 
-        {/* 아이 이름 */}
+        {/* 아이 이름 대신 형용사+동물만 노출 */}
         <p className={`relative text-[13px] font-medium tracking-widest ${theme.textLight} uppercase`}>
           {fullAnimalName}
         </p>
-        <h1 className={`relative mt-1 text-[22px] font-extrabold ${theme.textMain}`}>
-          {childName}는
-        </h1>
-        <h2 className="relative mt-0.5 text-[20px] font-bold text-white">
+        <h2 className="relative mt-2 text-[20px] font-bold text-white">
           {title ?? '결과를 불러오는 중...'}
         </h2>
 

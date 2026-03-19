@@ -45,13 +45,20 @@ export function saveLocalAnswers(ans: KYKAnswers) {
 
 export async function ensureDraftStarted() {
   // 서버 draft 쿠키가 없을 수도 있으니 start 호출(서버는 항상 새 draft 만들어줄 수 있음)
-  await fetch('/api/kyk/start', { method: 'POST' })
+  const res = await fetch('/api/kyk/start', { method: 'POST' })
+  const json = await res.json().catch(() => null)
+  if (json?.draft_id) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kyk_draft_id', json.draft_id)
+    }
+  }
 }
 
 export async function saveDraft(answers: KYKAnswers, computed?: any) {
+  const draft_id = typeof window !== 'undefined' ? localStorage.getItem('kyk_draft_id') : null
   await fetch('/api/kyk/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ answers, computed }),
+    body: JSON.stringify({ answers, computed, draft_id }),
   })
 }
