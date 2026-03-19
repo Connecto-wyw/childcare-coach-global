@@ -134,10 +134,10 @@ export default function NavBar() {
 
   const items: NavItemLocal[] = useMemo(
     () => [
-      { key: 'kyk', href: '/kyk' },
       { key: 'coach', href: '/coach' },
       { key: 'news', href: '/news' },
       { key: 'team', href: '/team' },
+      { key: 'kyk', href: '/kyk' },
       { key: 'about', href: '/about' },
     ],
     []
