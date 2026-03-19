@@ -123,9 +123,8 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
   }, [keywords, dbKeywords, max])
 
   const { list, row } = useMemo(() => {
-    const stagger = reduced ? 0 : 0.14
-    const duration = reduced ? 0 : 0.55
-    const yFrom = 14
+    const stagger = reduced ? 0 : 0.07
+    const duration = reduced ? 0 : 0.18
 
     const listVariants: Variants = {
       hidden: { opacity: 1 },
@@ -133,11 +132,11 @@ export default function KeywordButtons({ keywords, className, max = 12 }: Props)
     }
 
     const rowVariants: Variants = {
-      hidden: { opacity: 0, y: yFrom },
+      hidden: { opacity: 0, x: -16 },
       show: {
         opacity: 1,
-        y: 0,
-        transition: reduced ? { duration: 0 } : { duration, ease: 'easeOut' },
+        x: 0,
+        transition: reduced ? { duration: 0 } : { duration, ease: [0.2, 0, 0.35, 1] },
       },
     }
 

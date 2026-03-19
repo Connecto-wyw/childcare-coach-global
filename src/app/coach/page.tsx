@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Logo from '@/components/Logo'
 import ChatBox from '@/components/chat/ChatBox'
 import TipSection from '@/components/tips/TipSection'
+import HeroGreeting from '@/components/coach/HeroGreeting'
 import KeywordButtons from './KeywordButtons'
 import ScrollToTop from './ScrollToTop'
 
@@ -195,12 +196,7 @@ export default async function CoachPage({
           <Logo />
         </div>
 
-        <section className="text-center mb-16">
-          <div className="leading-tight">
-            <div className="text-[30px] text-[#0e0e0e] font-Light">{t.hello}</div>
-            <div className="text-[22px] text-[#0e0e0e] font-semibold">{t.subtitle}</div>
-          </div>
-        </section>
+        <HeroGreeting hello={t.hello} subtitle={t.subtitle} />
 
         {/* ✅ 키워드가 있을 때만 노출 */}
         {keywords.length > 0 ? (
