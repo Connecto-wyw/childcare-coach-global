@@ -2,29 +2,34 @@ import Link from 'next/link'
 import { MBTI_TO_TCI, MBTI_PERCENTAGES } from '@/lib/kykScoring'
 import type { MBTIType, TCIScore } from '@/lib/kykScoring'
 
-// TCI 차원 정의
-// key: MBTI_TO_TCI 객체의 실제 키, abbr: 차트 표시 약어, dictKey: 다국어 지원을 위한 키명
-const TCI_DIMENSIONS: { key: string; abbr: string; dictKey: string }[] = [
-  { key: 'NS', abbr: 'NS', dictKey: 'dim_ns' },
-  { key: 'HA', abbr: 'HA', dictKey: 'dim_ha' },
-  { key: 'RD', abbr: 'RD', dictKey: 'dim_rd' },
-  { key: 'PS', abbr: 'P',  dictKey: 'dim_p' },
-  { key: 'SD', abbr: 'SD', dictKey: 'dim_sd' },
-  { key: 'CO', abbr: 'CO', dictKey: 'dim_co' },
-  { key: 'ST', abbr: 'ST', dictKey: 'dim_st' },
-]
+// TCI 차원 키 목록
+const TCI_DIMENSION_KEYS = ['NS', 'HA', 'RD', 'PS', 'SD', 'CO', 'ST'] as const
+type TciKey = typeof TCI_DIMENSION_KEYS[number]
 
-// 레벨 텍스트 → 채워진 칸 수(0~4) (판단 기준용)
-const TCI_SCORE_VALUES: Record<TCIScore, { segments: number; dictKey: string }> = {
-  1: { segments: 1, dictKey: 'level_low' },
-  2: { segments: 2, dictKey: 'level_normal' },
-  3: { segments: 3, dictKey: 'level_high' },
-  4: { segments: 4, dictKey: 'level_very_high' },
+// 언어별 TCI 차원 이름
+const TCI_NAMES: Record<string, Record<TciKey, string>> = {
+  ko: { NS: '새로움추구', HA: '위험회피', RD: '사회적 민감성', PS: '인내력',    SD: '자기지향성',      CO: '협동성',        ST: '자기초월성'       },
+  en: { NS: 'Novelty Seeking', HA: 'Harm Avoidance', RD: 'Reward Dependence', PS: 'Persistence', SD: 'Self-Directedness', CO: 'Cooperativeness', ST: 'Self-Transcendence' },
+  id: { NS: 'Pencarian Kebaruan', HA: 'Penghindaran Bahaya', RD: 'Ketergantungan Hadiah', PS: 'Ketekunan', SD: 'Pengarahan Diri', CO: 'Koperatif',  ST: 'Transendensi Diri' },
+  ms: { NS: 'Pencarian Kebaruan', HA: 'Pengelakan Bahaya',   RD: 'Kebergantungan Hadiah', PS: 'Ketekunan', SD: 'Pengarahan Diri', CO: 'Kerjasama',  ST: 'Transendensi Diri' },
+  th: { NS: 'แสวงหาสิ่งใหม่',     HA: 'หลีกเลี่ยงอันตราย',  RD: 'พึ่งพารางวัล',           PS: 'ความอดทน',    SD: 'การชี้นำตนเอง',   CO: 'ความร่วมมือ', ST: 'การเหนือตนเอง'    },
 }
 
-// 극단 수준 보정 (선택 사항 - 기존 코드 호환성용)
-const LEVEL_SEGMENTS_MAP: Record<string, number> = {
-  '매우 낮음': 0, '낮음': 1, '보통': 2, '높음': 3, '매우 높음': 4,
+// 언어별 레벨 텍스트
+const LEVEL_LABELS: Record<string, [string, string, string, string]> = {
+  ko: ['낮음',   '보통',    '높음',  '매우 높음'],
+  en: ['Low',    'Normal',  'High',  'Very High'],
+  id: ['Rendah', 'Normal',  'Tinggi','Sangat Tinggi'],
+  ms: ['Rendah', 'Normal',  'Tinggi','Sangat Tinggi'],
+  th: ['ต่ำ',    'ปานกลาง', 'สูง',   'สูงมาก'],
+}
+
+// TCI 점수 → segments 매핑
+const TCI_SCORE_VALUES: Record<TCIScore, { segments: number; levelIdx: number }> = {
+  1: { segments: 1, levelIdx: 0 },
+  2: { segments: 2, levelIdx: 1 },
+  3: { segments: 3, levelIdx: 2 },
+  4: { segments: 4, levelIdx: 3 },
 }
 
 // 동물 이름 → 이모지
@@ -48,27 +53,26 @@ const ANIMAL_EMOJI: Record<string, string> = {
  * @param levelLabel - 레벨 텍스트 (매우 낮음 ~ 매우 높음)
  */
 interface TCIBarChartProps {
-  abbr: string
   name: string
   segments: number
   levelLabel: string
+  barColor: string
 }
 
-function TCIBarChart({ abbr, name, segments, levelLabel, barColor }: TCIBarChartProps & { barColor: string }) {
+function TCIBarChart({ name, segments, levelLabel, barColor }: TCIBarChartProps) {
   return (
-    <div className="flex items-center justify-between py-2.5 text-[14px]">
-      {/* 라벨 영역 */}
-      <div className="flex items-center gap-2 w-[140px] shrink-0">
-        <span className="text-gray-300 font-medium w-7 shrink-0 text-[13px]">{abbr}</span>
-        <span className="text-white font-medium leading-[1.2] text-[13px] break-keep">{name}</span>
-      </div>
+    <div className="flex items-center gap-2 py-2">
+      {/* 이름: 2줄 허용, flex-1로 남은 공간 모두 사용 */}
+      <span className="flex-1 text-white font-medium text-[12px] leading-[1.35]">
+        {name}
+      </span>
 
-      {/* 4칸 세그먼트 바 (간격 없는 박스) */}
-      <div className="flex w-[110px] h-[18px] shrink-0">
+      {/* 4칸 세그먼트 바 */}
+      <div className="flex w-[88px] h-[16px] shrink-0 rounded-sm overflow-hidden">
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className={`flex-1 border-[#111] border-r last:border-r-0 ${
+            className={`flex-1 border-r border-[#111] last:border-r-0 ${
               i <= segments ? barColor : 'bg-[#333]'
             }`}
           />
@@ -76,7 +80,9 @@ function TCIBarChart({ abbr, name, segments, levelLabel, barColor }: TCIBarChart
       </div>
 
       {/* 레벨 텍스트 */}
-      <span className="w-[70px] text-right text-gray-300 text-[13px] leading-[1.2] break-keep shrink-0 flex flex-col justify-center">{levelLabel}</span>
+      <span className="w-[54px] shrink-0 text-right text-gray-400 text-[11px] leading-[1.3]">
+        {levelLabel}
+      </span>
     </div>
   )
 }
@@ -99,6 +105,8 @@ export interface NewResultPageProps {
   keywords?: string[]
   /** 다국어 사전 (result 영역) */
   dict?: any
+  /** 현재 사용자 언어코드 */
+  locale?: string
 }
 
 // ─── NewResultPage ───────────────────────────────────────────────────────────
@@ -111,6 +119,7 @@ export default function NewResultPage({
   summary,
   keywords = [],
   dict = {},
+  locale,
 }: NewResultPageProps) {
   const mbtiType = primaryType as MBTIType | undefined
   const tciProfile = mbtiType ? MBTI_TO_TCI[mbtiType] : null
@@ -212,19 +221,18 @@ export default function NewResultPage({
         {/* ── TCI 기질 프로파일 바 차트 ────────────────────────────────────── */}
         {tciProfile && (
           <div className="max-w-[340px] mx-auto flex flex-col gap-1.5">
-            {TCI_DIMENSIONS.map(({ key, abbr, dictKey }) => {
+            {TCI_DIMENSION_KEYS.map((key) => {
               const score = tciProfile[key] as TCIScore | undefined
               const levelData = score ? TCI_SCORE_VALUES[score] : TCI_SCORE_VALUES[2]
-              const segments = levelData.segments
-              const levelLabel = dict[levelData.dictKey] ?? 'Normal'
-              const name = dict[dictKey] ?? abbr
+              const lang = locale ?? 'ko'
+              const names = TCI_NAMES[lang] ?? TCI_NAMES.ko
+              const levels = LEVEL_LABELS[lang] ?? LEVEL_LABELS.ko
               return (
                 <TCIBarChart
                   key={key}
-                  abbr={abbr}
-                  name={name}
-                  segments={segments}
-                  levelLabel={levelLabel}
+                  name={names[key]}
+                  segments={levelData.segments}
+                  levelLabel={levels[levelData.levelIdx]}
                   barColor={theme.barColor}
                 />
               )
