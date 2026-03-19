@@ -114,10 +114,11 @@ export default function Step3Client({ dict }: { dict: Record<string, any> }) {
   async function claimAndGoResult(forceDraftId?: string) {
     setClaimErr(null)
 
-    const bodyObj = forceDraftId ? { draft_id: forceDraftId } : undefined
+    const draftId = forceDraftId || (typeof window !== 'undefined' ? localStorage.getItem('kyk_draft_id') : undefined)
+    const bodyObj = draftId ? { draft_id: draftId } : undefined
     const res = await fetch('/api/kyk/claim', { 
       method: 'POST',
-      headers: forceDraftId ? { 'Content-Type': 'application/json' } : undefined,
+      headers: draftId ? { 'Content-Type': 'application/json' } : undefined,
       body: bodyObj ? JSON.stringify(bodyObj) : undefined
     })
     const json = await res.json().catch(() => ({}))
