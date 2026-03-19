@@ -111,65 +111,6 @@ export default function Step3Client({ dict }: { dict: Record<string, any> }) {
     }))
   }
 
-  async function claimAndGoResult(forceDraftId?: string) {
-    setClaimErr(null)
-
-    const draftId = forceDraftId || (typeof window !== 'undefined' ? localStorage.getItem('kyk_draft_id') : undefined)
-    const bodyObj = draftId ? { draft_id: draftId } : undefined
-    const res = await fetch('/api/kyk/claim', { 
-      method: 'POST',
-      headers: draftId ? { 'Content-Type': 'application/json' } : undefined,
-      body: bodyObj ? JSON.stringify(bodyObj) : undefined
-    })
-    const json = await res.json().catch(() => ({}))
-
-    if (res.ok && json?.ok) {
-      router.replace('/kyk/result')
-      return
-    }
-
-    if (res.status === 401) {
-      setShowLoginModal(true)
-      return
-    }
-
-    setClaimErr(json?.error ?? `HTTP ${res.status}`)
-  }
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const params = new URLSearchParams(window.location.search)
-    const after = params.get('after')
-    if (after !== 'login') return
-
-    ;(async () => {
-      setBusy(true)
-      try {
-        // ✅ 1) Ensure the draft cookie is alive and extract draft ID directly.
-        const startRes = await fetch('/api/kyk/start', { method: 'POST' })
-        const startJson = await startRes.json().catch(() => ({}))
-        const forcedDraftId = startJson.draft_id
-        
-        // ✅ 2) Save current local answers to the newly forced server draft
-        await fetch('/api/kyk/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers, draft_id: forcedDraftId }),
-        })
-        
-        // ✅ 3) Generate the final result and migrate to /kyk/result
-        await claimAndGoResult(forcedDraftId)
-      } finally {
-        setBusy(false)
-        params.delete('after')
-        const nextUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
-        window.history.replaceState({}, '', nextUrl)
-      }
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   async function onSeeResult() {
     if (!isComplete) return
 
@@ -178,35 +119,13 @@ export default function Step3Client({ dict }: { dict: Record<string, any> }) {
     setClaimErr(null)
 
     try {
-      await saveDraft(answers)
-      await claimAndGoResult()
+      // Step3 -> 저장 보장
+      saveLocalAnswers(answers)
+      router.push('/kyk/loading')
     } catch (e) {
       const err = e as Error
       setClaimErr(err?.message ?? 'Failed to continue.')
-    } finally {
       setBusy(false)
-    }
-  }
-
-  async function startGoogleLogin() {
-    setLoginErr(null)
-    setShowLoginModal(false)
-
-    document.cookie = 'kyk_auth_return=/kyk/step3?after=login; path=/; max-age=300; SameSite=Lax'
-    const callbackUrl = new URL(`/auth/callback`, window.location.origin)
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: callbackUrl.toString(),
-        queryParams: {
-          prompt: 'select_account',
-        },
-      },
-    })
-
-    if (error) {
-      setLoginErr(error.message)
     }
   }
 
@@ -294,15 +213,6 @@ export default function Step3Client({ dict }: { dict: Record<string, any> }) {
         </section>
       </div>
 
-      <Modal
-        open={showLoginModal}
-        title={dict.modal_title}
-        body={dict.modal_body}
-        onCancel={() => setShowLoginModal(false)}
-        onOk={startGoogleLogin}
-        okText={dict.modal_ok}
-        cancelText={dict.modal_cancel}
-      />
     </main>
   )
 }
