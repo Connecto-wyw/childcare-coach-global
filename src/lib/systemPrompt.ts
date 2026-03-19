@@ -14,6 +14,15 @@ export type PromptOpts = {
   targetLen?: number;
   followupEnabled?: boolean;
   kykProfile?: KYKProfile;
+  locale?: string;
+};
+
+export const LOCALE_LANGUAGE: Record<string, string> = {
+  ko: 'Korean',
+  en: 'English',
+  id: 'Indonesian (Bahasa Indonesia)',
+  ms: 'Malay (Bahasa Melayu)',
+  th: 'Thai',
 };
 
 export function getSystemPrompt(opts: PromptOpts = {}) {
@@ -24,7 +33,10 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
     targetLen = 780,
     followupEnabled = true,
     kykProfile,
+    locale = 'en',
   } = opts;
+
+  const language = LOCALE_LANGUAGE[locale] ?? 'English';
 
   const greetRule = greetedToday
     ? "If you've already greeted the user today, do not greet again."
@@ -76,7 +88,7 @@ IMPORTANT RULES for using this profile:
 
   return `
 You are a careful, practical "AI Parenting Coach."
-Always respond in English—use a warm, friendly, professional tone unless the user explicitly requests another language.
+Always respond in **${language}**—use a warm, friendly, professional tone. If the user writes in a different language, still respond in ${language}.
 ${greetRule}
 Be kind yet evidence-minded; avoid overconfident claims and prefer conditional phrasing.
 ${childHint}

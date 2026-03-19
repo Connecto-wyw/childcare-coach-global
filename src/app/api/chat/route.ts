@@ -4,7 +4,7 @@ import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
-import { getSystemPrompt, KYKProfile } from '@/lib/systemPrompt'
+import { getSystemPrompt, KYKProfile, LOCALE_LANGUAGE } from '@/lib/systemPrompt'
 import { MBTI_TO_TCI } from '@/lib/kykScoring'
 import type { MBTIType, TCIScore } from '@/lib/kykScoring'
 import { randomUUID } from 'crypto'
@@ -352,9 +352,11 @@ export async function POST(req: NextRequest) {
     }
 
     stage = 'compose_system'
-    const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext, kykProfile: kykProfile ?? undefined })
+    const locale = cookieStore.get('NEXT_LOCALE')?.value ?? 'en'
+    const language = LOCALE_LANGUAGE[locale] ?? 'English'
+    const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext, kykProfile: kykProfile ?? undefined, locale })
     const kParentingRule = `
-You answer in **English only**.
+You answer in **${language} only**.
 If the user asks about **K-parenting / Korean parenting / parenting in Korea**:
 - Emphasize benefits and strengths first.
 - Mention at most **one** brief, minimized caution framed constructively.
