@@ -56,15 +56,15 @@ interface TCIBarChartProps {
 
 function TCIBarChart({ abbr, name, segments, levelLabel, barColor }: TCIBarChartProps & { barColor: string }) {
   return (
-    <div className="flex items-center justify-between py-2 text-[14px]">
+    <div className="flex items-center justify-between py-2.5 text-[14px]">
       {/* 라벨 영역 */}
-      <div className="flex items-center gap-2 w-[130px] shrink-0">
-        <span className="text-gray-300 font-medium w-8">{abbr}</span>
-        <span className="text-white font-medium truncate">{name}</span>
+      <div className="flex items-center gap-2 w-[140px] shrink-0">
+        <span className="text-gray-300 font-medium w-7 shrink-0 text-[13px]">{abbr}</span>
+        <span className="text-white font-medium leading-[1.2] text-[13px] break-keep">{name}</span>
       </div>
 
       {/* 4칸 세그먼트 바 (간격 없는 박스) */}
-      <div className="flex w-32 h-[18px]">
+      <div className="flex w-[110px] h-[18px] shrink-0">
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
@@ -76,7 +76,7 @@ function TCIBarChart({ abbr, name, segments, levelLabel, barColor }: TCIBarChart
       </div>
 
       {/* 레벨 텍스트 */}
-      <span className="w-16 text-right text-gray-300">{levelLabel}</span>
+      <span className="w-[70px] text-right text-gray-300 text-[13px] leading-[1.2] break-keep shrink-0 flex flex-col justify-center">{levelLabel}</span>
     </div>
   )
 }
