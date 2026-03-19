@@ -177,10 +177,6 @@ export default function NewResultPage({
         {/* V 자 배경 도형 */}
         <div className="absolute left-0 top-0 w-1/2 h-full opacity-90 origin-top-left -skew-x-[35deg]" style={{ background: theme.darkTone }}></div>
         <div className="absolute right-0 top-0 w-1/2 h-full opacity-90 origin-top-right skew-x-[35deg]" style={{ background: theme.lightTone }}></div>
-        <div className="absolute inset-0 z-0 flex items-start justify-center pt-2">
-           {/* 상단 햄버거 메뉴 아이콘 (장식용) */}
-           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </div>
 
         {/* 동물 캐릭터 이미지 (테두리 없음) */}
         <div className="relative z-10 mx-auto mb-6 flex h-40 w-40 items-center justify-center">
@@ -193,7 +189,7 @@ export default function NewResultPage({
 
         {/* 타이틀 및 요약 (어린이 이름 생략) */}
         <h2 className={`relative z-10 text-[24px] font-bold ${theme.textColor}`}>
-          {title ? `${title}형` : '결과를 불러오는 중...'}
+          {title ?? '결과를 불러오는 중...'}
         </h2>
 
         {percentage !== null && (
