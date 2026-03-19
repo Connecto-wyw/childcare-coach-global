@@ -152,6 +152,7 @@ export default async function KYKResultPage() {
       title={profile.title ? dict.computed[profile.title as keyof typeof dict.computed] : undefined}
       summary={profile.summary ? (dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary) : undefined}
       keywords={resolvedKeywords}
+      dict={dict.result}
     />
   )
 }

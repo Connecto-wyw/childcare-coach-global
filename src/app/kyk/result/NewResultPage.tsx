@@ -2,33 +2,29 @@ import Link from 'next/link'
 import { MBTI_TO_TCI, MBTI_PERCENTAGES } from '@/lib/kykScoring'
 import type { MBTIType, TCIScore } from '@/lib/kykScoring'
 
-// ─── TCI 차원 정의 ───────────────────────────────────────────────────────────
-// key: MBTI_TO_TCI 객체의 실제 키, abbr: 차트 표시 약어, name: 한국어 이름
-const TCI_DIMENSIONS: { key: string; abbr: string; name: string }[] = [
-  { key: 'NS', abbr: 'NS', name: '새로움추구' },
-  { key: 'HA', abbr: 'HA', name: '위험회피' },
-  { key: 'RD', abbr: 'RD', name: '사회적 민감성' },
-  { key: 'PS', abbr: 'P',  name: '인내력' },
-  { key: 'SD', abbr: 'SD', name: '자기지향성' },
-  { key: 'CO', abbr: 'CO', name: '협동성' },
-  { key: 'ST', abbr: 'ST', name: '자기초월성' },
+// TCI 차원 정의
+// key: MBTI_TO_TCI 객체의 실제 키, abbr: 차트 표시 약어, dictKey: 다국어 지원을 위한 키명
+const TCI_DIMENSIONS: { key: string; abbr: string; dictKey: string }[] = [
+  { key: 'NS', abbr: 'NS', dictKey: 'dim_ns' },
+  { key: 'HA', abbr: 'HA', dictKey: 'dim_ha' },
+  { key: 'RD', abbr: 'RD', dictKey: 'dim_rd' },
+  { key: 'PS', abbr: 'P',  dictKey: 'dim_p' },
+  { key: 'SD', abbr: 'SD', dictKey: 'dim_sd' },
+  { key: 'CO', abbr: 'CO', dictKey: 'dim_co' },
+  { key: 'ST', abbr: 'ST', dictKey: 'dim_st' },
 ]
 
-// TCI 점수(1~4) → 레벨 텍스트
-const TCI_SCORE_TO_LEVEL: Record<TCIScore, string> = {
-  1: '낮음',
-  2: '보통',
-  3: '높음',
-  4: '매우 높음',
+// 레벨 텍스트 → 채워진 칸 수(0~4) (판단 기준용)
+const TCI_SCORE_VALUES: Record<TCIScore, { segments: number; dictKey: string }> = {
+  1: { segments: 1, dictKey: 'level_low' },
+  2: { segments: 2, dictKey: 'level_normal' },
+  3: { segments: 3, dictKey: 'level_high' },
+  4: { segments: 4, dictKey: 'level_very_high' },
 }
 
-// 레벨 텍스트 → 채워진 칸 수(0~4)
-const LEVEL_TO_SEGMENTS: Record<string, number> = {
-  '매우 낮음': 0,
-  '낮음':     1,
-  '보통':     2,
-  '높음':     3,
-  '매우 높음': 4,
+// 극단 수준 보정 (선택 사항 - 기존 코드 호환성용)
+const LEVEL_SEGMENTS_MAP: Record<string, number> = {
+  '매우 낮음': 0, '낮음': 1, '보통': 2, '높음': 3, '매우 높음': 4,
 }
 
 // 동물 이름 → 이모지
@@ -60,11 +56,11 @@ interface TCIBarChartProps {
 
 function TCIBarChart({ abbr, name, segments, levelLabel, barColor }: TCIBarChartProps & { barColor: string }) {
   return (
-    <div className="flex items-center justify-between py-2 text-[12px]">
+    <div className="flex items-center justify-between py-2 text-[14px]">
       {/* 라벨 영역 */}
-      <div className="flex items-center gap-1.5 w-28 shrink-0">
-        <span className="text-gray-300">{abbr}</span>
-        <span className="text-white font-medium">{name}</span>
+      <div className="flex items-center gap-2 w-[130px] shrink-0">
+        <span className="text-gray-300 font-medium w-8">{abbr}</span>
+        <span className="text-white font-medium truncate">{name}</span>
       </div>
 
       {/* 4칸 세그먼트 바 (간격 없는 박스) */}
@@ -101,6 +97,8 @@ export interface NewResultPageProps {
   summary?: string
   /** 키워드 배열 (예: ['#전략', '#분석력']) */
   keywords?: string[]
+  /** 다국어 사전 (result 영역) */
+  dict?: any
 }
 
 // ─── NewResultPage ───────────────────────────────────────────────────────────
@@ -112,6 +110,7 @@ export default function NewResultPage({
   title,
   summary,
   keywords = [],
+  dict = {},
 }: NewResultPageProps) {
   const mbtiType = primaryType as MBTIType | undefined
   const tciProfile = mbtiType ? MBTI_TO_TCI[mbtiType] : null
@@ -198,13 +197,13 @@ export default function NewResultPage({
         </h2>
 
         {percentage !== null && (
-          <div className="relative z-10 mt-6 text-[15px] font-bold text-white">
-            같은 유형의 사람 {percentage}%
+          <div className="relative z-10 mt-6 text-[16px] font-bold text-white">
+            {dict.same_type ?? '같은 유형의 사람'} {percentage}%
           </div>
         )}
 
         {leadSummary && (
-          <div className="relative z-10 mt-2 text-[13px] text-gray-300 leading-relaxed max-w-[260px] mx-auto break-keep">
+          <div className="relative z-10 mt-3 text-[15px] text-gray-200 leading-relaxed max-w-[280px] mx-auto break-keep">
             {leadSummary.split(',').map((part, i, arr) => (
               <p key={i}>{part}{i < arr.length - 1 ? ',' : ''}</p>
             ))}
@@ -213,14 +212,16 @@ export default function NewResultPage({
       </div>
 
       {/* ── 본문 ─────────────────────────────────────────────────────────────── */}
-      <div className="w-full bg-[#2a2a2a] py-8 px-6">
+      <div className="w-full bg-[#2a2a2a] py-10 px-6">
         {/* ── TCI 기질 프로파일 바 차트 ────────────────────────────────────── */}
         {tciProfile && (
-          <div className="max-w-xs mx-auto flex flex-col gap-1">
-            {TCI_DIMENSIONS.map(({ key, abbr, name }) => {
+          <div className="max-w-[340px] mx-auto flex flex-col gap-1.5">
+            {TCI_DIMENSIONS.map(({ key, abbr, dictKey }) => {
               const score = tciProfile[key] as TCIScore | undefined
-              const levelLabel = score ? TCI_SCORE_TO_LEVEL[score] : '보통'
-              const segments = LEVEL_TO_SEGMENTS[levelLabel] ?? 2
+              const levelData = score ? TCI_SCORE_VALUES[score] : TCI_SCORE_VALUES[2]
+              const segments = levelData.segments
+              const levelLabel = dict[levelData.dictKey] ?? 'Normal'
+              const name = dict[dictKey] ?? abbr
               return (
                 <TCIBarChart
                   key={key}
@@ -237,11 +238,11 @@ export default function NewResultPage({
 
         {/* 키워드 태그 버튼 (최대 4개) */}
         {keywords.length > 0 && (
-          <div className="mt-8 flex justify-center gap-2">
+          <div className="mt-10 flex justify-center flex-wrap gap-2.5">
             {keywords.slice(0, 4).map((kw) => (
               <div
                 key={kw}
-                className="border border-gray-400 bg-[#222] px-5 py-1 text-[13px] font-medium text-gray-200"
+                className="border border-gray-400 bg-[#222] px-5 py-1.5 text-[15px] font-medium text-gray-200 shadow-sm"
               >
                 {kw.replace('#', '')}
               </div>
@@ -250,14 +251,14 @@ export default function NewResultPage({
         )}
       </div>
 
-      <div className="mx-auto max-w-xl px-6 pb-16 pt-8 text-gray-200">
-        <p className="text-[13px] leading-relaxed mb-6">
-          {checkItems.length > 0 ? checkItems.join(' ') : '결과가 준비 중입니다.'}
+      <div className="mx-auto max-w-xl px-6 pb-20 pt-10 text-gray-100">
+        <p className="text-[16px] leading-[1.7] mb-8 font-medium">
+          {leadSummary || dict.preparing_result || '결과가 준비 중입니다.'}
         </p>
 
         {/* 체크리스트 - 불릿 포인트 스타일 */}
         {checkItems.length > 0 && (
-          <ul className="list-disc list-inside space-y-2 text-[13px]">
+          <ul className="list-disc list-inside space-y-3 text-[15px] text-gray-300">
             {checkItems.map((item, idx) => (
               <li key={idx} className="leading-relaxed">
                 {item}
@@ -267,18 +268,18 @@ export default function NewResultPage({
         )}
 
         {/* ── 액션 버튼 ────────────────────────────────────────────────────── */}
-        <div className="mt-10 flex gap-3">
+        <div className="mt-12 flex gap-4">
           <Link
             href="/coach"
-            className={`flex-1 border border-transparent py-4 text-center text-[15px] font-bold text-white transition-opacity hover:opacity-90 ${theme.barColor}`}
+            className={`flex-1 border border-transparent py-4 text-center text-[16px] font-bold text-white transition-opacity hover:opacity-90 rounded-sm ${theme.barColor}`}
           >
-            AI 코치 상담하기
+            {dict.coach_consulting ?? 'AI 코치 상담하기'}
           </Link>
           <Link
             href="/kyk/step1?restart=1"
-            className="border border-gray-500 bg-transparent px-6 py-4 text-[15px] font-bold text-gray-300 transition-colors hover:text-white"
+            className="border border-gray-500 bg-transparent px-6 py-4 text-[16px] font-bold text-gray-300 transition-colors hover:text-white rounded-sm"
           >
-            다시 검사
+            {dict.btn_retry ?? '다시 검사'}
           </Link>
         </div>
       </div>
