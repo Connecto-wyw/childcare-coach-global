@@ -11,6 +11,7 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ActiveTeamsGrid, { type TeamCard } from '@/components/team/ActiveTeamsGrid'
 import { getDictionary, getLocale } from '@/i18n'
+import { resolveI18n } from '@/lib/i18nFallback'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,6 +22,7 @@ type NewsPostRow = {
   slug: string
   created_at: string | null
   cover_image_url?: string | null
+  title_i18n?: any
 }
 
 type TeamRow = Pick<
@@ -158,11 +160,15 @@ export default async function CoachPage({
 
   const { data: newsRes, error: newsErr } = await supabase
     .from('news_posts')
-    .select('id, title, slug, created_at, cover_image_url')
+    .select('id, title, title_i18n, slug, created_at, cover_image_url')
     .order('created_at', { ascending: false })
     .limit(3)
 
-  const news: NewsPostRow[] = newsErr || !newsRes ? [] : (newsRes as NewsPostRow[])
+  const rawNews = newsErr || !newsRes ? [] : (newsRes as NewsPostRow[])
+  const news: NewsPostRow[] = rawNews.map((n) => ({
+    ...n,
+    title: resolveI18n(n.title, n.title_i18n, locale),
+  }))
 
   const ongoingTeams = await getOngoingTeams(supabase)
 
