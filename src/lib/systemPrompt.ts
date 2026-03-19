@@ -1,4 +1,11 @@
 // src/lib/systemPrompt.ts
+
+export type KYKProfile = {
+  mbtiType: string;        // e.g. "INTJ"
+  typeName: string;        // e.g. "냉철한 부엉이형"
+  tciSummary: string;      // e.g. "NS:High, HA:High, RD:Low, P:VeryHigh, SD:High, CO:Normal, ST:High"
+};
+
 export type PromptOpts = {
   greetedToday?: boolean;
   childAge?: string;
@@ -6,6 +13,7 @@ export type PromptOpts = {
   prevContext?: string;   // keep for compatibility; not used
   targetLen?: number;
   followupEnabled?: boolean;
+  kykProfile?: KYKProfile;
 };
 
 export function getSystemPrompt(opts: PromptOpts = {}) {
@@ -15,6 +23,7 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
     childGender,
     targetLen = 780,
     followupEnabled = true,
+    kykProfile,
   } = opts;
 
   const greetRule = greetedToday
@@ -52,6 +61,19 @@ export function getSystemPrompt(opts: PromptOpts = {}) {
   const endRule =
     'End-of-output rule: on the very last line output exactly [END] with no surrounding whitespace.';
 
+  const kykRule = kykProfile
+    ? `
+## Child's KYK Personality Profile
+This parent's child has completed the KYK (Know Your Kid) assessment.
+- MBTI Type: **${kykProfile.mbtiType}** ("${kykProfile.typeName}")
+- TCI Temperament: ${kykProfile.tciSummary}
+
+IMPORTANT RULES for using this profile:
+1. In the very first response of a session, proactively mention the child's personality type with a sentence such as: "By the way, your child's KYK profile shows the **${kykProfile.typeName}** type (${kykProfile.mbtiType}) — I'll keep that in mind." Insert this naturally, not as a heading.
+2. On every response, factor the child's temperament traits into your advice. Reference specific TCI traits when relevant (e.g., high Harm Avoidance → the child may be more cautious; high Novelty Seeking → thrives with variety).
+3. Do not repeat the full profile description in every response — mention relevant traits briefly as needed.`.trim()
+    : '';
+
   return `
 You are a careful, practical "AI Parenting Coach."
 Always respond in English—use a warm, friendly, professional tone unless the user explicitly requests another language.
@@ -68,5 +90,6 @@ ${closingBanRule}
 ${bannedPhrasesRule}
 ${repetitionRule}
 ${endRule}
+${kykRule}
 `.trim();
 }

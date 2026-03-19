@@ -4,12 +4,45 @@ import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
-import { getSystemPrompt } from '@/lib/systemPrompt'
+import { getSystemPrompt, KYKProfile } from '@/lib/systemPrompt'
+import { MBTI_TO_TCI } from '@/lib/kykScoring'
+import type { MBTIType, TCIScore } from '@/lib/kykScoring'
 import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+// MBTI 타입 → 한국어 유형명 (kyk.json의 title_* 값)
+const MBTI_TYPE_NAMES: Record<string, string> = {
+  INTJ: '냉철한 부엉이형', INTP: '솔직한 물고기형', INFJ: '상상력 넘치는 풍뎅이형', INFP: '이상적인 나비형',
+  ISTJ: '조용한 물고기형', ISTP: '관대한 부엉이형', ISFJ: '온화한 나비형',         ISFP: '감성적인 풍뎅이형',
+  ENTJ: '야망있는 호랑이형', ENTP: '참견쟁이 늑대형', ENFJ: '조화로운 돌고래형',   ENFP: '열정적인 말형',
+  ESTJ: '솔직한 늑대형',   ESTP: '활동적인 호랑이형', ESFJ: '에너지 넘치는 말형',  ESFP: '긍정적인 돌고래형',
+}
+
+// TCI 점수 → 영어 레벨 텍스트
+const TCI_LEVEL: Record<TCIScore, string> = { 1: 'Low', 2: 'Normal', 3: 'High', 4: 'VeryHigh' }
+
+function buildKYKProfile(mbtiType: string): KYKProfile | null {
+  const upper = mbtiType.toUpperCase() as MBTIType
+  const tci = MBTI_TO_TCI[upper]
+  if (!tci) return null
+  const tciSummary = [
+    `NS:${TCI_LEVEL[tci.NS as TCIScore]}`,
+    `HA:${TCI_LEVEL[tci.HA as TCIScore]}`,
+    `RD:${TCI_LEVEL[tci.RD as TCIScore]}`,
+    `P:${TCI_LEVEL[tci.PS as TCIScore]}`,
+    `SD:${TCI_LEVEL[tci.SD as TCIScore]}`,
+    `CO:${TCI_LEVEL[tci.CO as TCIScore]}`,
+    `ST:${TCI_LEVEL[tci.ST as TCIScore]}`,
+  ].join(', ')
+  return {
+    mbtiType: upper,
+    typeName: MBTI_TYPE_NAMES[upper] ?? upper,
+    tciSummary,
+  }
+}
 
 function trimToBytes(s: string, limit = 2000) {
   const enc = new TextEncoder()
@@ -299,8 +332,27 @@ export async function POST(req: NextRequest) {
       greetedToday = false
     }
 
+    stage = 'load_kyk'
+    let kykProfile: KYKProfile | null = null
+    if (userId) {
+      try {
+        const { data: kykData } = await supabase
+          .from('kyk_results')
+          .select('computed')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        const primaryType = (kykData?.computed as any)?.primary_type
+        if (primaryType) kykProfile = buildKYKProfile(primaryType)
+      } catch {
+        // KYK 결과 없어도 코치는 정상 작동
+      }
+    }
+
     stage = 'compose_system'
-    const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext })
+    const base = systemFromClient?.trim() || getSystemPrompt({ greetedToday, prevContext, kykProfile: kykProfile ?? undefined })
     const kParentingRule = `
 You answer in **English only**.
 If the user asks about **K-parenting / Korean parenting / parenting in Korea**:

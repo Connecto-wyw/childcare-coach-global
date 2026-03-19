@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
-import { getDictionary } from '@/i18n'
+import { getDictionary, getLocale } from '@/i18n'
 import NewResultPage from './NewResultPage'
 
 const TEXT = '#0e0e0e'
@@ -55,6 +55,7 @@ export default async function KYKResultPage() {
   
   // NOTE: i18n
   const dict = await getDictionary('kyk')
+  const locale = await getLocale()
 
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user
@@ -153,6 +154,7 @@ export default async function KYKResultPage() {
       summary={profile.summary ? (dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary) : undefined}
       keywords={resolvedKeywords}
       dict={dict.result}
+      locale={locale}
     />
   )
 }
