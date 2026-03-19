@@ -15,5 +15,22 @@
   "kyk_modal_limit": "Without KYK, you can ask up to {limit} questions per day.",
   "kyk_modal_btn_kyk": "Take KYK now (1–2 min)",
   "kyk_modal_btn_skip": "Ask anyway ({limit}/day)",
-  "kyk_limit_reached": "Complete KYK to unlock unlimited questions! [Take KYK now](/kyk)"
+  "kyk_limit_reached": "Complete KYK to unlock unlimited questions! [Take KYK now](/kyk)",
+  "tips": [
+    { "title": "✅ Be Specific with Praise", "body": "Praise actions, not outcomes. \"I liked how you cleaned up your toys.\" keeps motivation steady." },
+    { "title": "🧠 Name the Feeling First", "body": "Try \"You seem frustrated.\" Naming emotions reduces intensity and opens cooperation." },
+    { "title": "🎯 One Instruction at a Time", "body": "Short, single-step directions work better than multi-step commands." },
+    { "title": "🟦 Offer Two Good Choices", "body": "\"Red cup or blue cup?\" gives autonomy while keeping boundaries." },
+    { "title": "🤝 Connect Before Correct", "body": "A brief connection (\"I'm here.\") makes guidance land better." },
+    { "title": "⏳ Use a Calm Countdown", "body": "Give a gentle 10→0 countdown for transitions instead of repeating yourself." },
+    { "title": "🩹 Repair After a Hard Moment", "body": "After conflict: \"We both got upset. Let's try again.\" Repair builds trust." },
+    { "title": "🧩 Tiny Routines Win", "body": "Small, repeatable routines beat big plans. Keep it easy to do daily." },
+    { "title": "🍎 Fuel First", "body": "Snack + water often fixes \"mystery\" meltdowns faster than talking." },
+    { "title": "🌙 Morning Wins Start at Night", "body": "Lay out clothes and bags the night before to cut morning friction." },
+    { "title": "💛 Front-Load Attention", "body": "10 minutes of focused attention reduces attention-seeking later." },
+    { "title": "🛑 Validate + Boundary", "body": "\"You're mad. It's okay to be mad. It's not okay to hit.\"" },
+    { "title": "🔁 Practice \"Redo\"", "body": "\"Let's redo that with a calmer voice.\" Teaches skill without punishment." },
+    { "title": "🎉 Celebrate Small Improvements", "body": "Progress is the goal. Notice the 5% change and name it." },
+    { "title": "🧡 Hold the Boundary, Keep the Warmth", "body": "Firm + kind works. \"I won't let you throw. I'm here.\"" }
+  ]
 }

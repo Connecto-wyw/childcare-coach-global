@@ -15,5 +15,22 @@
   "kyk_modal_limit": "Tanpa KYK, anda hanya boleh bertanya {limit} soalan sehari.",
   "kyk_modal_btn_kyk": "Cuba KYK sekarang (1–2 minit)",
   "kyk_modal_btn_skip": "Tanya sahaja ({limit}/hari)",
-  "kyk_limit_reached": "Lengkapkan KYK untuk soalan tanpa had! [Cuba KYK sekarang](/kyk)"
+  "kyk_limit_reached": "Lengkapkan KYK untuk soalan tanpa had! [Cuba KYK sekarang](/kyk)",
+  "tips": [
+    { "title": "✅ Pujian yang Spesifik", "body": "Puji tindakan, bukan hasil. \"Saya suka cara awak kemas mainan.\" mengekalkan motivasi." },
+    { "title": "🧠 Namakan Perasaan Terlebih Dahulu", "body": "Cuba \"Awak nampak kecewa.\" Menamakan emosi mengurangkan intensiti dan membuka kerjasama." },
+    { "title": "🎯 Satu Arahan Pada Satu Masa", "body": "Arahan pendek satu langkah lebih berkesan daripada perintah berbilang langkah." },
+    { "title": "🟦 Tawarkan Dua Pilihan Baik", "body": "\"Cawan merah atau biru?\" memberi autonomi sambil mengekalkan had." },
+    { "title": "🤝 Hubung Sebelum Betulkan", "body": "Hubungan ringkas (\"Saya di sini.\") membantu arahan lebih mudah diterima." },
+    { "title": "⏳ Kiraan Undur yang Tenang", "body": "Beri kiraan undur lembut 10→0 semasa peralihan daripada mengulang-ulang." },
+    { "title": "🩹 Pulih Selepas Momen Sukar", "body": "Selepas konflik: \"Kita berdua marah. Jom cuba lagi.\" Pemulihan membina kepercayaan." },
+    { "title": "🧩 Rutin Kecil Menang", "body": "Rutin kecil yang boleh diulang lebih baik daripada rancangan besar. Mudah dilakukan setiap hari." },
+    { "title": "🍎 Makan Dulu", "body": "Snek + air sering mengatasi 'tantrum misteri' lebih cepat daripada bercakap." },
+    { "title": "🌙 Kejayaan Pagi Bermula Malam Ini", "body": "Sediakan pakaian dan beg malam sebelumnya untuk mengurangkan geseran pagi." },
+    { "title": "💛 Beri Perhatian di Hadapan", "body": "10 minit perhatian penuh mengurangkan tingkah laku mencari perhatian kemudian." },
+    { "title": "🛑 Sahkan + Had", "body": "\"Awak marah. Boleh marah. Tidak boleh memukul.\"" },
+    { "title": "🔁 Amalkan 'Buat Semula'", "body": "\"Jom buat semula dengan suara yang lebih tenang.\" Mengajar kemahiran tanpa hukuman." },
+    { "title": "🎉 Raikan Kemajuan Kecil", "body": "Kemajuan adalah matlamatnya. Perhatikan perubahan 5% dan sebutkan." },
+    { "title": "🧡 Kekalkan Had, Kekalkan Kehangatan", "body": "Tegas + baik hati berkesan. \"Saya tidak akan biar awak membaling. Saya di sini.\"" }
+  ]
 }

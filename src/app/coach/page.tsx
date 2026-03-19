@@ -262,7 +262,7 @@ export default async function CoachPage({
             <div>
               <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.todays_tips}</h3>
               <div className="bg-[#f0f7fd] p-4">
-                <TipSection />
+                <TipSection tips={Array.isArray(t.tips) ? t.tips : undefined} />
               </div>
             </div>
           </div>

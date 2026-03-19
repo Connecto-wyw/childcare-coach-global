@@ -15,5 +15,22 @@
   "kyk_modal_limit": "Tanpa KYK, Anda hanya bisa mengajukan {limit} pertanyaan per hari.",
   "kyk_modal_btn_kyk": "Coba KYK sekarang (1–2 menit)",
   "kyk_modal_btn_skip": "Tanya saja ({limit}/hari)",
-  "kyk_limit_reached": "Selesaikan KYK untuk pertanyaan tak terbatas! [Coba KYK sekarang](/kyk)"
+  "kyk_limit_reached": "Selesaikan KYK untuk pertanyaan tak terbatas! [Coba KYK sekarang](/kyk)",
+  "tips": [
+    { "title": "✅ Pujian yang Spesifik", "body": "Puji tindakan, bukan hasil. \"Aku suka caramu membereskan mainan.\" menjaga motivasi tetap stabil." },
+    { "title": "🧠 Sebut Perasaan Terlebih Dahulu", "body": "Coba \"Kamu sepertinya frustrasi.\" Menyebut emosi mengurangi intensitas dan membuka kerja sama." },
+    { "title": "🎯 Satu Instruksi Sekaligus", "body": "Arahan singkat satu langkah lebih efektif daripada perintah banyak langkah." },
+    { "title": "🟦 Tawarkan Dua Pilihan Baik", "body": "\"Gelas merah atau biru?\" memberi otonomi sambil menjaga batas." },
+    { "title": "🤝 Terhubung Sebelum Mengoreksi", "body": "Koneksi singkat (\"Aku di sini.\") membuat arahan lebih mudah diterima." },
+    { "title": "⏳ Hitung Mundur yang Tenang", "body": "Beri hitung mundur lembut 10→0 saat transisi daripada mengulang-ulang." },
+    { "title": "🩹 Pulih Setelah Momen Sulit", "body": "Setelah konflik: \"Kita berdua kesal. Ayo coba lagi.\" Perbaikan membangun kepercayaan." },
+    { "title": "🧩 Rutinitas Kecil Menang", "body": "Rutinitas kecil yang bisa diulang lebih baik dari rencana besar. Mudah dilakukan setiap hari." },
+    { "title": "🍎 Makan Dulu", "body": "Camilan + air sering mengatasi tantrum 'misterius' lebih cepat daripada berbicara." },
+    { "title": "🌙 Kemenangan Pagi Dimulai Malam Ini", "body": "Siapkan pakaian dan tas malam sebelumnya untuk mengurangi hambatan pagi." },
+    { "title": "💛 Berikan Perhatian di Awal", "body": "10 menit perhatian penuh mengurangi perilaku mencari perhatian kemudian." },
+    { "title": "🛑 Validasi + Batasan", "body": "\"Kamu marah. Boleh marah. Tidak boleh memukul.\"" },
+    { "title": "🔁 Latih 'Ulangi'", "body": "\"Ayo ulangi dengan suara yang lebih tenang.\" Mengajarkan keterampilan tanpa hukuman." },
+    { "title": "🎉 Rayakan Kemajuan Kecil", "body": "Kemajuan adalah tujuannya. Perhatikan perubahan 5% dan sebutkan." },
+    { "title": "🧡 Jaga Batasan, Jaga Kehangatan", "body": "Tegas + baik hati berhasil. \"Aku tidak akan membiarkanmu melempar. Aku di sini.\"" }
+  ]
 }
