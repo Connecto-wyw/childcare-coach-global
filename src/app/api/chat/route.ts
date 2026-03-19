@@ -323,6 +323,7 @@ export async function POST(req: NextRequest) {
     stage = 'count_today'
     const today = new Date().toISOString().slice(0, 10)
     let greetedToday = false
+    let todayCount = 0
     try {
       const q = supabase
         .from('chat_logs')
@@ -330,7 +331,8 @@ export async function POST(req: NextRequest) {
         .gte('created_at', `${today}T00:00:00Z`)
 
       const { count } = userId ? await q.eq('user_id', userId) : await q.eq('session_id', sessionId)
-      greetedToday = (count ?? 0) > 0
+      todayCount = count ?? 0
+      greetedToday = todayCount > 0
     } catch {
       greetedToday = false
     }
@@ -352,6 +354,14 @@ export async function POST(req: NextRequest) {
       } catch {
         // KYK 결과 없어도 코치는 정상 작동
       }
+    }
+
+    // KYK 없는 유저: 하루 2개 질문 제한
+    if (!kykProfile && todayCount >= 2) {
+      return NextResponse.json(
+        { error: 'kyk_limit_reached', requestId, stage: 'kyk_limit' },
+        { status: 429 }
+      )
     }
 
     stage = 'compose_system'

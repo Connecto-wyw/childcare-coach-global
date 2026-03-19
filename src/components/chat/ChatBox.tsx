@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import { useAuthUser } from '@/app/providers'
 import { useTranslation } from '@/i18n/I18nProvider'
 
-type ChatBoxProps = { systemPrompt?: string; initialPrefill?: string }
+type ChatBoxProps = { systemPrompt?: string; initialPrefill?: string; hasKYK?: boolean }
 type ChatRole = 'user' | 'assistant'
 
 type ChatMessage = {
@@ -116,7 +116,33 @@ If you would like to explore more trending parenting items from Korea,
 
 You can discover carefully selected, high-quality products that many Korean families already choose — offered at reasonable community-driven prices.`
 
-export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) {
+const NO_KYK_LIMIT = 2
+const NO_KYK_STORAGE_KEY = 'no_kyk_qs'
+
+function getTodayNoKYKCount(): number {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const raw = localStorage.getItem(NO_KYK_STORAGE_KEY)
+    if (!raw) return 0
+    const parsed = JSON.parse(raw)
+    return parsed.date === today ? (parsed.count ?? 0) : 0
+  } catch {
+    return 0
+  }
+}
+
+function incrementTodayNoKYKCount() {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const count = getTodayNoKYKCount() + 1
+    localStorage.setItem(NO_KYK_STORAGE_KEY, JSON.stringify({ date: today, count }))
+    return count
+  } catch {
+    return 1
+  }
+}
+
+export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }: ChatBoxProps) {
   // ✅ user는 "있으면 쓰고, 없어도 OK"
   const { user } = useAuthUser()
   const t = useTranslation('coach')
@@ -129,6 +155,13 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
   const [error, setError] = useState('')
   const [sessionId, setSessionId] = useState('')
 
+  // KYK 모달 상태
+  const [showKYKModal, setShowKYKModal] = useState(false)
+  const [skippedKYK, setSkippedKYK] = useState(false)
+  const [noKYKCount, setNoKYKCount] = useState(0)
+  // 모달 dismiss 후 바로 질문할 수 있도록 pendingQuestion 저장
+  const pendingQuestionRef = useRef<string | null>(null)
+
   const endRef = useRef<HTMLDivElement | null>(null)
   const chatBarRef = useRef<HTMLDivElement | null>(null)
 
@@ -139,6 +172,14 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
   useEffect(() => {
     setSessionId(getOrCreateSessionId())
   }, [])
+
+  useEffect(() => {
+    if (!hasKYK) {
+      const count = getTodayNoKYKCount()
+      setNoKYKCount(count)
+      if (count > 0) setSkippedKYK(true)
+    }
+  }, [hasKYK])
 
   useEffect(() => {
     if (!loading) {
@@ -235,6 +276,19 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
       const q = (override ?? input).trim()
       if (!q) return
 
+      // KYK 없는 유저: 모달 먼저 표시
+      if (!hasKYK && !skippedKYK) {
+        pendingQuestionRef.current = q
+        setShowKYKModal(true)
+        return
+      }
+
+      // KYK 없는 유저: 일일 제한 체크
+      if (!hasKYK && noKYKCount >= NO_KYK_LIMIT) {
+        push('assistant', t('kyk_limit_reached'))
+        return
+      }
+
       const sid = sessionId || getOrCreateSessionId()
 
       // ✅ 라벨 강제 모드: Thinking → 타이핑으로 출력 (서버 호출 없이)
@@ -273,6 +327,10 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
 
         if (!res.ok) {
           const errJson = await safeJsonParse<ApiChatErr>(raw)
+          if (res.status === 429 && (errJson as any)?.error === 'kyk_limit_reached') {
+            push('assistant', t('kyk_limit_reached'))
+            return
+          }
           const rid = errJson?.requestId ? ` (requestId: ${errJson.requestId})` : ''
           const core = `Error ${res.status}${rid}\n\n${errJson?.error || errJson?.message || 'api/chat failed'}`
           setError(core)
@@ -309,6 +367,12 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
         }
 
         push('assistant', answer)
+
+        // KYK 없는 유저 질문 카운트 증가
+        if (!hasKYK) {
+          const newCount = incrementTodayNoKYKCount()
+          setNoKYKCount(newCount)
+        }
       } catch {
         const msg = t('chat_error_delayed')
         setError(msg)
@@ -317,7 +381,7 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
         setLoading(false)
       }
     },
-    [input, sessionId, push, systemPrompt, user?.id, typewriterAppend]
+    [input, sessionId, push, systemPrompt, user?.id, typewriterAppend, hasKYK, skippedKYK, noKYKCount]
   )
 
   // ✅ Auto-Submit Prefill Once
@@ -358,6 +422,39 @@ export default function ChatBox({ systemPrompt, initialPrefill }: ChatBoxProps) 
 
   return (
     <div className="w-full">
+      {/* KYK 유도 모달 */}
+      {showKYKModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <p className="text-[15px] font-semibold text-[#0e0e0e] leading-relaxed text-center">
+              {t('kyk_modal_desc')}
+            </p>
+            <p className="mt-2 text-[13px] text-gray-400 text-center">
+              {t('kyk_modal_limit').replace('{limit}', String(NO_KYK_LIMIT))}
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <a
+                href="/kyk"
+                className="w-full rounded-xl bg-[#9F1D23] py-3 text-center text-[15px] font-bold text-white"
+              >
+                {t('kyk_modal_btn_kyk')}
+              </a>
+              <button
+                onClick={() => {
+                  setSkippedKYK(true)
+                  setShowKYKModal(false)
+                  const pending = pendingQuestionRef.current
+                  pendingQuestionRef.current = null
+                  if (pending) setTimeout(() => ask(pending), 50)
+                }}
+                className="w-full rounded-xl border border-gray-200 py-3 text-[15px] font-medium text-gray-600"
+              >
+                {t('kyk_modal_btn_skip').replace('{limit}', String(NO_KYK_LIMIT))}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="space-y-3 pb-[calc(var(--chatbar-h,96px)+16px)]">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>

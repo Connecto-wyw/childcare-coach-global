@@ -10,5 +10,10 @@
   "chat_placeholder": "Anything on your mind?",
   "chat_send": "Send",
   "chat_error_delayed": "The response is delayed. Please try again.",
-  "chat_error_empty": "Empty answer from server"
+  "chat_error_empty": "Empty answer from server",
+  "kyk_modal_desc": "Knowing your child's personality through KYK helps us give more tailored parenting advice. 🌱",
+  "kyk_modal_limit": "Without KYK, you can ask up to {limit} questions per day.",
+  "kyk_modal_btn_kyk": "Take KYK now (1–2 min)",
+  "kyk_modal_btn_skip": "Ask anyway ({limit}/day)",
+  "kyk_limit_reached": "Complete KYK to unlock unlimited questions! [Take KYK now](/kyk)"
 }
