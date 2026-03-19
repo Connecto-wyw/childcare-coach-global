@@ -8,7 +8,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 
-import { computeMBTI, MBTI_TO_TCI, MBTI_PERCENTAGES } from '@/lib/kykScoring'
+import { computeMBTI, computeColor, MBTI_TO_TCI, MBTI_PERCENTAGES } from '@/lib/kykScoring'
 
 const DRAFT_COOKIE = 'kyk_draft'
 
@@ -33,9 +33,12 @@ function computeResultFromAnswers(answers: any) {
     ESTJ: '#D0021B', ESTP: '#F5A623', ESFJ: '#417505', ESFP: '#9013FE',
   }
 
+  const adjectiveColor = computeColor(answers)
+
   return {
     primary_type: mbti,
     color: colors[mbti] || '#3497f3',
+    adjective_color: adjectiveColor,
     percentage,
     tci,
     profile: {

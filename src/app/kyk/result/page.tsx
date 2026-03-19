@@ -23,6 +23,7 @@ type KYKResultRow = Pick<
 type Computed = {
   primary_type?: string
   color?: string
+  adjective_color?: string
   profile?: {
     animal?: string
     title?: string
@@ -146,6 +147,7 @@ export default async function KYKResultPage() {
   return (
     <NewResultPage
       primaryType={computed.primary_type}
+      adjectiveColor={computed.adjective_color}
       animal={profile.animal ? dict.computed[profile.animal as keyof typeof dict.computed] : undefined}
       title={profile.title ? dict.computed[profile.title as keyof typeof dict.computed] : undefined}
       summary={profile.summary ? (dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary) : undefined}

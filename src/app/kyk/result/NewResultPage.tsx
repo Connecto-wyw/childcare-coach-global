@@ -96,6 +96,8 @@ export interface NewResultPageProps {
   childName?: string
   /** MBTI 타입 키 (예: 'INTJ') */
   primaryType?: string
+  /** 형용사 1번 문항 결과 색상 */
+  adjectiveColor?: string
   /** 동물 한국어 이름 (예: '부엉이') */
   animal?: string
   /** 유형 제목 (예: '냉철한 부엉이형') */
@@ -110,6 +112,7 @@ export interface NewResultPageProps {
 export default function NewResultPage({
   childName = '어린이',
   primaryType,
+  adjectiveColor = 'Blue',
   animal,
   title,
   summary,
@@ -126,6 +129,49 @@ export default function NewResultPage({
     : []
   const leadSummary = summaryParagraphs[0] ?? ''
   const checkItems = summaryParagraphs.slice(1)
+
+  const themeVars = {
+    Blue: {
+      stroke: '#60a5fa', avatarBg: 'bg-blue-900/30 border-blue-500/40 shadow-[0_0_30px_rgba(59,130,246,0.25)]',
+      textLight: 'text-blue-300', textMain: 'text-blue-400', badgeBg: 'bg-blue-600/20 ring-blue-500/30',
+      badgeNum: 'text-blue-200',
+      tagLink: 'border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20',
+      checkMark: 'text-blue-400', cardBorder: 'border-blue-900/50',
+      typeBadge: 'bg-blue-700/30 text-blue-300', btnPrimary: 'bg-blue-600 hover:bg-blue-500 shadow-[0_4px_14px_rgba(59,130,246,0.4)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.6)]'
+    },
+    Red: {
+      stroke: '#f87171', avatarBg: 'bg-red-900/30 border-red-500/40 shadow-[0_0_30px_rgba(248,113,113,0.25)]',
+      textLight: 'text-red-300', textMain: 'text-red-400', badgeBg: 'bg-red-600/20 ring-red-500/30',
+      badgeNum: 'text-red-200', tagLink: 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20',
+      checkMark: 'text-red-400', cardBorder: 'border-red-900/50',
+      typeBadge: 'bg-red-700/30 text-red-300', btnPrimary: 'bg-red-600 hover:bg-red-500 shadow-[0_4px_14px_rgba(220,38,38,0.4)] hover:shadow-[0_4px_20px_rgba(220,38,38,0.6)]'
+    },
+    Green: {
+      stroke: '#34d399', avatarBg: 'bg-emerald-900/30 border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.25)]',
+      textLight: 'text-emerald-300', textMain: 'text-emerald-400', badgeBg: 'bg-emerald-600/20 ring-emerald-500/30',
+      badgeNum: 'text-emerald-200', tagLink: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20',
+      checkMark: 'text-emerald-400', cardBorder: 'border-emerald-900/50',
+      typeBadge: 'bg-emerald-700/30 text-emerald-300', btnPrimary: 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_4px_14px_rgba(5,150,105,0.4)] hover:shadow-[0_4px_20px_rgba(5,150,105,0.6)]'
+    },
+    Yellow: {
+      stroke: '#fbbf24', avatarBg: 'bg-amber-900/30 border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.25)]',
+      textLight: 'text-amber-300', textMain: 'text-amber-400', badgeBg: 'bg-amber-600/20 ring-amber-500/30',
+      badgeNum: 'text-amber-200', tagLink: 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20',
+      checkMark: 'text-amber-400', cardBorder: 'border-amber-900/50',
+      typeBadge: 'bg-amber-700/30 text-amber-300', btnPrimary: 'bg-amber-600 hover:bg-amber-500 shadow-[0_4px_14px_rgba(217,119,6,0.4)] hover:shadow-[0_4px_20px_rgba(217,119,6,0.6)]'
+    },
+    White: {
+      stroke: '#cbd5e1', avatarBg: 'bg-slate-800/50 border-slate-500/40 shadow-[0_0_30px_rgba(148,163,184,0.25)]',
+      textLight: 'text-slate-300', textMain: 'text-slate-400', badgeBg: 'bg-slate-600/30 ring-slate-500/30',
+      badgeNum: 'text-slate-200', tagLink: 'border-slate-500/40 bg-slate-500/20 text-slate-300 hover:bg-slate-500/30',
+      checkMark: 'text-slate-400', cardBorder: 'border-slate-800/80',
+      typeBadge: 'bg-slate-700/50 text-slate-300', btnPrimary: 'bg-slate-600 hover:bg-slate-500 shadow-[0_4px_14px_rgba(71,85,105,0.4)] hover:shadow-[0_4px_20px_rgba(71,85,105,0.6)]'
+    }
+  }
+
+  const theme = themeVars[adjectiveColor as keyof typeof themeVars] || themeVars.Blue
+  const fullAnimalName = `${adjectiveColor} ${animal ?? '부엉이'}`
+
 
   return (
     <main className="min-h-screen bg-[#0a0f1e] text-white">
@@ -148,22 +194,26 @@ export default function NewResultPage({
               height="48"
               patternUnits="userSpaceOnUse"
             >
-              <polygon points="24,2 46,46 2,46" fill="none" stroke="#60a5fa" strokeWidth="1" />
+              <polygon points="24,2 46,46 2,46" fill="none" stroke={theme.stroke} strokeWidth="1" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#kyk-triangles)" />
         </svg>
 
-        {/* 동물 이모지 아바타 */}
-        <div className="relative mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-2 border-blue-500/40 bg-blue-900/30 text-5xl shadow-[0_0_30px_rgba(59,130,246,0.25)]">
-          {emoji}
+        {/* 동물 캐릭터 이미지 */}
+        <div className={`relative mx-auto mb-4 flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 ${theme.avatarBg}`}>
+          <img 
+            src={`/animals/${adjectiveColor}_${animal ?? '부엉이'}.png`} 
+            alt={`${fullAnimalName} 이미지`} 
+            className="h-full w-full object-cover p-2" 
+          />
         </div>
 
         {/* 아이 이름 */}
-        <p className="relative text-[13px] font-medium tracking-widest text-blue-300 uppercase">
-          {animal ?? '부엉이'}
+        <p className={`relative text-[13px] font-medium tracking-widest ${theme.textLight} uppercase`}>
+          {fullAnimalName}
         </p>
-        <h1 className="relative mt-1 text-[22px] font-extrabold text-blue-400">
+        <h1 className={`relative mt-1 text-[22px] font-extrabold ${theme.textMain}`}>
           {childName}는
         </h1>
         <h2 className="relative mt-0.5 text-[20px] font-bold text-white">
@@ -172,9 +222,9 @@ export default function NewResultPage({
 
         {/* 유형 비율 뱃지 */}
         {percentage !== null && (
-          <div className="relative mt-4 inline-block rounded-full bg-blue-600/20 px-4 py-1 text-[13px] font-medium text-blue-300 ring-1 ring-blue-500/30">
+          <div className={`relative mt-4 inline-block rounded-full px-4 py-1 text-[13px] font-medium ${theme.textLight} ${theme.badgeBg} ring-1`}>
             같은 유형의 사람&nbsp;
-            <span className="font-bold text-blue-200">{percentage}%</span>
+            <span className={`font-bold ${theme.badgeNum}`}>{percentage}%</span>
           </div>
         )}
       </div>
@@ -189,7 +239,7 @@ export default function NewResultPage({
               <Link
                 key={kw}
                 href={`/coach?prefill=${encodeURIComponent(kw)}`}
-                className="rounded-full border border-blue-500/40 bg-blue-500/10 px-4 py-1.5 text-[12px] font-semibold text-blue-300 transition-colors hover:bg-blue-500/20"
+                className={`rounded-full border px-4 py-1.5 text-[12px] font-semibold transition-colors ${theme.tagLink}`}
               >
                 {kw}
               </Link>
@@ -207,7 +257,7 @@ export default function NewResultPage({
           <ul className="mt-5 space-y-3">
             {checkItems.map((item, idx) => (
               <li key={idx} className="flex items-start gap-2.5 text-[13px] text-gray-300">
-                <span className="mt-0.5 shrink-0 text-blue-400">✓</span>
+                <span className={`mt-0.5 shrink-0 ${theme.checkMark}`}>✓</span>
                 <span className="leading-relaxed">{item}</span>
               </li>
             ))}
@@ -216,11 +266,11 @@ export default function NewResultPage({
 
         {/* ── TCI 기질 프로파일 바 차트 ────────────────────────────────────── */}
         {tciProfile && (
-          <div className="mt-8 rounded-2xl border border-blue-900/50 bg-[#111827] px-6 py-5">
+          <div className={`mt-8 rounded-2xl border ${theme.cardBorder} bg-[#111827] px-6 py-5`}>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-[13px] font-bold text-gray-200">기질 프로파일</h3>
               {mbtiType && (
-                <span className="rounded bg-blue-700/30 px-2 py-0.5 text-[11px] font-bold tracking-widest text-blue-300">
+                <span className={`rounded px-2 py-0.5 text-[11px] font-bold tracking-widest ${theme.typeBadge}`}>
                   {mbtiType}
                 </span>
               )}
@@ -249,7 +299,7 @@ export default function NewResultPage({
         <div className="mt-8 flex gap-3">
           <Link
             href="/coach"
-            className="flex-1 rounded-xl bg-blue-600 py-3 text-center text-[14px] font-semibold text-white shadow-[0_4px_14px_rgba(59,130,246,0.4)] transition-all hover:bg-blue-500 hover:shadow-[0_4px_20px_rgba(59,130,246,0.6)]"
+            className={`flex-1 rounded-xl py-3 text-center text-[14px] font-semibold text-white transition-all ${theme.btnPrimary}`}
           >
             AI 코치 상담하기
           </Link>
