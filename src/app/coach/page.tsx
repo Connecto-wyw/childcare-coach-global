@@ -154,6 +154,20 @@ export default async function CoachPage({
   const locale = await getLocale()
   const t = await getDictionary('coach')
 
+  // KYK 완료 여부 확인
+  const { data: userData } = await supabase.auth.getUser()
+  const coachUser = userData?.user ?? null
+  let hasKYK = false
+  if (coachUser) {
+    const { data: kykData } = await supabase
+      .from('kyk_results')
+      .select('id')
+      .eq('user_id', coachUser.id)
+      .limit(1)
+      .maybeSingle()
+    hasKYK = !!kykData
+  }
+
   // ✅ 어드민 등록 키워드만 사용 (없으면 섹션 숨김)
   const kw = await getPopularKeywords(locale)
   const keywords = kw && kw.length > 0 ? kw : []
@@ -198,7 +212,7 @@ export default async function CoachPage({
 
         <section className="mb-8">
           {/* ✅ 게스트/로그인 모두 가능. ChatBox 내부에서 로그인 강제하면 안 됨 */}
-          <ChatBox initialPrefill={initialPrefill} />
+          <ChatBox initialPrefill={initialPrefill} hasKYK={hasKYK} />
         </section>
 
         <section className="mb-8">
