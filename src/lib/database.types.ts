@@ -269,6 +269,8 @@ export type Database = {
           id: string
           slug: string
           title: string
+          title_i18n?: Json | null
+          content_i18n?: Json | null
           user_id: string | null
         }
         Insert: {
@@ -279,6 +281,8 @@ export type Database = {
           id?: string
           slug: string
           title: string
+          title_i18n?: Json | null
+          content_i18n?: Json | null
           user_id?: string | null
         }
         Update: {
@@ -289,6 +293,8 @@ export type Database = {
           id?: string
           slug?: string
           title?: string
+          title_i18n?: Json | null
+          content_i18n?: Json | null
           user_id?: string | null
         }
         Relationships: []
