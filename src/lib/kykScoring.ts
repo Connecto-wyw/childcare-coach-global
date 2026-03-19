@@ -25,6 +25,41 @@ function normalizeLikert(val: number | undefined): number {
   return val - 2.5
 }
 
+export type AdjectiveColor = 'Blue' | 'White' | 'Red' | 'Green' | 'Yellow'
+
+export function computeColor(answers: KYKAnswers): AdjectiveColor {
+  const adjs = answers.q1_adjectives || []
+  
+  const colorMap: Record<string, AdjectiveColor> = {
+    adj_1: 'Blue', adj_2: 'Blue', adj_3: 'Blue', adj_4: 'Blue', adj_5: 'Blue',
+    adj_6: 'White', adj_7: 'White', adj_8: 'White', adj_9: 'White', adj_10: 'White',
+    adj_11: 'Red', adj_12: 'Red', adj_13: 'Red', adj_14: 'Red', adj_15: 'Red',
+    adj_16: 'Green', adj_17: 'Green', adj_18: 'Green', adj_19: 'Green', adj_20: 'Green',
+    adj_21: 'Yellow', adj_22: 'Yellow', adj_23: 'Yellow', adj_24: 'Yellow', adj_25: 'Yellow'
+  }
+
+  const counts: Record<AdjectiveColor, number> = { Blue: 0, White: 0, Red: 0, Green: 0, Yellow: 0 }
+  
+  for (const a of adjs) {
+    const c = colorMap[a]
+    if (c) counts[c]++
+  }
+
+  let maxColor: AdjectiveColor = 'Blue'
+  let maxCount = -1
+
+  // Ties break by first appearance
+  for (const a of adjs) {
+    const c = colorMap[a]
+    if (c && counts[c] > maxCount) {
+      maxCount = counts[c]
+      maxColor = c
+    }
+  }
+
+  return maxColor
+}
+
 export function computeMBTI(answers: KYKAnswers): MBTIType {
   const l = answers.likert
 
