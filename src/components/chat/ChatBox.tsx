@@ -285,7 +285,7 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
 
       // KYK 없는 유저: 일일 제한 체크
       if (!hasKYK && noKYKCount >= NO_KYK_LIMIT) {
-        push('assistant', 'KYK 검사를 완료하면 제한 없이 이용할 수 있어요! 지금 KYK 해보기 → /kyk')
+        push('assistant', t('kyk_limit_reached'))
         return
       }
 
@@ -328,8 +328,7 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
         if (!res.ok) {
           const errJson = await safeJsonParse<ApiChatErr>(raw)
           if (res.status === 429 && (errJson as any)?.error === 'kyk_limit_reached') {
-            const msg = 'KYK 검사를 완료하면 제한 없이 이용할 수 있어요! 지금 KYK 해보기 → [/kyk](/kyk)'
-            push('assistant', msg)
+            push('assistant', t('kyk_limit_reached'))
             return
           }
           const rid = errJson?.requestId ? ` (requestId: ${errJson.requestId})` : ''
@@ -428,18 +427,17 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <p className="text-[15px] font-semibold text-[#0e0e0e] leading-relaxed text-center">
-              KYK를 통해 우리 아이의 성향을 확인하면<br />
-              좀 더 아이에게 맞는 조언을 드릴 수 있어요. 🌱
+              {t('kyk_modal_desc')}
             </p>
             <p className="mt-2 text-[13px] text-gray-400 text-center">
-              KYK 없이 질문하면 하루 {NO_KYK_LIMIT}개까지만 가능해요.
+              {t('kyk_modal_limit').replace('{limit}', String(NO_KYK_LIMIT))}
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <a
                 href="/kyk"
                 className="w-full rounded-xl bg-[#9F1D23] py-3 text-center text-[15px] font-bold text-white"
               >
-                지금 KYK 해보기 (1~2분 소요)
+                {t('kyk_modal_btn_kyk')}
               </a>
               <button
                 onClick={() => {
@@ -451,7 +449,7 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
                 }}
                 className="w-full rounded-xl border border-gray-200 py-3 text-[15px] font-medium text-gray-600"
               >
-                그냥 질문하기 (하루 {NO_KYK_LIMIT}개)
+                {t('kyk_modal_btn_skip').replace('{limit}', String(NO_KYK_LIMIT))}
               </button>
             </div>
           </div>

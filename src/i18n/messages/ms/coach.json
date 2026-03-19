@@ -10,5 +10,10 @@
   "chat_placeholder": "Ada apa-apa di fikiran anda?",
   "chat_send": "Hantar",
   "chat_error_delayed": "Respons lambat. Sila cuba lagi.",
-  "chat_error_empty": "Jawapan kosong dari pelayan"
+  "chat_error_empty": "Jawapan kosong dari pelayan",
+  "kyk_modal_desc": "Mengetahui personaliti anak anda melalui KYK membantu kami memberi nasihat keibubapaan yang lebih tepat. 🌱",
+  "kyk_modal_limit": "Tanpa KYK, anda hanya boleh bertanya {limit} soalan sehari.",
+  "kyk_modal_btn_kyk": "Cuba KYK sekarang (1–2 minit)",
+  "kyk_modal_btn_skip": "Tanya sahaja ({limit}/hari)",
+  "kyk_limit_reached": "Lengkapkan KYK untuk soalan tanpa had! [Cuba KYK sekarang](/kyk)"
 }

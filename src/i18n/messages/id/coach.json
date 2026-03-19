@@ -10,5 +10,10 @@
   "chat_placeholder": "Ada yang sedang Anda pikirkan?",
   "chat_send": "Kirim",
   "chat_error_delayed": "Respons tertunda. Silakan coba lagi.",
-  "chat_error_empty": "Jawaban kosong dari server"
+  "chat_error_empty": "Jawaban kosong dari server",
+  "kyk_modal_desc": "Mengetahui kepribadian anak Anda melalui KYK membantu kami memberikan saran pengasuhan yang lebih tepat. 🌱",
+  "kyk_modal_limit": "Tanpa KYK, Anda hanya bisa mengajukan {limit} pertanyaan per hari.",
+  "kyk_modal_btn_kyk": "Coba KYK sekarang (1–2 menit)",
+  "kyk_modal_btn_skip": "Tanya saja ({limit}/hari)",
+  "kyk_limit_reached": "Selesaikan KYK untuk pertanyaan tak terbatas! [Coba KYK sekarang](/kyk)"
 }
