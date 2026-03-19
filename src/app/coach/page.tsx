@@ -95,7 +95,7 @@ async function createSupabaseServer() {
  * - GET /api/keywords 는 공개 읽기
  * - 응답 형식: { ok: true, data: [{ id, keyword, order }, ...] }
  */
-async function getPopularKeywords() {
+async function getPopularKeywords(locale: string) {
   try {
     const origin = await getRequestOrigin()
     if (!origin) return null
@@ -107,7 +107,17 @@ async function getPopularKeywords() {
     const rows = json && Array.isArray(json.data) ? json.data : []
 
     const list = rows
-      .map((row: any) => String(row.keyword ?? '').trim())
+      .map((row: any) => {
+        let text = row.keyword
+        if (row.keyword_i18n && typeof row.keyword_i18n === 'object') {
+          if (row.keyword_i18n[locale]) {
+            text = row.keyword_i18n[locale]
+          } else if (locale !== 'en' && row.keyword_i18n['en']) {
+            text = row.keyword_i18n['en']
+          }
+        }
+        return String(text ?? '').trim()
+      })
       .filter(Boolean)
       .slice(0, 4)
 
@@ -143,7 +153,7 @@ export default async function CoachPage({
   const t = await getDictionary('coach')
 
   // ✅ 어드민 등록 키워드만 사용 (없으면 섹션 숨김)
-  const kw = await getPopularKeywords()
+  const kw = await getPopularKeywords(locale)
   const keywords = kw && kw.length > 0 ? kw : []
 
   const { data: newsRes, error: newsErr } = await supabase
