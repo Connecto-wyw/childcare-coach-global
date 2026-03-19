@@ -8,6 +8,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import { getDictionary } from '@/i18n'
+import NewResultPage from './NewResultPage'
 
 const TEXT = '#0e0e0e'
 const MUTED = '#b4b4b4'
@@ -133,80 +134,22 @@ export default async function KYKResultPage() {
   }
 
   // 2. Fallback to dictionary keys if DB rows are not populated yet
-  const keywords = adminKeywords.length > 0
-    ? adminKeywords.slice(0, 3) 
-    : (Array.isArray(profile.keywords) ? profile.keywords.slice(0, 3) : [])
+  const rawKeywords = adminKeywords.length > 0
+    ? adminKeywords.slice(0, 4)
+    : (Array.isArray(profile.keywords) ? profile.keywords.slice(0, 4) : [])
+
+  // dict 키라면 번역값으로, 아니면 원본 그대로 사용
+  const resolvedKeywords = rawKeywords.map(
+    (k) => dict.computed[k as keyof typeof dict.computed] ?? k
+  )
 
   return (
-    <main className="min-h-screen bg-white" style={{ color: TEXT }}>
-      <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-[24px] font-medium leading-tight">{dict.result.title}</h1>
-        <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
-          {dict.result.subtitle}
-        </p>
-
-        <div className="mt-8 border-t" style={{ borderColor: BORDER }} />
-
-        <section className="mt-10">
-          <div className="rounded-lg border p-6" style={{ borderColor: BORDER }}>
-            <div className="text-[14px] font-medium" style={{ color: MUTED }}>
-              {profile.animal ? dict.computed[profile.animal as keyof typeof dict.computed] : (dict.result.title || 'Result')}
-            </div>
-
-            <div className="mt-2 text-[22px] font-medium leading-tight">
-              {profile.title ? dict.computed[profile.title as keyof typeof dict.computed] : dict.result.unable_to_display}
-            </div>
-
-            {profile.summary && (
-              <p className="mt-4 text-[14px] leading-relaxed" style={{ color: TEXT }}>
-                {dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary}
-              </p>
-            )}
-
-            {keywords.length > 0 && (
-              <div className="mt-6">
-                <div className="text-[13px] font-medium" style={{ color: MUTED }}>
-                  {dict.result.keyword_title}
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {keywords.map((k) => {
-                    const label = dict.computed[k as keyof typeof dict.computed] ?? k
-                    return (
-                      <Link
-                        key={k}
-                        href={`/coach?prefill=${encodeURIComponent(label)}`}
-                        className="rounded-full border px-3 py-1 text-[13px]"
-                        style={{ borderColor: BORDER }}
-                      >
-                        {label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/coach"
-                className="inline-block rounded-md px-4 py-2 text-[14px] font-medium"
-                style={{ background: BTN, color: 'white' }}
-              >
-                {dict.result.btn_coach}
-              </Link>
-
-              <Link
-                href="/kyk/step1?restart=1"
-                className="inline-block rounded-md border px-4 py-2 text-[14px] font-medium"
-                style={{ borderColor: BORDER, color: TEXT }}
-              >
-                {dict.result.btn_retry}
-              </Link>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
+    <NewResultPage
+      primaryType={computed.primary_type}
+      animal={profile.animal ? dict.computed[profile.animal as keyof typeof dict.computed] : undefined}
+      title={profile.title ? dict.computed[profile.title as keyof typeof dict.computed] : undefined}
+      summary={profile.summary ? (dict.computed[profile.summary as keyof typeof dict.computed] ?? profile.summary) : undefined}
+      keywords={resolvedKeywords}
+    />
   )
 }
