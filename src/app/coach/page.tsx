@@ -201,7 +201,7 @@ export default async function CoachPage({
         {/* ✅ 키워드가 있을 때만 노출 */}
         {keywords.length > 0 ? (
           <section className="mb-3">
-            <div className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.people_asking}</div>
+            <div className="text-[15px] font-bold text-[#0e0e0e] mb-3">{t.people_asking}</div>
             <KeywordButtons keywords={keywords} />
           </section>
         ) : null}
@@ -212,7 +212,7 @@ export default async function CoachPage({
         </section>
 
         <section className="mb-8">
-          <div className="mb-3 text-[15px] font-medium text-[#0e0e0e]">{t.ongoing_teams}</div>
+          <div className="mb-3 text-[15px] font-bold text-[#0e0e0e]">{t.ongoing_teams}</div>
           <ActiveTeamsGrid teams={ongoingTeams} />
         </section>
 
@@ -220,7 +220,7 @@ export default async function CoachPage({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             {/* (1) K-Parenting News -> 왼쪽 */}
             <div>
-              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.k_parenting_news}</h3>
+              <h3 className="text-[15px] font-bold text-[#0e0e0e] mb-3">{t.k_parenting_news}</h3>
 
               <div className="bg-[#f0f7fd] p-4">
                 {news.length === 0 ? (
@@ -256,7 +256,7 @@ export default async function CoachPage({
 
             {/* (2) Today’s Parenting Tips -> 오른쪽 */}
             <div>
-              <h3 className="text-[15px] font-medium text-[#0e0e0e] mb-3">{t.todays_tips}</h3>
+              <h3 className="text-[15px] font-bold text-[#0e0e0e] mb-3">{t.todays_tips}</h3>
               <div className="bg-[#f0f7fd] p-4">
                 <TipSection tips={Array.isArray(t.tips) ? t.tips : undefined} />
               </div>
