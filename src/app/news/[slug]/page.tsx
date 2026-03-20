@@ -2,11 +2,12 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { resolveI18n } from '@/lib/i18nFallback'
-import { getLocale } from '@/i18n'
+import { getLocale, getDictionary } from '@/i18n'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -77,6 +78,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
   }
 
   const locale = await getLocale()
+  const t = await getDictionary('news')
   const resolvedTitle = resolveI18n(data.title ?? '', data.title_i18n as Record<string, string>, locale)
   const resolvedContent = resolveI18n(data.content ?? '', data.content_i18n as Record<string, string>, locale)
 
@@ -96,6 +98,18 @@ export default async function NewsDetailPage({ params }: PageProps) {
           <article className="whitespace-pre-wrap leading-7 text-[16px]">
             {resolvedContent ?? ''}
           </article>
+        </div>
+
+        <div className="mt-10 border-t border-[#eeeeee] pt-6">
+          <Link
+            href="/news"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#3497f3] border border-[#3497f3] rounded-md px-4 py-2 hover:bg-[#f0f7fd] transition-colors"
+          >
+            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M10 3L5 8l5 5" />
+            </svg>
+            {t.news_list}
+          </Link>
         </div>
       </div>
     </main>
