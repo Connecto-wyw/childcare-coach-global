@@ -1,65 +1,80 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/adminguard'
+import { useSupabase } from '@/app/providers'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+type Program = {
+  id: string
+  title: string
+  period: string | null
+  cost: string | null
+  is_active: boolean
+  created_at: string
+}
 
-export default async function AdminProgramsPage() {
-  const { ok, supabase } = await requireAdmin()
-  if (!ok) redirect('/')
+export default function AdminProgramsPage() {
+  const supabase = useSupabase()
+  const [list, setList] = useState<Program[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: programs } = await (supabase as any)
-    .from('market_programs')
-    .select('id,title,period,cost,is_active,created_at')
-    .order('created_at', { ascending: false })
-
-  const list = (programs ?? []) as {
-    id: string
-    title: string
-    period: string | null
-    cost: string | null
-    is_active: boolean
-    created_at: string
-  }[]
+  useEffect(() => {
+    ;(supabase as any)
+      .from('market_programs')
+      .select('id,title,period,cost,is_active,created_at')
+      .order('created_at', { ascending: false })
+      .then(({ data }: { data: Program[] | null }) => {
+        setList(data ?? [])
+        setLoading(false)
+      })
+  }, [supabase])
 
   return (
     <div className="min-h-screen bg-[#111] text-white">
       <div className="mx-auto max-w-4xl p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Admin · Programs</h1>
-          <Link className="rounded-xl bg-[#3EB6F1] px-4 py-2 font-semibold text-black" href="/admin/programs/new">
+          <Link
+            className="rounded-xl bg-[#3EB6F1] px-4 py-2 font-semibold text-black"
+            href="/admin/programs/new"
+          >
             + New
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-3">
-          {list.map((prog) => (
-            <Link
-              key={prog.id}
-              href={`/admin/programs/${prog.id}`}
-              className="rounded-2xl bg-white/5 p-4 hover:bg-white/10"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold">{prog.title}</div>
-                  <div className="text-sm text-white/60">
-                    {prog.period ? `Period: ${prog.period}` : ''}
-                    {prog.period && prog.cost ? '  ·  ' : ''}
-                    {prog.cost ? `Cost: ${prog.cost}` : ''}
+        {loading ? (
+          <p className="text-white/40">Loading...</p>
+        ) : list.length === 0 ? (
+          <p className="text-white/40">No programs yet.</p>
+        ) : (
+          <div className="grid gap-3">
+            {list.map((prog) => (
+              <Link
+                key={prog.id}
+                href={`/admin/programs/${prog.id}`}
+                className="rounded-2xl bg-white/5 p-4 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold">{prog.title}</div>
+                    <div className="text-sm text-white/60 mt-0.5">
+                      {[prog.period && `Period: ${prog.period}`, prog.cost && `Cost: ${prog.cost}`]
+                        .filter(Boolean)
+                        .join('  ·  ')}
+                    </div>
+                  </div>
+                  <div className="text-sm shrink-0 ml-4">
+                    {prog.is_active ? (
+                      <span className="rounded-full bg-green-500/20 px-3 py-1 text-green-200">active</span>
+                    ) : (
+                      <span className="rounded-full bg-white/10 px-3 py-1 text-white/60">inactive</span>
+                    )}
                   </div>
                 </div>
-                <div className="text-sm">
-                  {prog.is_active ? (
-                    <span className="rounded-full bg-green-500/20 px-3 py-1 text-green-200">active</span>
-                  ) : (
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-white/60">inactive</span>
-                  )}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
