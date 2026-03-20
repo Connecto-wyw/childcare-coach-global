@@ -14,8 +14,10 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (v: stri
   const month = viewDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const cells = Array.from({ length: firstDay }, () => null as null)
-    .concat(Array.from({ length: daysInMonth }, (_, i) => i + 1))
+  const cells: (number | null)[] = [
+    ...Array.from({ length: firstDay }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ]
 
   const todayStr = today.toISOString().split('T')[0]
   const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
