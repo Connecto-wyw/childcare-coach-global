@@ -196,7 +196,9 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
 
     const set = () => {
       const h = el.getBoundingClientRect().height
-      document.documentElement.style.setProperty('--chatbar-h', `${Math.ceil(h)}px`)
+      const navHStr = getComputedStyle(document.documentElement).getPropertyValue('--bottom-nav-h').trim()
+      const navH = parseFloat(navHStr) || 0
+      document.documentElement.style.setProperty('--chatbar-h', `${Math.ceil(h) + navH}px`)
     }
 
     set()
@@ -510,7 +512,7 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
         <div ref={endRef} />
       </div>
 
-      <div ref={chatBarRef} className="fixed left-0 right-0 bottom-0 z-50 bg-white border-t border-[#eeeeee]">
+      <div ref={chatBarRef} className="fixed left-0 right-0 z-50 bg-white border-t border-[#eeeeee]" style={{ bottom: 'var(--bottom-nav-h, 0px)' }}>
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="border-2 border-[#9F1D23] bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#9F1D23] focus-within:ring-offset-2">
             <div className="flex items-stretch gap-2">
