@@ -51,7 +51,7 @@ function TeamCardItem({ team, membersLabel }: { team: TeamCard; membersLabel: st
   const label = membersLabel.replace('{count}', String(team.member_count))
   const { src, bg } = getAnimalImage(team.id)
   return (
-    <div className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white">
+    <Link href={`/teams/${team.id}`} className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white hover:opacity-95 transition-opacity">
       <div className="w-full aspect-[4/3] flex items-center justify-center" style={{ background: bg }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" className="w-full h-full object-cover" />
@@ -67,7 +67,7 @@ function TeamCardItem({ team, membersLabel }: { team: TeamCard; membersLabel: st
           </div>
         )}
       </div>
-    </div>
+    </Link>
   )
 }
 
