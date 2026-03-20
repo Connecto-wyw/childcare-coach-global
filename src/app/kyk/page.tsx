@@ -119,7 +119,7 @@ export default async function KYKHomePage() {
             <img
               src="/images/landing-mockup.png"
               alt=""
-              className="md:hidden w-[200px] mx-auto mb-8 object-contain drop-shadow-lg"
+              className="md:hidden w-full max-w-[320px] mx-auto mb-8 object-contain drop-shadow-lg"
             />
 
             <h2 className="text-[18px] font-bold text-[#0e0e0e] mb-2">{t.intro_title}</h2>
