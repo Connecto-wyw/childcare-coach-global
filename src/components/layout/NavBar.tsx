@@ -136,6 +136,7 @@ export default function NavBar() {
     () => [
       { key: 'coach', href: '/coach' },
       { key: 'team', href: '/team' },
+      { key: 'teams', href: '/teams' },
       { key: 'kyk', href: '/kyk' },
       { key: 'about', href: '/about' },
     ],

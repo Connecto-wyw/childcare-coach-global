@@ -3,5 +3,12 @@
   "subtitle": "부모들이 사랑하는 필수 K-육아템. 함께 모여 더 나은 가격에 만나보세요. (베타)",
   "no_teams": "진행 중인 팀이 없습니다.",
   "joined": "{count}명 참여",
-  "untitled": "제목 없음"
+  "untitled": "제목 없음",
+  "my_teams": "가입한 팀",
+  "recommended_teams": "추천 팀",
+  "popular_teams": "이번주 인기 팀",
+  "create_team": "새 팀 만들기",
+  "members": "{count}명",
+  "no_recommended": "추천 팀이 없습니다.",
+  "no_popular": "인기 팀이 없습니다."
 }

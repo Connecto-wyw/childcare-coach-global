@@ -3,5 +3,12 @@
   "subtitle": "Barangan K-Parenting trending yang ibu bapa suka. Sertai bersama, nikmati harga yang lebih baik. Beta sekarang.",
   "no_teams": "Tiada pasukan tersedia.",
   "joined": "Sertai {count}",
-  "untitled": "Tiada Tajuk"
+  "untitled": "Tiada Tajuk",
+  "my_teams": "Pasukan Saya",
+  "recommended_teams": "Pasukan Disyorkan",
+  "popular_teams": "Pasukan Popular Minggu Ini",
+  "create_team": "Buat Pasukan Baru",
+  "members": "{count} ahli",
+  "no_recommended": "Tiada pasukan disyorkan.",
+  "no_popular": "Tiada pasukan popular."
 }
