@@ -9,11 +9,8 @@ import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import { getDictionary } from '@/i18n'
 import NewResultPage from './result/NewResultPage'
+import PageHeader from '@/components/layout/PageHeader'
 
-const TEXT = '#0e0e0e'
-const MUTED = '#b4b4b4'
-const BORDER = '#eeeeee'
-const INDIANBOB_RED = '#9F1D23'
 
 type KYKResultRow = Pick<
   Database['public']['Tables']['kyk_results']['Row'],
@@ -110,84 +107,45 @@ export default async function KYKHomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#Dce3Ef] relative selection:bg-blue-200">
-      <style>{`
-        @keyframes customFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-15px); }
-        }
-        .animate-custom-float {
-          animation: customFloat 4s ease-in-out infinite;
-        }
-      `}</style>
+    <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        <PageHeader title="KYK" subtitle={t.subtitle} />
 
-      {/* Hero Section with Image */}
-      <div className="w-full flex justify-center pt-16 pb-20 px-4 relative overflow-hidden">
-        <div className="relative w-full max-w-[340px] flex items-center justify-center animate-custom-float">
-            <img 
-               src="/images/landing-mockup.png" 
-               alt="KYK Marketing Image" 
-               className="object-contain w-full h-auto drop-shadow-2xl"
-               style={{ filter: "drop-shadow(0px 20px 30px rgba(0, 0, 0, 0.15))" }}
-            />
-        </div>
-      </div>
+        <div className="mt-8 max-w-xl">
+          <h2 className="text-[18px] font-bold text-[#0e0e0e] mb-2">{t.intro_title}</h2>
+          <p className="text-[14px] leading-relaxed text-[#6b6b6b] mb-6 break-keep">
+            {t.intro_desc}
+          </p>
 
-      {/* Main Content Area - overlapping the hero slightly */}
-      <div className="bg-white rounded-t-[36px] pt-12 pb-24 px-6 -mt-12 relative z-10 shadow-[0_-15px_40px_rgba(0,0,0,0.06)] min-h-[50vh]">
-        <div className="mx-auto max-w-xl">
-          <div className="text-center mb-8">
-            <h1 className="text-[30px] font-extrabold leading-tight text-gray-900 tracking-tight">
-               KYK
-            </h1>
-            <p className="text-[16px] font-medium text-gray-500 mt-2 max-w-[280px] mx-auto leading-relaxed">
-               {t.subtitle}
+          <div className="space-y-3 text-[14px] leading-relaxed text-[#4a4a4a] bg-[#f5f9ff] rounded-xl p-5 mb-8 border border-[#e0eeff]">
+            <p className="flex items-start gap-2">
+              <span className="text-[#3497f3] mt-0.5">✦</span>
+              <span className="break-keep">{t.point_1.replace('• ', '')}</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-[#3497f3] mt-0.5">✦</span>
+              <span className="break-keep">{t.point_2.replace('• ', '')}</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-[#3497f3] mt-0.5">✦</span>
+              <span className="break-keep">{t.point_3.replace('• ', '')}</span>
             </p>
           </div>
-          
-          <div
-            className="rounded-[28px] border border-gray-100 bg-white px-7 py-9 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
-          >
-            <h2 className="text-[22px] font-bold leading-snug text-gray-800 text-center mb-4 tracking-tight">
-              {t.intro_title}
-            </h2>
 
-            <p className="text-[15px] leading-[1.6] text-gray-600 text-center mb-8 break-keep">
-              {t.intro_desc}
-            </p>
-
-            <div className="space-y-4 text-[14px] leading-relaxed text-gray-700 bg-blue-50/50 rounded-2xl p-6 mb-10 border border-blue-50">
-              <p className="flex items-start gap-2.5">
-                <span className="text-blue-500 mt-0.5 text-[16px]">✨</span> 
-                <span className="break-keep">{t.point_1.replace('• ', '')}</span>
-              </p>
-              <p className="flex items-start gap-2.5">
-                <span className="text-blue-500 mt-0.5 text-[16px]">✨</span> 
-                <span className="break-keep">{t.point_2.replace('• ', '')}</span>
-              </p>
-              <p className="flex items-start gap-2.5">
-                <span className="text-blue-500 mt-0.5 text-[16px]">✨</span> 
-                <span className="break-keep">{t.point_3.replace('• ', '')}</span>
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3.5 mt-2">
-              <Link
-                href="/kyk/step1"
-                className="w-full rounded-2xl py-4 flex items-center justify-center gap-2 text-[17px] font-bold text-center transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_8px_20px_rgba(159,29,35,0.2)]"
-                style={{ background: INDIANBOB_RED, color: 'white' }}
-              >
-                {t.btn_start}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-              </Link>
-
-              <Link
-                href="/coach"
-                className="w-full rounded-2xl border-2 border-gray-100 bg-white py-4 text-[16px] font-bold text-center text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100"
-              >
-                {t.btn_coach}
-              </Link>
-            </div>
+          <div className="flex flex-col gap-3">
+            <Link
+              href="/kyk/step1"
+              className="w-full rounded-xl py-3.5 flex items-center justify-center gap-2 text-[15px] font-bold text-white bg-[#9F1D23] hover:bg-[#7e161b] transition-colors"
+            >
+              {t.btn_start}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </Link>
+            <Link
+              href="/coach"
+              className="w-full rounded-xl border border-[#e9e9e9] py-3.5 text-[14px] font-semibold text-center text-[#6b6b6b] hover:bg-[#f5f5f5] transition-colors"
+            >
+              {t.btn_coach}
+            </Link>
           </div>
         </div>
       </div>
