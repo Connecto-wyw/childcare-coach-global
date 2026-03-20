@@ -63,6 +63,26 @@ function JoinedPill({ count, labelTmpl }: { count: number; labelTmpl: string }) 
   )
 }
 
+type ProgramRow = {
+  id: string
+  title: string
+  thumbnail_url: string | null
+  period: string | null
+  cost: string | null
+  is_active: boolean
+}
+
+async function fetchPrograms(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
+  const { data, error } = await (sb as any)
+    .from('market_programs')
+    .select('id,title,thumbnail_url,period,cost,is_active')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+
+  if (error) return [] as ProgramRow[]
+  return (data ?? []) as ProgramRow[]
+}
+
 async function fetchTeams(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anySb: any = sb
@@ -111,7 +131,10 @@ async function getParticipantCountMap(
 
 export default async function TeamPage() {
   const supabase = await createSupabaseServer()
-  const teams = await fetchTeams(supabase)
+  const [teams, programs] = await Promise.all([
+    fetchTeams(supabase),
+    fetchPrograms(supabase),
+  ])
 
   const teamIds = teams.map((t) => String(t.id))
   const countMap = await getParticipantCountMap(supabase, teamIds)
@@ -126,6 +149,8 @@ export default async function TeamPage() {
           title="MARKET"
           subtitle={t.subtitle}
         />
+
+        <h2 className="text-[16px] font-bold text-[#0e0e0e] mt-8 mb-4">ITEM</h2>
 
         {teams.length === 0 ? (
           <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">{t.no_teams}</div>
@@ -219,6 +244,43 @@ export default async function TeamPage() {
             </>
           )
         })()}
+
+        <h2 className="text-[16px] font-bold text-[#0e0e0e] mt-12 mb-4">PROGRAM</h2>
+
+        {programs.length === 0 ? (
+          <p className="text-[14px] text-[#b4b4b4]">Coming soon.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {programs.map((prog) => (
+              <Link
+                key={prog.id}
+                href={`/team/programs/${prog.id}`}
+                className="rounded-xl border border-[#e9e9e9] overflow-hidden hover:opacity-95 transition-opacity"
+              >
+                <div className="w-full aspect-[4/3] bg-[#d9d9d9]">
+                  {prog.thumbnail_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={prog.thumbnail_url}
+                      alt={prog.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+                <div className="p-3">
+                  <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug">{prog.title}</div>
+                  {prog.period ? (
+                    <div className="mt-1 text-[11px] text-[#8a8a8a]">{prog.period}</div>
+                  ) : null}
+                  {prog.cost ? (
+                    <div className="mt-1 text-[12px] text-[#3497f3] font-semibold">{prog.cost}</div>
+                  ) : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   )

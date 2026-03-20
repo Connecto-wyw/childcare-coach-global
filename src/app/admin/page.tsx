@@ -32,6 +32,12 @@ export default function AdminDashboardPage() {
       href: '/admin/team-items',
       color: 'bg-rose-600',
     },
+    {
+      title: 'Programs',
+      description: 'Manage MARKET programs — intangible content with period, cost, and reward.',
+      href: '/admin/programs',
+      color: 'bg-teal-600',
+    },
   ]
 
   return (
