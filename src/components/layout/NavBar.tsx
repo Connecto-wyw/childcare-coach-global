@@ -184,6 +184,21 @@ export default function NavBar() {
     return () => window.removeEventListener('points:refresh', handler)
   }, [user, loadPoints])
 
+  // 하단 탭바 높이를 CSS 변수로 노출 (ChatBox 입력창 위치 계산용)
+  useEffect(() => {
+    const el = document.getElementById('bottom-tab-nav')
+    if (!el) return
+    const update = () => {
+      const h = window.innerWidth < 768 ? Math.ceil(el.getBoundingClientRect().height) : 0
+      document.documentElement.style.setProperty('--bottom-nav-h', `${h}px`)
+    }
+    update()
+    window.addEventListener('resize', update)
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => { window.removeEventListener('resize', update); ro.disconnect() }
+  }, [])
+
   const loginGoogle = useCallback(async () => {
     const base = getSiteOrigin()
     await supabase.auth.signInWithOAuth({
@@ -323,6 +338,7 @@ export default function NavBar() {
 
       {/* ── 모바일: 하단 탭 바 ──────────────────────────────── */}
       <nav
+        id="bottom-tab-nav"
         className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#eeeeee] z-40"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
