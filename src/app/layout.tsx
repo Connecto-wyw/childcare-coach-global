@@ -24,6 +24,11 @@ const kanit = Kanit({
 // because next/font/local has issues with certain variable fonts in Turbopack
 const pretendardVariable = '--font-pretendard'
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://childcare-coach-global.vercel.app'),
   title: 'AI Parenting Coach',
@@ -88,7 +93,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <I18nProvider locale={locale} dictionary={dictionaries}>
           <Providers>
             <NavBar />
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col pb-16 md:pb-0">
               {children}
             </div>
             <LanguageSelector />
