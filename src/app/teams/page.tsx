@@ -1,6 +1,9 @@
 // src/app/teams/page.tsx (Server Component)
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 import { getDictionary } from '@/i18n'
+import { createServerClient } from '@supabase/ssr'
+import type { Database } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,42 +11,45 @@ export const dynamic = 'force-dynamic'
 type TeamCard = {
   id: string
   name: string
-  image_url: string | null
-  tag1: string | null
-  tag2: string | null
   member_count: number
+  purposes: string[]
+}
+
+async function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const cookieStore = await cookies()
+  return createServerClient<Database>(url, anon, {
+    cookies: {
+      get: (name) => cookieStore.get(name)?.value,
+      set: () => {},
+      remove: () => {},
+    },
+  })
 }
 
 function TeamCardItem({ team, membersLabel }: { team: TeamCard; membersLabel: string }) {
   const label = membersLabel.replace('{count}', String(team.member_count))
   return (
-    <Link
-      href={`/teams/${team.id}`}
-      className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white hover:opacity-95 transition-opacity"
-    >
-      <div className="w-full aspect-[4/3] bg-[#f3f3f3] overflow-hidden">
-        {team.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={team.image_url} alt={team.name} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <div className="w-full h-full bg-[#d9d9d9]" />
-        )}
+    <div className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white">
+      <div className="w-full aspect-[4/3] bg-[#f3f3f3] flex items-center justify-center">
+        <svg viewBox="0 0 40 40" className="w-10 h-10 text-[#d9d9d9]" fill="currentColor">
+          <circle cx="20" cy="14" r="7" />
+          <path d="M4 36c0-8.837 7.163-16 16-16s16 7.163 16 16" />
+        </svg>
       </div>
       <div className="p-3">
         <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug line-clamp-2">{team.name}</div>
         <div className="mt-1 text-[11px] text-[#8a8a8a]">{label}</div>
-        {(team.tag1 || team.tag2) ? (
+        {team.purposes.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {team.tag1 ? (
-              <span className="rounded bg-[#EAF6FF] px-2 py-0.5 text-[11px] font-medium text-[#2F8EEA]">{team.tag1}</span>
-            ) : null}
-            {team.tag2 ? (
-              <span className="rounded bg-[#EAF6FF] px-2 py-0.5 text-[11px] font-medium text-[#2F8EEA]">{team.tag2}</span>
-            ) : null}
+            {team.purposes.slice(0, 2).map((p) => (
+              <span key={p} className="rounded bg-[#EAF6FF] px-2 py-0.5 text-[11px] font-medium text-[#2F8EEA]">{p}</span>
+            ))}
           </div>
-        ) : null}
+        )}
       </div>
-    </Link>
+    </div>
   )
 }
 
@@ -57,9 +63,44 @@ function EmptyState({ label }: { label: string }) {
 
 export default async function TeamsPage() {
   const t = await getDictionary('team')
+  const supabase = await getSupabase()
 
-  // TODO: 새 TEAM 기능 DB 연동 시 여기에 쿼리 추가
-  const myTeams: TeamCard[] = []
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData?.user?.id ?? null
+
+  // 가입한 팀 (내가 만든 팀 + 멤버로 가입한 팀)
+  let myTeams: TeamCard[] = []
+  if (userId) {
+    const { data: owned } = await (supabase as any)
+      .from('community_teams')
+      .select('id, name, purposes')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: false })
+
+    const { data: memberships } = await (supabase as any)
+      .from('community_team_members')
+      .select('team_id, community_teams(id, name, purposes)')
+      .eq('user_id', userId)
+
+    const memberTeams = (memberships ?? [])
+      .map((m: any) => m.community_teams)
+      .filter(Boolean)
+
+    const allMyTeams = [...(owned ?? []), ...memberTeams]
+    const seen = new Set<string>()
+    const unique = allMyTeams.filter((t: any) => { if (seen.has(t.id)) return false; seen.add(t.id); return true })
+
+    myTeams = await Promise.all(
+      unique.map(async (team: any) => {
+        const { count } = await (supabase as any)
+          .from('community_team_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('team_id', team.id)
+        return { id: team.id, name: team.name, purposes: team.purposes ?? [], member_count: (count ?? 0) + 1 }
+      })
+    )
+  }
+
   const recommendedTeams: TeamCard[] = []
   const popularTeams: TeamCard[] = []
 
