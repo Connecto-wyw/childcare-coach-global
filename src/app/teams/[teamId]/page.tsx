@@ -21,7 +21,8 @@ async function getSupabase() {
   })
 }
 
-export default async function TeamDetailPage({ params }: { params: { teamId: string } }) {
+export default async function TeamDetailPage({ params }: { params: Promise<{ teamId: string }> }) {
+  const { teamId } = await params
   const supabase = await getSupabase()
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData?.user?.id ?? null
@@ -29,7 +30,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
   const { data: team } = await (supabase as any)
     .from('community_teams')
     .select('id, name, owner_id, visibility')
-    .eq('id', params.teamId)
+    .eq('id', teamId)
     .single()
 
   if (!team) notFound()
@@ -39,7 +40,7 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
     const { data: membership } = await (supabase as any)
       .from('community_team_members')
       .select('id')
-      .eq('team_id', params.teamId)
+      .eq('team_id', teamId)
       .eq('user_id', userId ?? '')
       .single()
     if (!membership) notFound()
@@ -48,12 +49,12 @@ export default async function TeamDetailPage({ params }: { params: { teamId: str
   const { data: events } = await (supabase as any)
     .from('community_team_events')
     .select('id, title, event_date, event_time, purpose, fee')
-    .eq('team_id', params.teamId)
+    .eq('team_id', teamId)
     .order('event_date', { ascending: true })
 
   return (
     <TeamDetailClient
-      teamId={params.teamId}
+      teamId={teamId}
       teamName={team.name}
       events={events ?? []}
     />
