@@ -479,6 +479,14 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
                       ul: ({ children }) => <ul className="my-2 pl-5 list-disc">{children}</ul>,
                       ol: ({ children }) => <ol className="my-2 pl-5 list-decimal">{children}</ol>,
                       li: ({ children }) => <li className="my-1">{children}</li>,
+                      a: ({ href, children }) => (
+                        <a
+                          href={href}
+                          className="inline-block mt-2 px-4 py-1.5 rounded-md bg-[#3497f3] text-white text-[13px] font-semibold hover:bg-[#1f7fd4] transition-colors no-underline"
+                        >
+                          {children}
+                        </a>
+                      ),
                     }}
                   >
                     {m.content}
