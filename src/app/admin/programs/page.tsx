@@ -7,8 +7,8 @@ import { useSupabase } from '@/app/providers'
 type Program = {
   id: string
   title: string
-  period: string | null
-  cost: string | null
+  period_days: number | null
+  deposit: number | null
   is_active: boolean
   created_at: string
 }
@@ -21,7 +21,7 @@ export default function AdminProgramsPage() {
   useEffect(() => {
     ;(supabase as any)
       .from('market_programs')
-      .select('id,title,period,cost,is_active,created_at')
+      .select('id,title,period_days,deposit,is_active,created_at')
       .order('created_at', { ascending: false })
       .then(({ data }: { data: Program[] | null }) => {
         setList(data ?? [])
@@ -58,7 +58,7 @@ export default function AdminProgramsPage() {
                   <div>
                     <div className="font-semibold">{prog.title}</div>
                     <div className="text-sm text-white/60 mt-0.5">
-                      {[prog.period && `Period: ${prog.period}`, prog.cost && `Cost: ${prog.cost}`]
+                      {[prog.period_days && `Period: ${prog.period_days} days`, prog.deposit && `Deposit: ${prog.deposit}`]
                         .filter(Boolean)
                         .join('  ·  ')}
                     </div>

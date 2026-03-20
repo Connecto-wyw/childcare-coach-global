@@ -39,10 +39,18 @@ type Program = {
   id: string
   title: string
   thumbnail_url: string | null
-  period: string | null
-  cost: string | null
-  reward: string | null
-  description: string | null
+  habit_type: string | null
+  auth_method: string | null
+  period_days: number | null
+  auth_count: number | null
+  weekly_max_count: number | null
+  start_date: string | null
+  end_date: string | null
+  deposit: number | null
+  basic_reward: number | null
+  discount_rate: number | null
+  bonus_reward: number | null
+  guide_html: string | null
   is_active: boolean
 }
 
@@ -84,30 +92,73 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         <h1 className="text-[24px] font-bold text-[#0e0e0e] mb-6">{prog.title}</h1>
 
         <div className="divide-y divide-[#e9e9e9]">
-          {prog.period ? (
+          {prog.habit_type ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">Type</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium capitalize">{prog.habit_type}</span>
+            </div>
+          ) : null}
+          {prog.auth_method ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">Auth Method</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium capitalize">{prog.auth_method}</span>
+            </div>
+          ) : null}
+          {prog.period_days ? (
             <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
               <span className="text-[14px] text-[#8a8a8a]">Period</span>
-              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.period}</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.period_days} days</span>
             </div>
           ) : null}
-          {prog.cost ? (
+          {prog.auth_count ? (
             <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
-              <span className="text-[14px] text-[#8a8a8a]">Cost</span>
-              <span className="text-[14px] text-[#3497f3] font-semibold">{prog.cost}</span>
+              <span className="text-[14px] text-[#8a8a8a]">Auth Count</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.auth_count}</span>
             </div>
           ) : null}
-          {prog.reward ? (
+          {prog.weekly_max_count ? (
             <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
-              <span className="text-[14px] text-[#8a8a8a]">Reward</span>
-              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.reward}</span>
+              <span className="text-[14px] text-[#8a8a8a]">Weekly Max</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.weekly_max_count}</span>
+            </div>
+          ) : null}
+          {prog.start_date ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">Start Date</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.start_date}</span>
+            </div>
+          ) : null}
+          {prog.end_date ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">End Date</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.end_date}</span>
+            </div>
+          ) : null}
+          {prog.deposit ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">Deposit</span>
+              <span className="text-[14px] text-[#3497f3] font-semibold">{prog.deposit.toLocaleString()}</span>
+            </div>
+          ) : null}
+          {prog.basic_reward ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">Basic Reward</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.basic_reward.toLocaleString()}</span>
+            </div>
+          ) : null}
+          {prog.bonus_reward ? (
+            <div className="flex justify-between py-3 border-b border-[#e9e9e9]">
+              <span className="text-[14px] text-[#8a8a8a]">Bonus Reward</span>
+              <span className="text-[14px] text-[#0e0e0e] font-medium">{prog.bonus_reward.toLocaleString()}</span>
             </div>
           ) : null}
         </div>
 
-        {prog.description ? (
-          <p className="mt-6 text-[14px] text-[#3a3a3a] leading-relaxed whitespace-pre-wrap">
-            {prog.description}
-          </p>
+        {prog.guide_html ? (
+          <div 
+            className="mt-8 prose prose-sm max-w-none text-[#3a3a3a]"
+            dangerouslySetInnerHTML={{ __html: prog.guide_html }}
+          />
         ) : null}
       </div>
     </main>
