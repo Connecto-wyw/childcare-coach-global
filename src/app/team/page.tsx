@@ -67,15 +67,19 @@ type ProgramRow = {
   id: string
   title: string
   thumbnail_url: string | null
+  habit_type: string | null
   period_days: number | null
+  start_date: string | null
+  end_date: string | null
   deposit: number | null
+  basic_reward: number | null
   is_active: boolean
 }
 
 async function fetchPrograms(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
   const { data, error } = await (sb as any)
     .from('market_programs')
-    .select('id,title,thumbnail_url,period_days,deposit,is_active')
+    .select('id,title,thumbnail_url,habit_type,period_days,start_date,end_date,deposit,basic_reward,is_active')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
 
@@ -250,35 +254,61 @@ export default async function TeamPage() {
         {programs.length === 0 ? (
           <p className="text-[14px] text-[#b4b4b4]">Coming soon.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {programs.map((prog) => (
-              <Link
-                key={prog.id}
-                href={`/team/programs/${prog.id}`}
-                className="rounded-xl border border-[#e9e9e9] overflow-hidden hover:opacity-95 transition-opacity"
-              >
-                <div className="w-full aspect-[4/3] bg-[#d9d9d9]">
-                  {prog.thumbnail_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={prog.thumbnail_url}
-                      alt={prog.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : null}
-                </div>
-                <div className="p-3">
-                  <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug">{prog.title}</div>
-                  {prog.period_days ? (
-                    <div className="mt-1 text-[11px] text-[#8a8a8a]">{prog.period_days} days</div>
-                  ) : null}
-                  {prog.deposit ? (
-                    <div className="mt-1 text-[12px] text-[#3497f3] font-semibold">{prog.deposit.toLocaleString()}</div>
-                  ) : null}
-                </div>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {programs.map((prog) => {
+              const dateRange = prog.start_date && prog.end_date
+                ? `${prog.start_date.slice(5)} ~ ${prog.end_date.slice(5)}`
+                : null
+              return (
+                <Link
+                  key={prog.id}
+                  href={`/team/programs/${prog.id}`}
+                  className="rounded-xl border border-[#e9e9e9] bg-white overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  {/* 썸네일 */}
+                  <div className="w-full aspect-video bg-[#f0f0f0] overflow-hidden relative">
+                    {prog.thumbnail_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={prog.thumbnail_url} alt={prog.title} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#c4c4c4]">
+                        <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 15 5-5 4 4 3-3 6 6"/></svg>
+                      </div>
+                    )}
+                    {/* 기간 뱃지 */}
+                    {prog.period_days ? (
+                      <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {prog.period_days}일
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* 정보 */}
+                  <div className="p-3">
+                    <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug line-clamp-2 mb-2">{prog.title}</div>
+
+                    {/* 예치금 / 보상 */}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {prog.deposit ? (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#fff3f3] text-[#c0392b] font-semibold">
+                          예치 {prog.deposit.toLocaleString()}
+                        </span>
+                      ) : null}
+                      {prog.basic_reward ? (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#f0fff4] text-[#27ae60] font-semibold">
+                          보상 {prog.basic_reward.toLocaleString()}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* 날짜 */}
+                    {dateRange ? (
+                      <div className="mt-1.5 text-[10px] text-[#b4b4b4]">{dateRange}</div>
+                    ) : null}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
