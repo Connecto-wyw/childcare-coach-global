@@ -14,6 +14,7 @@ export default function AdminSidebar({ userEmail }: { userEmail?: string }) {
     { label: 'News Posts', href: '/admin/news' },
     { label: 'Teams', href: '/admin/team' },
     { label: 'Team Items', href: '/admin/team-items' },
+    { label: 'Programs', href: '/admin/programs' },
   ]
 
   return (
