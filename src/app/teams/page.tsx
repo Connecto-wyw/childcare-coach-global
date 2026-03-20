@@ -54,7 +54,7 @@ function TeamCardItem({ team, membersLabel }: { team: TeamCard; membersLabel: st
     <div className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white">
       <div className="w-full aspect-[4/3] flex items-center justify-center" style={{ background: bg }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="w-20 h-20 object-contain" />
+        <img src={src} alt="" className="w-full h-full object-cover" />
       </div>
       <div className="p-3">
         <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug line-clamp-2">{team.name}</div>
