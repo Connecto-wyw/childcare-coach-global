@@ -1,7 +1,7 @@
 // src/app/teams/page.tsx (Server Component)
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { getDictionary } from '@/i18n'
+import { getDictionary, getLocale } from '@/i18n'
 import PageHeader from '@/components/layout/PageHeader'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
@@ -81,29 +81,30 @@ function EmptyState({ label }: { label: string }) {
 }
 
 export default async function TeamsPage() {
-  const t = await getDictionary('team')
+  const [t, locale] = await Promise.all([getDictionary('team'), getLocale()])
   const supabase = await getSupabase()
 
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData?.user?.id ?? null
 
-  // 가입한 팀 (내가 만든 팀 + 멤버로 가입한 팀)
+  // 가입한 팀 (내가 만든 팀 + 멤버로 가입한 팀) — locale 필터 적용
   let myTeams: TeamCard[] = []
   if (userId) {
     const { data: owned } = await (supabase as any)
       .from('community_teams')
       .select('id, name, purposes')
       .eq('owner_id', userId)
+      .eq('locale', locale)
       .order('created_at', { ascending: false })
 
     const { data: memberships } = await (supabase as any)
       .from('community_team_members')
-      .select('team_id, community_teams(id, name, purposes)')
+      .select('team_id, community_teams(id, name, purposes, locale)')
       .eq('user_id', userId)
 
     const memberTeams = (memberships ?? [])
       .map((m: any) => m.community_teams)
-      .filter(Boolean)
+      .filter((t: any) => t && t.locale === locale)
 
     const allMyTeams = [...(owned ?? []), ...memberTeams]
     const seen = new Set<string>()
