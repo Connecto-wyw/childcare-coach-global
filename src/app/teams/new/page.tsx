@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from '@/i18n/I18nProvider'
 import { useSupabase, useAuthUser } from '@/app/providers'
@@ -110,6 +110,44 @@ export default function NewTeamPage() {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const autoSubmitDone = useRef(false)
+
+  // 로그인 후 복귀 시 저장된 폼 데이터로 자동 생성
+  useEffect(() => {
+    if (!user || autoSubmitDone.current) return
+    const raw = localStorage.getItem('teams_new_draft')
+    if (!raw) return
+    try {
+      const { form: savedForm } = JSON.parse(raw)
+      autoSubmitDone.current = true
+      localStorage.removeItem('teams_new_draft')
+      setForm(savedForm)
+      setStep(4)
+      // 폼 상태 업데이트 후 자동 submit
+      setTimeout(async () => {
+        setCreating(true)
+        setError('')
+        const { error: dbErr } = await (supabase as any)
+          .from('community_teams')
+          .insert({
+            owner_id:      user.id,
+            name:          savedForm.teamName.trim(),
+            visibility:    savedForm.visibility,
+            team_size:     savedForm.teamSize,
+            join_approval: savedForm.joinApproval,
+            purposes:      savedForm.purposes,
+            child_gender:  savedForm.childGender || null,
+            child_age:     savedForm.childAge || null,
+            parent_age:    savedForm.parentAge || null,
+          })
+        setCreating(false)
+        if (dbErr) { setError(t('new_error')); return }
+        setShowModal(true)
+      }, 100)
+    } catch {
+      localStorage.removeItem('teams_new_draft')
+    }
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -122,6 +160,7 @@ export default function NewTeamPage() {
 
   const handleCreate = async () => {
     if (!user) {
+      localStorage.setItem('teams_new_draft', JSON.stringify({ form }))
       document.cookie = 'kyk_auth_return=/teams/new; path=/; max-age=300; SameSite=Lax'
       const callbackUrl = new URL('/auth/callback', window.location.origin)
       await supabase.auth.signInWithOAuth({
