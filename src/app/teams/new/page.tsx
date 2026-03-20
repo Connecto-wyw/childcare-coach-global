@@ -121,7 +121,15 @@ export default function NewTeamPage() {
   const goBack = () => { setError(''); setStep((s) => s - 1) }
 
   const handleCreate = async () => {
-    if (!user) { setError(t('new_error')); return }
+    if (!user) {
+      document.cookie = 'kyk_auth_return=/teams/new; path=/; max-age=300; SameSite=Lax'
+      const callbackUrl = new URL('/auth/callback', window.location.origin)
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: callbackUrl.toString(), queryParams: { prompt: 'select_account' } },
+      })
+      return
+    }
     setCreating(true)
     setError('')
     const { error: dbErr } = await (supabase as any)
