@@ -47,9 +47,20 @@
   "new_parent_30s_late": "30대 후반",
   "new_parent_40s": "40대",
   "new_parent_40s_plus": "40대 이상",
-  "new_step4_title": "거의 다 됐어요!",
-  "new_step4_subtitle": "마지막 단계가 곧 준비됩니다.",
   "new_prev": "이전",
   "new_next": "다음",
-  "new_done": "완료"
+  "new_done": "완료",
+  "new_step4_title": "팀 만들기 완료",
+  "new_step4_subtitle": "입력하신 정보로 팀을 생성합니다.",
+  "new_create_btn": "팀 생성하기",
+  "new_creating": "생성 중...",
+  "new_modal_title": "팀 생성이 완료되었습니다.",
+  "new_modal_body": "팀 멤버가 많아지고 활동이 많아질수록 포인트가 쌓여요!",
+  "new_modal_confirm": "확인",
+  "new_summary_name": "팀 이름",
+  "new_summary_visibility": "공개 여부",
+  "new_summary_size": "팀원 규모",
+  "new_summary_approval": "가입 방식",
+  "new_summary_purposes": "팀 목적",
+  "new_error": "팀 생성에 실패했어요. 다시 시도해주세요."
 }

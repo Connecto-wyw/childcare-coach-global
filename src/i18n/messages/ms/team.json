@@ -47,9 +47,20 @@
   "new_parent_30s_late": "Akhir 30-an",
   "new_parent_40s": "40-an",
   "new_parent_40s_plus": "40-an ke atas",
-  "new_step4_title": "Hampir siap!",
-  "new_step4_subtitle": "Langkah terakhir akan hadir tidak lama lagi.",
   "new_prev": "Kembali",
   "new_next": "Seterusnya",
-  "new_done": "Selesai"
+  "new_done": "Selesai",
+  "new_step4_title": "Hampir Siap",
+  "new_step4_subtitle": "Kami akan mencipta pasukan dengan maklumat yang anda berikan.",
+  "new_create_btn": "Cipta Pasukan",
+  "new_creating": "Mencipta...",
+  "new_modal_title": "Pasukan anda berjaya dicipta!",
+  "new_modal_body": "Semakin ramai ahli dan aktiviti, semakin banyak mata yang anda kumpul!",
+  "new_modal_confirm": "Faham",
+  "new_summary_name": "Nama Pasukan",
+  "new_summary_visibility": "Keterlihatan",
+  "new_summary_size": "Saiz Pasukan",
+  "new_summary_approval": "Jenis Penyertaan",
+  "new_summary_purposes": "Tujuan",
+  "new_error": "Gagal mencipta pasukan. Sila cuba lagi."
 }

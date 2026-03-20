@@ -47,9 +47,20 @@
   "new_parent_30s_late": "30-an akhir",
   "new_parent_40s": "40-an",
   "new_parent_40s_plus": "40-an ke atas",
-  "new_step4_title": "Hampir selesai!",
-  "new_step4_subtitle": "Langkah terakhir segera hadir.",
   "new_prev": "Kembali",
   "new_next": "Selanjutnya",
-  "new_done": "Selesai"
+  "new_done": "Selesai",
+  "new_step4_title": "Hampir Selesai",
+  "new_step4_subtitle": "Kami akan membuat tim dengan informasi yang kamu berikan.",
+  "new_create_btn": "Buat Tim",
+  "new_creating": "Membuat...",
+  "new_modal_title": "Tim kamu berhasil dibuat!",
+  "new_modal_body": "Semakin banyak anggota dan aktivitas, semakin banyak poin yang kamu kumpulkan!",
+  "new_modal_confirm": "Mengerti",
+  "new_summary_name": "Nama Tim",
+  "new_summary_visibility": "Visibilitas",
+  "new_summary_size": "Ukuran Tim",
+  "new_summary_approval": "Jenis Bergabung",
+  "new_summary_purposes": "Tujuan",
+  "new_error": "Gagal membuat tim. Silakan coba lagi."
 }

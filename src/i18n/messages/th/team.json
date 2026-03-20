@@ -47,9 +47,20 @@
   "new_parent_30s_late": "ปลาย 30 ปี",
   "new_parent_40s": "อายุ 40 ปี",
   "new_parent_40s_plus": "40 ปีขึ้นไป",
-  "new_step4_title": "เกือบเสร็จแล้ว!",
-  "new_step4_subtitle": "ขั้นตอนสุดท้ายจะพร้อมในไม่ช้า",
   "new_prev": "ย้อนกลับ",
   "new_next": "ถัดไป",
-  "new_done": "เสร็จสิ้น"
+  "new_done": "เสร็จสิ้น",
+  "new_step4_title": "เกือบเสร็จแล้ว",
+  "new_step4_subtitle": "เราจะสร้างทีมด้วยข้อมูลที่คุณให้ไว้",
+  "new_create_btn": "สร้างทีม",
+  "new_creating": "กำลังสร้าง...",
+  "new_modal_title": "สร้างทีมสำเร็จแล้ว!",
+  "new_modal_body": "ยิ่งมีสมาชิกและกิจกรรมมากขึ้น คุณก็จะได้รับคะแนนมากขึ้น!",
+  "new_modal_confirm": "รับทราบ",
+  "new_summary_name": "ชื่อทีม",
+  "new_summary_visibility": "การมองเห็น",
+  "new_summary_size": "ขนาดทีม",
+  "new_summary_approval": "ประเภทการเข้าร่วม",
+  "new_summary_purposes": "วัตถุประสงค์",
+  "new_error": "สร้างทีมไม่สำเร็จ กรุณาลองอีกครั้ง"
 }

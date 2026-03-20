@@ -47,9 +47,20 @@
   "new_parent_30s_late": "Late 30s",
   "new_parent_40s": "40s",
   "new_parent_40s_plus": "40s+",
-  "new_step4_title": "Almost there!",
-  "new_step4_subtitle": "The last step is coming soon.",
   "new_prev": "Back",
   "new_next": "Next",
-  "new_done": "Done"
+  "new_done": "Done",
+  "new_step4_title": "Almost Done",
+  "new_step4_subtitle": "We'll create your team with the info you provided.",
+  "new_create_btn": "Create Team",
+  "new_creating": "Creating...",
+  "new_modal_title": "Your team has been created!",
+  "new_modal_body": "The more members and activities your team has, the more points you'll earn!",
+  "new_modal_confirm": "Got it",
+  "new_summary_name": "Team Name",
+  "new_summary_visibility": "Visibility",
+  "new_summary_size": "Team Size",
+  "new_summary_approval": "Join Type",
+  "new_summary_purposes": "Purposes",
+  "new_error": "Failed to create team. Please try again."
 }
