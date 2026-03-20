@@ -20,7 +20,7 @@ export default async function AboutPage() {
     <main className="min-h-screen bg-white" style={{ color: TEXT }}>
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* Header (News 페이지 톤과 통일) */}
-        <h1 className="text-[24px] font-medium leading-tight">{dict.title}</h1>
+        <h1 className="text-[24px] font-medium leading-tight">ABOUT</h1>
         <p className="mt-3 text-[14px]" style={{ color: MUTED }}>
           {dict.subtitle}
         </p>

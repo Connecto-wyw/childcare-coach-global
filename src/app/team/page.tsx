@@ -123,66 +123,102 @@ export default async function TeamPage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* ✅ News/About과 동일한 상단 구조 + 설명 아래 회색줄 */}
         <PageHeader
-          title={t.title}
+          title="MARKET"
           subtitle={t.subtitle}
         />
 
         {teams.length === 0 ? (
           <div className="py-16 text-[#b4b4b4] text-[15px] font-medium">{t.no_teams}</div>
-        ) : (
-            <ul className="divide-y divide-[#eeeeee]">
-              {teams.map((tm) => {
-                const id = String(tm.id)
-                const name = safeText(resolveI18n(tm.name, tm.name_i18n, locale)) || t.untitled
-                const purpose = safeText(resolveI18n(tm.purpose, tm.purpose_i18n, locale))
-                const cover = safeText(tm.image_url)
-              const tag1 = safeText(tm.tag1)
-              const tag2 = safeText(tm.tag2)
-              const joined = Number(countMap.get(id) ?? 0)
+        ) : (() => {
+          const [first, ...rest] = teams
 
-              return (
-                <li key={id}>
-                  <Link href={`/team/${id}`} className="block py-10 hover:bg-[#fafafa] transition">
-                    <div className="flex flex-col sm:flex-row items-start gap-6">
-                      {/* ✅ 썸네일: 스샷처럼 가로 맞추되 안정적으로 */}
-                      <div className="w-full sm:w-[360px] shrink-0">
-                        <div className="w-full aspect-square bg-[#d9d9d9] overflow-hidden rounded-2xl border border-[#efefef]">
+          const renderFirst = () => {
+            const id = String(first.id)
+            const name = safeText(resolveI18n(first.name, first.name_i18n, locale)) || t.untitled
+            const purpose = safeText(resolveI18n(first.purpose, first.purpose_i18n, locale))
+            const cover = safeText(first.image_url)
+            const tag1 = safeText(first.tag1)
+            const tag2 = safeText(first.tag2)
+            const joined = Number(countMap.get(id) ?? 0)
+            return (
+              <div className="border-b border-[#eeeeee] pb-10 mb-8">
+                <Link href={`/team/${id}`} className="block hover:bg-[#fafafa] transition">
+                  <div className="flex flex-col sm:flex-row items-start gap-6">
+                    <div className="w-full sm:w-[360px] shrink-0">
+                      <div className="w-full aspect-square bg-[#d9d9d9] overflow-hidden rounded-2xl border border-[#efefef]">
+                        {cover ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={cover} alt={name} className="w-full h-full object-cover" loading="lazy" />
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <h2 className="text-[22px] font-semibold leading-tight truncate">{name}</h2>
+                        <div className="shrink-0">
+                          <JoinedPill count={joined} labelTmpl={t.joined} />
+                        </div>
+                      </div>
+                      {purpose ? (
+                        <p className="mt-3 text-[15px] text-[#7a7a7a] leading-relaxed line-clamp-3">{purpose}</p>
+                      ) : null}
+                      {(tag1 || tag2) ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {tag1 ? <TagPill label={tag1} /> : null}
+                          {tag2 ? <TagPill label={tag2} /> : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            )
+          }
+
+          return (
+            <>
+              {renderFirst()}
+              {rest.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {rest.map((tm) => {
+                    const id = String(tm.id)
+                    const name = safeText(resolveI18n(tm.name, tm.name_i18n, locale)) || t.untitled
+                    const cover = safeText(tm.image_url)
+                    const tag1 = safeText(tm.tag1)
+                    const tag2 = safeText(tm.tag2)
+                    const joined = Number(countMap.get(id) ?? 0)
+                    return (
+                      <Link
+                        key={id}
+                        href={`/team/${id}`}
+                        className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white hover:opacity-95 transition-opacity"
+                      >
+                        <div className="w-full aspect-[4/3] bg-[#d9d9d9] overflow-hidden">
                           {cover ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={cover} alt={name} className="w-full h-full object-cover" loading="lazy" />
                           ) : null}
                         </div>
-                      </div>
-
-                      {/* ✅ 텍스트 */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-4">
-                          <h2 className="text-[22px] font-semibold leading-tight truncate">{name}</h2>
-                          <div className="shrink-0">
+                        <div className="p-2">
+                          <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug line-clamp-2">{name}</div>
+                          <div className="mt-1">
                             <JoinedPill count={joined} labelTmpl={t.joined} />
                           </div>
+                          {(tag1 || tag2) ? (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {tag1 ? <TagPill label={tag1} /> : null}
+                              {tag2 ? <TagPill label={tag2} /> : null}
+                            </div>
+                          ) : null}
                         </div>
-
-                        {purpose ? (
-                          <p className="mt-3 text-[15px] text-[#7a7a7a] leading-relaxed line-clamp-3">
-                            {purpose}
-                          </p>
-                        ) : null}
-
-                        {(tag1 || tag2) ? (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {tag1 ? <TagPill label={tag1} /> : null}
-                            {tag2 ? <TagPill label={tag2} /> : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </main>
   )

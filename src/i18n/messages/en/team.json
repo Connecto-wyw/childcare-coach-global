@@ -3,5 +3,12 @@
   "subtitle": "Trending K-Parenting goods parents love. Join together, unlock better prices. Beta now.",
   "no_teams": "No teams available.",
   "joined": "Joined {count}",
-  "untitled": "Untitled"
+  "untitled": "Untitled",
+  "my_teams": "My Teams",
+  "recommended_teams": "Recommended Teams",
+  "popular_teams": "Popular Teams This Week",
+  "create_team": "Create New Team",
+  "members": "{count} members",
+  "no_recommended": "No recommended teams.",
+  "no_popular": "No popular teams."
 }

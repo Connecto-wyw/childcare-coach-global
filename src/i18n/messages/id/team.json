@@ -3,5 +3,12 @@
   "subtitle": "Barang-barang K-Parenting tren yang disukai orang tua. Bergabung bersama, dapatkan harga yang lebih baik. Beta sekarang.",
   "no_teams": "Tidak ada tim yang tersedia.",
   "joined": "Bergabung {count}",
-  "untitled": "Tanpa Judul"
+  "untitled": "Tanpa Judul",
+  "my_teams": "Tim Saya",
+  "recommended_teams": "Tim yang Direkomendasikan",
+  "popular_teams": "Tim Populer Minggu Ini",
+  "create_team": "Buat Tim Baru",
+  "members": "{count} anggota",
+  "no_recommended": "Tidak ada tim yang direkomendasikan.",
+  "no_popular": "Tidak ada tim populer."
 }
