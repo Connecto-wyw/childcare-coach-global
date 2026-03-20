@@ -138,7 +138,7 @@ export default async function KYKHomePage() {
         <div className="mx-auto max-w-xl">
           <div className="text-center mb-8">
             <h1 className="text-[30px] font-extrabold leading-tight text-gray-900 tracking-tight">
-               {t.title}
+               KYK
             </h1>
             <p className="text-[16px] font-medium text-gray-500 mt-2 max-w-[280px] mx-auto leading-relaxed">
                {t.subtitle}

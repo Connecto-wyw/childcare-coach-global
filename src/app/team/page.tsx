@@ -123,7 +123,7 @@ export default async function TeamPage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* ✅ News/About과 동일한 상단 구조 + 설명 아래 회색줄 */}
         <PageHeader
-          title={t.title}
+          title="MARKET"
           subtitle={t.subtitle}
         />
 
