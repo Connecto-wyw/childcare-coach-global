@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { getDictionary } from '@/i18n'
+import PageHeader from '@/components/layout/PageHeader'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 
@@ -124,14 +125,16 @@ export default async function TeamsPage() {
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e] pb-[160px]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-10">
 
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-[24px] font-bold text-[#0e0e0e]">TEAM</h1>
+        <div className="flex items-start justify-between gap-4 mb-0">
+          <div className="flex-1">
+            <PageHeader title="TEAM" subtitle={t.subtitle} />
+          </div>
           <Link
             href="/teams/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#3497f3] text-white text-[13px] font-semibold hover:bg-[#1f7fd4] transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#3497f3] text-white text-[13px] font-semibold hover:bg-[#1f7fd4] transition-colors shrink-0 mt-1"
           >
             <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M8 3v10M3 8h10" />
@@ -139,6 +142,7 @@ export default async function TeamsPage() {
             {t.create_team}
           </Link>
         </div>
+        <div className="mt-8" />
 
         {/* 가입한 팀 — 있을 때만 표시 */}
         {myTeams.length > 0 ? (

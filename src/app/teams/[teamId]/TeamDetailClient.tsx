@@ -4,6 +4,23 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useTranslation } from '@/i18n/I18nProvider'
 
+const ANIMAL_IMAGES = [
+  'Blue_나비','Blue_늑대','Blue_돌고래','Blue_말','Blue_물고기','Blue_부엉이','Blue_풍뎅이','Blue_호랑이',
+  'Green_나비','Green_늑대','Green_돌고래','Green_말','Green_물고기','Green_부엉이','Green_풍뎅이','Green_호랑이',
+  'Red_나비','Red_늑대','Red_돌고래','Red_말','Red_물고기','Red_부엉이','Red_풍뎅이','Red_호랑이',
+  'Yellow_나비','Yellow_늑대','Yellow_돌고래','Yellow_말','Yellow_물고기','Yellow_부엉이','Yellow_풍뎅이','Yellow_호랑이',
+]
+const BG_COLORS: Record<string, string> = {
+  Blue: '#EAF4FF', Green: '#EAFAF0', Red: '#FFF0F0', Yellow: '#FFFBEA',
+}
+function getAnimalImage(id: string) {
+  const hash = id.replace(/-/g, '').slice(0, 8)
+  const idx = parseInt(hash, 16) % ANIMAL_IMAGES.length
+  const name = ANIMAL_IMAGES[idx]
+  const color = name.split('_')[0]
+  return { src: `/animals/${name}.png`, bg: BG_COLORS[color] ?? '#f3f3f3' }
+}
+
 type Event = {
   id: string
   title: string
@@ -58,11 +75,16 @@ export default function TeamDetailClient({
 
   const today = new Date().toISOString().split('T')[0]
   const upcomingEvents = events.filter((e) => e.event_date >= today)
+  const { src, bg } = getAnimalImage(teamId)
 
   return (
     <div className="relative min-h-screen bg-white pb-[120px]">
       {/* 팀 헤더 */}
-      <div className="px-4 pt-6 pb-4 border-b border-[#f0f0f0]">
+      <div className="px-4 pt-6 pb-4 border-b border-[#f0f0f0] flex items-center gap-4">
+        <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0" style={{ background: bg }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" className="w-full h-full object-cover" />
+        </div>
         <h1 className="text-[20px] font-bold text-[#0e0e0e]">{teamName}</h1>
       </div>
 
@@ -86,7 +108,7 @@ export default function TeamDetailClient({
       </div>
 
       {/* 탭 콘텐츠 */}
-      <div className="px-4 py-6 max-w-lg mx-auto">
+      <div className="px-4 py-6 max-w-5xl">
         {tab === 'home' && (
           <div className="space-y-8">
             {/* 공지사항 */}
