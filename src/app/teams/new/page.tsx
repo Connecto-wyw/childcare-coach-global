@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslation } from '@/i18n/I18nProvider'
+import { useTranslation, useI18n } from '@/i18n/I18nProvider'
 import { useSupabase, useAuthUser } from '@/app/providers'
 
 const TOTAL_STEPS = 4
@@ -104,6 +104,7 @@ export default function NewTeamPage() {
   const supabase = useSupabase()
   const { user } = useAuthUser()
   const t = useTranslation('team')
+  const { locale } = useI18n()
 
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<FormData>(INITIAL)
@@ -139,6 +140,7 @@ export default function NewTeamPage() {
             child_gender:  savedForm.childGender || null,
             child_age:     savedForm.childAge || null,
             parent_age:    savedForm.parentAge || null,
+            locale,
           })
         setCreating(false)
         if (dbErr) { setError(t('new_error')); return }
@@ -183,6 +185,7 @@ export default function NewTeamPage() {
         child_gender: form.childGender || null,
         child_age:    form.childAge || null,
         parent_age:   form.parentAge || null,
+        locale,
       })
     setCreating(false)
     if (dbErr) { setError(t('new_error')); return }
