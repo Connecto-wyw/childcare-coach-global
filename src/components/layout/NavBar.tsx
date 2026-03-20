@@ -305,7 +305,7 @@ export default function NavBar() {
               onClick={loginGoogle}
               className="h-8 px-3 rounded-md bg-[#1e1e1e] text-white text-[12px] font-semibold"
             >
-              {t('signInGoogle')}
+              Sign in with Google
             </button>
           )}
         </div>
