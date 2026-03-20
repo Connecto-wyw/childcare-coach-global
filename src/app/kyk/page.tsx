@@ -111,42 +111,61 @@ export default async function KYKHomePage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <PageHeader title="KYK" subtitle={t.subtitle} />
 
-        <div className="mt-8 max-w-xl">
-          <h2 className="text-[18px] font-bold text-[#0e0e0e] mb-2">{t.intro_title}</h2>
-          <p className="text-[14px] leading-relaxed text-[#6b6b6b] mb-6 break-keep">
-            {t.intro_desc}
-          </p>
+        <div className="mt-8 flex flex-col md:flex-row md:items-center md:gap-12">
+          {/* 콘텐츠 */}
+          <div className="flex-1 min-w-0">
+            {/* 모바일: 이미지를 콘텐츠 위에 */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/landing-mockup.png"
+              alt=""
+              className="md:hidden w-[200px] mx-auto mb-8 object-contain drop-shadow-lg"
+            />
 
-          <div className="space-y-3 text-[14px] leading-relaxed text-[#4a4a4a] bg-[#f5f9ff] rounded-xl p-5 mb-8 border border-[#e0eeff]">
-            <p className="flex items-start gap-2">
-              <span className="text-[#3497f3] mt-0.5">✦</span>
-              <span className="break-keep">{t.point_1.replace('• ', '')}</span>
+            <h2 className="text-[18px] font-bold text-[#0e0e0e] mb-2">{t.intro_title}</h2>
+            <p className="text-[14px] leading-relaxed text-[#6b6b6b] mb-6 break-keep">
+              {t.intro_desc}
             </p>
-            <p className="flex items-start gap-2">
-              <span className="text-[#3497f3] mt-0.5">✦</span>
-              <span className="break-keep">{t.point_2.replace('• ', '')}</span>
-            </p>
-            <p className="flex items-start gap-2">
-              <span className="text-[#3497f3] mt-0.5">✦</span>
-              <span className="break-keep">{t.point_3.replace('• ', '')}</span>
-            </p>
+
+            <div className="space-y-3 text-[14px] leading-relaxed text-[#4a4a4a] bg-[#f5f9ff] rounded-xl p-5 mb-8 border border-[#e0eeff]">
+              <p className="flex items-start gap-2">
+                <span className="text-[#3497f3] mt-0.5">✦</span>
+                <span className="break-keep">{t.point_1.replace('• ', '')}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="text-[#3497f3] mt-0.5">✦</span>
+                <span className="break-keep">{t.point_2.replace('• ', '')}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="text-[#3497f3] mt-0.5">✦</span>
+                <span className="break-keep">{t.point_3.replace('• ', '')}</span>
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 max-w-sm">
+              <Link
+                href="/kyk/step1"
+                className="w-full rounded-xl py-3.5 flex items-center justify-center gap-2 text-[15px] font-bold text-white bg-[#9F1D23] hover:bg-[#7e161b] transition-colors"
+              >
+                {t.btn_start}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </Link>
+              <Link
+                href="/coach"
+                className="w-full rounded-xl border border-[#e9e9e9] py-3.5 text-[14px] font-semibold text-center text-[#6b6b6b] hover:bg-[#f5f5f5] transition-colors"
+              >
+                {t.btn_coach}
+              </Link>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <Link
-              href="/kyk/step1"
-              className="w-full rounded-xl py-3.5 flex items-center justify-center gap-2 text-[15px] font-bold text-white bg-[#9F1D23] hover:bg-[#7e161b] transition-colors"
-            >
-              {t.btn_start}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </Link>
-            <Link
-              href="/coach"
-              className="w-full rounded-xl border border-[#e9e9e9] py-3.5 text-[14px] font-semibold text-center text-[#6b6b6b] hover:bg-[#f5f5f5] transition-colors"
-            >
-              {t.btn_coach}
-            </Link>
-          </div>
+          {/* 데스크탑: 이미지를 오른쪽에 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/landing-mockup.png"
+            alt=""
+            className="hidden md:block w-[260px] shrink-0 object-contain drop-shadow-xl"
+          />
         </div>
       </div>
     </main>
