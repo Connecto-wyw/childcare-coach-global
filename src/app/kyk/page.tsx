@@ -108,6 +108,13 @@ export default async function KYKHomePage() {
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e]">
+      <style>{`
+        @keyframes customFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-12px); }
+        }
+        .animate-custom-float { animation: customFloat 4s ease-in-out infinite; }
+      `}</style>
       <div className="mx-auto max-w-5xl px-4 py-10">
         <PageHeader title="KYK" subtitle={t.subtitle} />
 
@@ -119,7 +126,7 @@ export default async function KYKHomePage() {
             <img
               src="/images/landing-mockup.png"
               alt=""
-              className="md:hidden w-full max-w-[320px] mx-auto mb-8 object-contain drop-shadow-lg"
+              className="md:hidden w-full max-w-[320px] mx-auto mb-8 object-contain drop-shadow-lg animate-custom-float"
             />
 
             <h2 className="text-[18px] font-bold text-[#0e0e0e] mb-2">{t.intro_title}</h2>
@@ -164,7 +171,7 @@ export default async function KYKHomePage() {
           <img
             src="/images/landing-mockup.png"
             alt=""
-            className="hidden md:block w-[260px] shrink-0 object-contain drop-shadow-xl"
+            className="hidden md:block w-[260px] shrink-0 object-contain drop-shadow-xl animate-custom-float"
           />
         </div>
       </div>
