@@ -28,15 +28,33 @@ async function getSupabase() {
   })
 }
 
+const ANIMAL_IMAGES = [
+  'Blue_나비','Blue_늑대','Blue_돌고래','Blue_말','Blue_물고기','Blue_부엉이','Blue_풍뎅이','Blue_호랑이',
+  'Green_나비','Green_늑대','Green_돌고래','Green_말','Green_물고기','Green_부엉이','Green_풍뎅이','Green_호랑이',
+  'Red_나비','Red_늑대','Red_돌고래','Red_말','Red_물고기','Red_부엉이','Red_풍뎅이','Red_호랑이',
+  'Yellow_나비','Yellow_늑대','Yellow_돌고래','Yellow_말','Yellow_물고기','Yellow_부엉이','Yellow_풍뎅이','Yellow_호랑이',
+]
+
+const BG_COLORS: Record<string, string> = {
+  Blue: '#EAF4FF', Green: '#EAFAF0', Red: '#FFF0F0', Yellow: '#FFFBEA',
+}
+
+function getAnimalImage(teamId: string) {
+  const hash = teamId.replace(/-/g, '').slice(0, 8)
+  const idx = parseInt(hash, 16) % ANIMAL_IMAGES.length
+  const name = ANIMAL_IMAGES[idx]
+  const color = name.split('_')[0]
+  return { src: `/animals/${name}.png`, bg: BG_COLORS[color] ?? '#f3f3f3' }
+}
+
 function TeamCardItem({ team, membersLabel }: { team: TeamCard; membersLabel: string }) {
   const label = membersLabel.replace('{count}', String(team.member_count))
+  const { src, bg } = getAnimalImage(team.id)
   return (
     <div className="block overflow-hidden rounded-xl border border-[#e9e9e9] bg-white">
-      <div className="w-full aspect-[4/3] bg-[#f3f3f3] flex items-center justify-center">
-        <svg viewBox="0 0 40 40" className="w-10 h-10 text-[#d9d9d9]" fill="currentColor">
-          <circle cx="20" cy="14" r="7" />
-          <path d="M4 36c0-8.837 7.163-16 16-16s16 7.163 16 16" />
-        </svg>
+      <div className="w-full aspect-[4/3] flex items-center justify-center" style={{ background: bg }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className="w-20 h-20 object-contain" />
       </div>
       <div className="p-3">
         <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug line-clamp-2">{team.name}</div>
