@@ -67,15 +67,15 @@ type ProgramRow = {
   id: string
   title: string
   thumbnail_url: string | null
-  period: string | null
-  cost: string | null
+  period_days: number | null
+  deposit: number | null
   is_active: boolean
 }
 
 async function fetchPrograms(sb: Awaited<ReturnType<typeof createSupabaseServer>>) {
   const { data, error } = await (sb as any)
     .from('market_programs')
-    .select('id,title,thumbnail_url,period,cost,is_active')
+    .select('id,title,thumbnail_url,period_days,deposit,is_active')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
 
@@ -270,11 +270,11 @@ export default async function TeamPage() {
                 </div>
                 <div className="p-3">
                   <div className="text-[13px] font-semibold text-[#0e0e0e] leading-snug">{prog.title}</div>
-                  {prog.period ? (
-                    <div className="mt-1 text-[11px] text-[#8a8a8a]">{prog.period}</div>
+                  {prog.period_days ? (
+                    <div className="mt-1 text-[11px] text-[#8a8a8a]">{prog.period_days} days</div>
                   ) : null}
-                  {prog.cost ? (
-                    <div className="mt-1 text-[12px] text-[#3497f3] font-semibold">{prog.cost}</div>
+                  {prog.deposit ? (
+                    <div className="mt-1 text-[12px] text-[#3497f3] font-semibold">{prog.deposit.toLocaleString()}</div>
                   ) : null}
                 </div>
               </Link>
