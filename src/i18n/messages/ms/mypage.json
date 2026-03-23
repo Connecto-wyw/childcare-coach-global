@@ -1,0 +1,22 @@
+{
+  "default_user": "Pengguna",
+  "my_points": "Mata Saya",
+  "view_history": "Lihat Sejarah",
+  "section_service": "Perkhidmatan",
+  "notices": "Notis",
+  "notices_sub": "Kemas kini perkhidmatan dan pengumuman",
+  "support": "Sokongan",
+  "support_sub": "Bantuan & pertanyaan",
+  "section_settings": "Tetapan",
+  "notifications": "Pemberitahuan",
+  "notifications_sub": "Makluman tolak & keutamaan pemasaran",
+  "version": "Maklumat Versi",
+  "section_account": "Akaun",
+  "sign_out": "Log keluar",
+  "delete_account": "Padam Akaun",
+  "footer": "© 2026 TEAM UP. All rights reserved.",
+  "delete_modal_title": "Padam Akaun",
+  "delete_modal_body": "Semua data anda (mata, keputusan KYK, maklumat pasukan) akan dipadam secara kekal dan tidak dapat dipulihkan.",
+  "cancel": "Batal",
+  "confirm_delete": "Padam"
+}

@@ -8,6 +8,8 @@ type CommonDictionary = {
   news?: Record<string, string>
   team?: Record<string, string>
   common?: Record<string, string>
+  mypage?: Record<string, string>
+  points?: Record<string, string>
 }
 
 interface I18nContextProps {

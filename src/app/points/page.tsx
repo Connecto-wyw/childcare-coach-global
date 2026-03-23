@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthUser, useSupabase } from '@/app/providers'
+import { useTranslation } from '@/i18n/I18nProvider'
 
 type Tab = 'all' | 'earn' | 'use'
 
@@ -62,8 +63,8 @@ function HistoryRow({ item }: { item: HistoryItem }) {
   )
 }
 
-function EmptyState({ tab }: { tab: Tab }) {
-  const msg = tab === 'use' ? '사용한 포인트 내역이 없어요.' : '아직 포인트 내역이 없어요.'
+function EmptyState({ tab, t }: { tab: Tab; t: (k: string) => string }) {
+  const msg = tab === 'use' ? t('empty_use') : t('empty_all')
   return (
     <div className="flex flex-col items-center py-16 gap-3">
       <div className="w-16 h-16 rounded-full bg-[#F7F7F7] flex items-center justify-center">
@@ -78,14 +79,6 @@ function EmptyState({ tab }: { tab: Tab }) {
 
 const MAX_FREE_POINTS = 3000
 
-const EARN_GUIDE = [
-  { icon: '💬', title: 'AI 코치 대화', desc: '1개 질문당 +3P · 매일 최대 30P', badge: '+3P' },
-  { icon: '🧠', title: 'KYK 완료', desc: '내 아이 파악하기 완료 (1회 한정)', badge: '+200P' },
-  { icon: '📅', title: '출석 체크', desc: '매일 앱 방문 시 적립', badge: '+15P' },
-  { icon: '🎉', title: '팀 이벤트 참여', desc: '팀 이벤트 등록 및 참여 시 적립', badge: '+30P' },
-  { icon: '✍️', title: '게시글 작성', desc: '팀 게시판에 글 작성 시 적립', badge: '+10P' },
-]
-
 export default function PointsPage() {
   const router = useRouter()
   const supabase = useSupabase()
@@ -94,6 +87,15 @@ export default function PointsPage() {
   const [points, setPoints] = useState(0)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const t = useTranslation('points')
+
+  const EARN_GUIDE = [
+    { icon: '💬', title: t('guide_coach_title'), desc: t('guide_coach_desc'), badge: '+3P' },
+    { icon: '🧠', title: t('guide_kyk_title'), desc: t('guide_kyk_desc'), badge: '+200P' },
+    { icon: '📅', title: t('guide_attend_title'), desc: t('guide_attend_desc'), badge: '+15P' },
+    { icon: '🎉', title: t('guide_event_title'), desc: t('guide_event_desc'), badge: '+30P' },
+    { icon: '✍️', title: t('guide_post_title'), desc: t('guide_post_desc'), badge: '+10P' },
+  ]
 
   const loadData = useCallback(async () => {
     if (!user) return
@@ -166,7 +168,7 @@ export default function PointsPage() {
         </button>
 
         <div className="text-center relative z-10">
-          <p className="text-[13px] text-white/70 font-medium mb-2">내 포인트</p>
+          <p className="text-[13px] text-white/70 font-medium mb-2">{t('my_points')}</p>
           <div className="flex items-end justify-center gap-2">
             <span className="text-[48px] font-extrabold text-white leading-none tracking-tight">
               {format(points)}
@@ -179,9 +181,9 @@ export default function PointsPage() {
       {/* 탭 카드 */}
       <div className="mx-4 mt-4 mb-4">
         <div className="bg-[#F2F2F2] rounded-xl p-1 flex gap-1">
-          <TabBtn active={tab === 'all'} label="전체" onClick={() => setTab('all')} />
-          <TabBtn active={tab === 'earn'} label="적립" onClick={() => setTab('earn')} />
-          <TabBtn active={tab === 'use'} label="사용" onClick={() => setTab('use')} />
+          <TabBtn active={tab === 'all'} label={t('tab_all')} onClick={() => setTab('all')} />
+          <TabBtn active={tab === 'earn'} label={t('tab_earn')} onClick={() => setTab('earn')} />
+          <TabBtn active={tab === 'use'} label={t('tab_use')} onClick={() => setTab('use')} />
         </div>
       </div>
 
@@ -189,7 +191,7 @@ export default function PointsPage() {
         {/* 내역 */}
         <div className="bg-white rounded-2xl px-4 shadow-sm">
           {filtered.length === 0 ? (
-            <EmptyState tab={tab} />
+            <EmptyState tab={tab} t={t} />
           ) : (
             filtered.map((item) => <HistoryRow key={item.id} item={item} />)
           )}
@@ -197,12 +199,12 @@ export default function PointsPage() {
 
         {/* 무료 포인트 한도 프로그레스 */}
         <div>
-          <p className="text-[11px] font-bold text-[#8a8a8a] px-1 mb-2 tracking-widest uppercase">무료 적립 현황</p>
+          <p className="text-[11px] font-bold text-[#8a8a8a] px-1 mb-2 tracking-widest uppercase">{t('free_status')}</p>
           <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
             <div className="flex items-end justify-between mb-2">
               <div>
                 <span className="text-[20px] font-extrabold text-[#9F1D23]">{format(points)}</span>
-                <span className="text-[13px] text-[#8a8a8a] ml-1">/ {format(MAX_FREE_POINTS)}P 무료 한도</span>
+                <span className="text-[13px] text-[#8a8a8a] ml-1">/ {format(MAX_FREE_POINTS)}P {t('free_limit')}</span>
               </div>
               <span className="text-[12px] font-semibold text-[#9F1D23]">
                 {Math.min(100, Math.round((points / MAX_FREE_POINTS) * 100))}%
@@ -215,15 +217,15 @@ export default function PointsPage() {
               />
             </div>
             <div className="flex items-center justify-between mt-2">
-              <p className="text-[11px] text-[#b4b4b4]">1P = 1원으로 사용 가능</p>
-              <p className="text-[11px] text-[#b4b4b4]">잔여 {format(Math.max(0, MAX_FREE_POINTS - points))}P</p>
+              <p className="text-[11px] text-[#b4b4b4]">{t('conversion_note')}</p>
+              <p className="text-[11px] text-[#b4b4b4]">{t('remaining').replace('{n}', format(Math.max(0, MAX_FREE_POINTS - points)))}</p>
             </div>
           </div>
         </div>
 
         {/* 포인트 적립 가이드 */}
         <div>
-          <p className="text-[11px] font-bold text-[#8a8a8a] px-1 mb-2 tracking-widest uppercase">포인트 적립 방법</p>
+          <p className="text-[11px] font-bold text-[#8a8a8a] px-1 mb-2 tracking-widest uppercase">{t('earn_guide')}</p>
           <div className="bg-white rounded-2xl overflow-hidden shadow-sm divide-y divide-[#f5f5f5]">
             {EARN_GUIDE.map((g) => (
               <div key={g.title} className="flex items-center gap-3 px-4 py-3.5">
@@ -239,7 +241,7 @@ export default function PointsPage() {
         </div>
 
         <p className="text-center text-[11px] text-[#c4c4c4] py-2">
-          무료 적립 한도 {format(MAX_FREE_POINTS)}P 초과 시 유료 구매로만 적립 가능합니다.
+          {t('footer_limit').replace('{n}', format(MAX_FREE_POINTS))}
         </p>
       </div>
     </main>

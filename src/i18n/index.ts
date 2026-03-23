@@ -34,7 +34,7 @@ export async function getLocale(): Promise<Locale> {
   return defaultLocale
 }
 
-export async function getDictionary(namespace: 'navbar' | 'about' | 'coach' | 'news' | 'team' | 'common' | 'kyk'): Promise<any> {
+export async function getDictionary(namespace: 'navbar' | 'about' | 'coach' | 'news' | 'team' | 'common' | 'kyk' | 'mypage' | 'points'): Promise<any> {
   const locale = await getLocale()
 
   try {

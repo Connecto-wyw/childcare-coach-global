@@ -1,0 +1,22 @@
+{
+  "default_user": "ผู้ใช้",
+  "my_points": "คะแนนของฉัน",
+  "view_history": "ดูประวัติ",
+  "section_service": "บริการ",
+  "notices": "ประกาศ",
+  "notices_sub": "อัปเดตบริการและประกาศ",
+  "support": "ฝ่ายสนับสนุน",
+  "support_sub": "ช่วยเหลือและสอบถาม",
+  "section_settings": "ตั้งค่า",
+  "notifications": "การแจ้งเตือน",
+  "notifications_sub": "การแจ้งเตือนแบบพุชและการตลาด",
+  "version": "ข้อมูลเวอร์ชัน",
+  "section_account": "บัญชี",
+  "sign_out": "ออกจากระบบ",
+  "delete_account": "ลบบัญชี",
+  "footer": "© 2026 TEAM UP. All rights reserved.",
+  "delete_modal_title": "ลบบัญชี",
+  "delete_modal_body": "ข้อมูลทั้งหมดของคุณ (คะแนน, ผล KYK, ข้อมูลทีม) จะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้",
+  "cancel": "ยกเลิก",
+  "confirm_delete": "ลบ"
+}
