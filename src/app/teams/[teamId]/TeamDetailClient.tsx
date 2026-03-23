@@ -15,6 +15,13 @@ type Event = {
   fee: string | null
 }
 
+type Announcement = {
+  id: string
+  title: string
+  content: string
+  created_at: string
+}
+
 type Tab = 'home' | 'chat' | 'board'
 
 const ANIMAL_IMAGES = [
@@ -70,11 +77,17 @@ function FabMenuItem({ label, href, onClose }: { label: string; href: string; on
 export default function TeamDetailClient({
   teamId,
   teamName,
+  ownerId,
+  currentUserId,
   events,
+  announcements,
 }: {
   teamId: string
   teamName: string
+  ownerId: string
+  currentUserId: string | null
   events: Event[]
+  announcements: Announcement[]
 }) {
   const t = useTranslation('team')
   const [tab, setTab] = useState<Tab>('home')
@@ -127,7 +140,22 @@ export default function TeamDetailClient({
           <div className="space-y-8">
             <section>
               <h2 className="text-[15px] font-bold text-[#0e0e0e] mb-3">{t('announcements')}</h2>
-              <p className="text-[14px] text-[#b4b4b4]">{t('no_announcements')}</p>
+              {announcements.length === 0 ? (
+                <p className="text-[14px] text-[#b4b4b4]">{t('no_announcements')}</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {announcements.map((a) => (
+                    <div key={a.id} className="px-4 py-3 rounded-xl border border-[#e0eeff] bg-[#f5f9ff]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#3497f3] text-white">공지</span>
+                        <span className="text-[13px] font-semibold text-[#0e0e0e] truncate">{a.title}</span>
+                      </div>
+                      <p className="text-[13px] text-[#6b6b6b] leading-relaxed line-clamp-2">{a.content}</p>
+                      <p className="text-[11px] text-[#b4b4b4] mt-1">{new Date(a.created_at).toLocaleDateString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
             <section>
               <h2 className="text-[15px] font-bold text-[#0e0e0e] mb-3">{t('event_schedule')}</h2>
@@ -143,10 +171,10 @@ export default function TeamDetailClient({
         )}
 
         {/* 채팅 */}
-        {tab === 'chat' && <ChatTab teamId={teamId} />}
+        {tab === 'chat' && <ChatTab teamId={teamId} ownerId={ownerId} />}
 
         {/* 게시판 */}
-        {tab === 'board' && <BoardTab teamId={teamId} />}
+        {tab === 'board' && <BoardTab teamId={teamId} ownerId={ownerId} />}
       </div>
 
       {/* FAB 배경 */}
@@ -159,7 +187,9 @@ export default function TeamDetailClient({
         <div className="fixed bottom-24 right-4 z-30 flex flex-col items-end gap-2">
           {fabOpen && tab === 'home' && (
             <>
-              <FabMenuItem label={t('fab_write_announcement')} href={`/teams/${teamId}/announcements/new`} onClose={() => setFabOpen(false)} />
+              {currentUserId === ownerId && (
+                <FabMenuItem label={t('fab_write_announcement')} href={`/teams/${teamId}/announcements/new`} onClose={() => setFabOpen(false)} />
+              )}
               <FabMenuItem label={t('fab_create_event')} href={`/teams/${teamId}/events/new`} onClose={() => setFabOpen(false)} />
             </>
           )}

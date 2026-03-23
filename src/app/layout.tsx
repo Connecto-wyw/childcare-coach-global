@@ -4,6 +4,7 @@ import './globals.css'
 import Providers from './providers'
 import NavBar from '@/components/layout/NavBar'
 import LanguageSelector from '@/components/layout/LanguageSelector'
+import PointEarnToast from '@/components/ui/PointEarnToast'
 import { getLocale, getDictionary } from '@/i18n'
 import { I18nProvider } from '@/i18n/I18nProvider'
 
@@ -97,6 +98,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {children}
             </div>
             <LanguageSelector />
+            <PointEarnToast />
           </Providers>
         </I18nProvider>
       </body>

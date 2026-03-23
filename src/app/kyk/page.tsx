@@ -118,17 +118,17 @@ export default async function KYKHomePage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <PageHeader title="KYK" subtitle={t.subtitle} />
 
-        <div className="mt-8 flex flex-col md:flex-row md:items-center md:gap-12">
+        <div className="mt-8 flex flex-col">
+          {/* 이미지: 모바일/PC 모두 콘텐츠 위에 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/landing-mockup.png"
+            alt=""
+            className="w-full max-w-[320px] md:max-w-[640px] mx-auto mb-8 object-contain drop-shadow-lg animate-custom-float"
+          />
+
           {/* 콘텐츠 */}
           <div className="flex-1 min-w-0">
-            {/* 모바일: 이미지를 콘텐츠 위에 */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/landing-mockup.png"
-              alt=""
-              className="md:hidden w-full max-w-[320px] mx-auto mb-8 object-contain drop-shadow-lg animate-custom-float"
-            />
-
             <h2 className="text-[18px] font-bold text-[#0e0e0e] mb-2">{t.intro_title}</h2>
             <p className="text-[14px] leading-relaxed text-[#6b6b6b] mb-6 break-keep">
               {t.intro_desc}
@@ -165,14 +165,6 @@ export default async function KYKHomePage() {
               </Link>
             </div>
           </div>
-
-          {/* 데스크탑: 이미지를 오른쪽에 */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/landing-mockup.png"
-            alt=""
-            className="hidden md:block w-[260px] shrink-0 object-contain drop-shadow-xl animate-custom-float"
-          />
         </div>
       </div>
     </main>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAuthUser } from '@/app/providers'
 import { useTranslation } from '@/i18n/I18nProvider'
+import { earnPoints } from '@/lib/earnPoints'
 
 type ChatBoxProps = { systemPrompt?: string; initialPrefill?: string; hasKYK?: boolean }
 type ChatRole = 'user' | 'assistant'
@@ -369,6 +370,9 @@ export default function ChatBox({ systemPrompt, initialPrefill, hasKYK = true }:
         }
 
         push('assistant', answer)
+
+        // 포인트 적립 (+3P / 로그인 유저만)
+        if (user?.id) void earnPoints(3, 'AI 코치 대화')
 
         // KYK 없는 유저 질문 카운트 증가
         if (!hasKYK) {
