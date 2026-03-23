@@ -3,7 +3,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
 import { useTranslation, useI18n } from '@/i18n/I18nProvider'
 
@@ -98,14 +98,6 @@ function CoinIcon({ className = 'w-4 h-4' }: { className?: string }) {
   )
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
-      <path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 // ── 데이터 ───────────────────────────────────────────────────
 type NavItem = { key: string; href: string }
 
@@ -130,8 +122,6 @@ export default function NavBar() {
   const [nickname, setNickname]         = useState('')
   const [points, setPoints]             = useState(0)
   const [loadingPoints, setLoadingPoints] = useState(false)
-  const [menuOpen, setMenuOpen]         = useState(false)
-  const menuRef = useRef<HTMLDivElement | null>(null)
 
   function isActive(href: string) {
     if (href === '/coach') return pathname === '/coach' || pathname === '/'
@@ -140,17 +130,8 @@ export default function NavBar() {
   }
 
   useEffect(() => {
-    if (!user) { setNickname(''); setPoints(0); setLoadingPoints(false); setMenuOpen(false) }
+    if (!user) { setNickname(''); setPoints(0); setLoadingPoints(false) }
   }, [user])
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (!menuOpen) return
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false)
-    }
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
-  }, [menuOpen])
 
   const googleName = useMemo(() => {
     if (!user) return ''
@@ -208,11 +189,6 @@ export default function NavBar() {
     })
   }, [supabase])
 
-  const signOut = useCallback(async () => {
-    setMenuOpen(false)
-    await supabase.auth.signOut()
-    try { window.location.href = '/coach' } catch {}
-  }, [supabase])
 
   const avatarUrl: string | null = useMemo(() => {
     if (!user) return null
@@ -238,58 +214,32 @@ export default function NavBar() {
     }
     return (
       <div className="flex items-center gap-2 min-w-0">
-        {/* 포인트 */}
-        <span className="hidden sm:flex items-center gap-1 px-[7px] py-[3px] rounded-md bg-[#F2F7FF] text-[#0B4DD6] border border-[#D6E6FF] text-[11px] font-semibold whitespace-nowrap">
+        {/* 포인트 → /points */}
+        <Link
+          href="/points"
+          className="hidden sm:flex items-center gap-1 px-[7px] py-[3px] rounded-md bg-[#F2F7FF] text-[#0B4DD6] border border-[#D6E6FF] text-[11px] font-semibold whitespace-nowrap hover:bg-[#e6f0ff] transition-colors"
+        >
           <CoinIcon className="w-[14px] h-[14px] text-[#0B4DD6]" />
           <span>{t('points')}</span>
           <span>{loadingPoints ? '…' : format(points)}</span>
-        </span>
-        {/* 유저 메뉴 */}
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 hover:opacity-80"
-          >
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt={displayName} className="w-8 h-8 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#e9e9e9] flex items-center justify-center">
-                <svg viewBox="0 0 16 16" className="w-4 h-4 text-[#8a8a8a]" fill="currentColor">
-                  <circle cx="8" cy="5" r="3" />
-                  <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" />
-                </svg>
-              </div>
-            )}
-            {!compact && (
-              <>
-                <span className="hidden md:block text-[12px] font-semibold text-[#1e1e1e] max-w-[120px] truncate">{displayName || t('account')}</span>
-                <ChevronDownIcon />
-              </>
-            )}
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 w-44 rounded-md border border-[#e5e5e5] bg-white shadow-sm overflow-hidden z-50">
-              {compact && (
-                <div className="px-3 py-2 border-b border-[#f0f0f0]">
-                  <p className="text-[12px] font-semibold text-[#0e0e0e] truncate">{displayName}</p>
-                  <p className="text-[11px] text-[#8a8a8a] flex items-center gap-1 mt-0.5">
-                    <CoinIcon className="w-3 h-3" />
-                    {loadingPoints ? '…' : format(points)} {t('points')}
-                  </p>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={signOut}
-                className="w-full text-left px-3 py-2 text-[12px] text-[#1e1e1e] hover:bg-[#f5f5f5]"
-              >
-                {t('signOut')}
-              </button>
+        </Link>
+        {/* 아바타 → /mypage */}
+        <Link href="/mypage" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt={displayName} className="w-8 h-8 rounded-full object-cover" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-[#e9e9e9] flex items-center justify-center">
+              <svg viewBox="0 0 16 16" className="w-4 h-4 text-[#8a8a8a]" fill="currentColor">
+                <circle cx="8" cy="5" r="3" />
+                <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" />
+              </svg>
             </div>
           )}
-        </div>
+          {!compact && (
+            <span className="hidden md:block text-[12px] font-semibold text-[#1e1e1e] max-w-[120px] truncate">{displayName || t('account')}</span>
+          )}
+        </Link>
       </div>
     )
   }

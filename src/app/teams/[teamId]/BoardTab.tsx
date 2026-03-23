@@ -10,6 +10,7 @@ type Post = {
   title: string
   content: string
   is_notice: boolean
+  author_id: string
   author_name: string
   author_avatar: string | null
   created_at: string
@@ -17,19 +18,38 @@ type Post = {
   comments_count: number
 }
 
-function Avatar({ src, name }: { src: string | null; name: string }) {
-  if (src) return <img src={src} alt={name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+function CrownIcon() {
   return (
-    <div className="w-7 h-7 rounded-full bg-[#e9e9e9] flex items-center justify-center shrink-0">
-      <svg viewBox="0 0 16 16" className="w-4 h-4 text-[#b4b4b4]" fill="currentColor">
-        <circle cx="8" cy="5" r="3" />
-        <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" />
-      </svg>
+    <svg viewBox="0 0 16 10" className="w-3 h-2" fill="#FFD700" stroke="#E6A800" strokeWidth="0.5" strokeLinejoin="round">
+      <path d="M1 9 L2.5 3 L5.5 6.5 L8 1 L10.5 6.5 L13.5 3 L15 9 Z" />
+    </svg>
+  )
+}
+
+function Avatar({ src, name, isOwner }: { src: string | null; name: string; isOwner?: boolean }) {
+  return (
+    <div className="relative shrink-0 w-7">
+      {isOwner && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
+          <CrownIcon />
+        </span>
+      )}
+      {src
+        ? <img src={src} alt={name} className="w-7 h-7 rounded-full object-cover" />
+        : (
+          <div className="w-7 h-7 rounded-full bg-[#e9e9e9] flex items-center justify-center">
+            <svg viewBox="0 0 16 16" className="w-4 h-4 text-[#b4b4b4]" fill="currentColor">
+              <circle cx="8" cy="5" r="3" />
+              <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" />
+            </svg>
+          </div>
+        )
+      }
     </div>
   )
 }
 
-function PostCard({ post, teamId, t }: { post: Post; teamId: string; t: (k: string) => string }) {
+function PostCard({ post, teamId, ownerId, t }: { post: Post; teamId: string; ownerId: string; t: (k: string) => string }) {
   const d = new Date(post.created_at)
   const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   const preview = post.content.replace(/\n/g, ' ')
@@ -37,7 +57,7 @@ function PostCard({ post, teamId, t }: { post: Post; teamId: string; t: (k: stri
   return (
     <Link href={`/teams/${teamId}/board/${post.id}`} className="block py-4 px-1 border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors">
       <div className="flex items-center gap-2 mb-2">
-        <Avatar src={post.author_avatar} name={post.author_name} />
+        <Avatar src={post.author_avatar} name={post.author_name} isOwner={post.author_id === ownerId} />
         <span className="text-[12px] font-medium text-[#6b6b6b]">{post.author_name}</span>
         <span className="text-[12px] text-[#c4c4c4]">{dateStr}</span>
       </div>
@@ -60,7 +80,7 @@ function PostCard({ post, teamId, t }: { post: Post; teamId: string; t: (k: stri
   )
 }
 
-export default function BoardTab({ teamId }: { teamId: string }) {
+export default function BoardTab({ teamId, ownerId }: { teamId: string; ownerId: string }) {
   const t = useTranslation('team')
   const supabase = useSupabase()
   const [posts, setPosts] = useState<Post[]>([])
@@ -70,7 +90,7 @@ export default function BoardTab({ teamId }: { teamId: string }) {
     async function load() {
       const { data } = await (supabase as any)
         .from('community_team_posts')
-        .select('id, title, content, is_notice, author_name, author_avatar, created_at')
+        .select('id, title, content, is_notice, author_id, author_name, author_avatar, created_at')
         .eq('team_id', teamId)
         .order('is_notice', { ascending: false })
         .order('created_at', { ascending: false })
@@ -98,7 +118,7 @@ export default function BoardTab({ teamId }: { teamId: string }) {
   return (
     <div>
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} teamId={teamId} t={t} />
+        <PostCard key={post.id} post={post} teamId={teamId} ownerId={ownerId} t={t} />
       ))}
     </div>
   )

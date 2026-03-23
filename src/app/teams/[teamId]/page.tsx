@@ -52,11 +52,22 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
     .eq('team_id', teamId)
     .order('event_date', { ascending: true })
 
+  const { data: announcements } = await (supabase as any)
+    .from('community_team_posts')
+    .select('id, title, content, created_at')
+    .eq('team_id', teamId)
+    .eq('is_notice', true)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
   return (
     <TeamDetailClient
       teamId={teamId}
       teamName={team.name}
+      ownerId={team.owner_id}
+      currentUserId={userId}
       events={events ?? []}
+      announcements={announcements ?? []}
     />
   )
 }

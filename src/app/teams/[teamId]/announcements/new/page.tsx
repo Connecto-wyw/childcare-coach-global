@@ -4,9 +4,8 @@ import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTranslation } from '@/i18n/I18nProvider'
 import { useSupabase, useAuthUser } from '@/app/providers'
-import { earnPoints } from '@/lib/earnPoints'
 
-export default function NewPostPage() {
+export default function NewAnnouncementPage() {
   const router = useRouter()
   const params = useParams()
   const teamId = params.teamId as string
@@ -16,7 +15,6 @@ export default function NewPostPage() {
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [isNotice, setIsNotice] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -33,11 +31,10 @@ export default function NewPostPage() {
         author_avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
         title:        title.trim(),
         content:      content.trim(),
-        is_notice:    isNotice,
+        is_notice:    true,
       })
     setSubmitting(false)
     if (dbErr) { setError(t('post_error')); return }
-    void earnPoints(10, '게시글 작성')
     router.push(`/teams/${teamId}`)
   }
 
@@ -55,7 +52,7 @@ export default function NewPostPage() {
           Back
         </button>
 
-        <h1 className="text-[22px] font-bold text-[#0e0e0e] mb-6">{t('board_write')}</h1>
+        <h1 className="text-[22px] font-bold text-[#0e0e0e] mb-6">{t('fab_write_announcement')}</h1>
 
         <div className="flex flex-col gap-4">
           <input
@@ -78,25 +75,6 @@ export default function NewPostPage() {
               content ? 'border-[#3497f3]' : 'border-[#e9e9e9]',
             ].join(' ')}
           />
-
-          {/* 공지 토글 */}
-          <button
-            type="button"
-            onClick={() => setIsNotice((v) => !v)}
-            className="flex items-center gap-2 self-start"
-          >
-            <div className={[
-              'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
-              isNotice ? 'bg-[#3497f3] border-[#3497f3]' : 'border-[#d9d9d9]',
-            ].join(' ')}>
-              {isNotice && (
-                <svg viewBox="0 0 12 12" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M2 6l3 3 5-5" />
-                </svg>
-              )}
-            </div>
-            <span className="text-[14px] font-medium text-[#0e0e0e]">{t('post_is_notice')}</span>
-          </button>
         </div>
 
         {error && <p className="mt-4 text-[13px] text-red-500">{error}</p>}

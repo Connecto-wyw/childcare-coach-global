@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTranslation } from '@/i18n/I18nProvider'
 import { useSupabase, useAuthUser } from '@/app/providers'
+import { earnPoints } from '@/lib/earnPoints'
 
 // ── 캘린더 ──────────────────────────────────────────────────────
 function CalendarPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -144,6 +145,7 @@ export default function NewEventPage() {
       })
     setCreating(false)
     if (dbErr) { setError(t('event_error')); return }
+    void earnPoints(30, '팀 이벤트 등록')
     router.push(`/teams/${teamId}`)
   }
 

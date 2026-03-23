@@ -13,19 +13,38 @@ type Message = {
   created_at: string
 }
 
-function Avatar({ src, name }: { src: string | null; name: string }) {
-  if (src) return <img src={src} alt={name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+function CrownIcon() {
   return (
-    <div className="w-8 h-8 rounded-full bg-[#e9e9e9] flex items-center justify-center shrink-0">
-      <svg viewBox="0 0 16 16" className="w-4 h-4 text-[#b4b4b4]" fill="currentColor">
-        <circle cx="8" cy="5" r="3" />
-        <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" />
-      </svg>
+    <svg viewBox="0 0 16 10" className="w-3.5 h-2.5" fill="#FFD700" stroke="#E6A800" strokeWidth="0.5" strokeLinejoin="round">
+      <path d="M1 9 L2.5 3 L5.5 6.5 L8 1 L10.5 6.5 L13.5 3 L15 9 Z" />
+    </svg>
+  )
+}
+
+function Avatar({ src, name, isOwner }: { src: string | null; name: string; isOwner?: boolean }) {
+  return (
+    <div className="relative shrink-0 w-8">
+      {isOwner && (
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10">
+          <CrownIcon />
+        </span>
+      )}
+      {src
+        ? <img src={src} alt={name} className="w-8 h-8 rounded-full object-cover" />
+        : (
+          <div className="w-8 h-8 rounded-full bg-[#e9e9e9] flex items-center justify-center">
+            <svg viewBox="0 0 16 16" className="w-4 h-4 text-[#b4b4b4]" fill="currentColor">
+              <circle cx="8" cy="5" r="3" />
+              <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" />
+            </svg>
+          </div>
+        )
+      }
     </div>
   )
 }
 
-export default function ChatTab({ teamId }: { teamId: string }) {
+export default function ChatTab({ teamId, ownerId }: { teamId: string; ownerId: string }) {
   const t = useTranslation('team')
   const supabase = useSupabase()
   const { user } = useAuthUser()
@@ -108,7 +127,7 @@ export default function ChatTab({ teamId }: { teamId: string }) {
               <div className={`flex items-end gap-2 mb-1 ${isMine ? 'flex-row-reverse' : ''}`}>
                 {/* 아바타 (내 메시지 아님 + 첫 메시지일 때만) */}
                 <div className="w-8 shrink-0">
-                  {showAvatar && <Avatar src={msg.sender_avatar} name={msg.sender_name} />}
+                  {showAvatar && <Avatar src={msg.sender_avatar} name={msg.sender_name} isOwner={msg.sender_id === ownerId} />}
                 </div>
                 <div className={`flex flex-col max-w-[70%] ${isMine ? 'items-end' : 'items-start'}`}>
                   {showName && (
