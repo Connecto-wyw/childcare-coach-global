@@ -1,0 +1,22 @@
+{
+  "default_user": "사용자",
+  "my_points": "내 포인트",
+  "view_history": "내역 보기",
+  "section_service": "서비스",
+  "notices": "공지사항",
+  "notices_sub": "서비스 업데이트 및 공지",
+  "support": "고객센터",
+  "support_sub": "문의 및 도움말",
+  "section_settings": "설정",
+  "notifications": "알림 설정",
+  "notifications_sub": "푸시 알림 및 마케팅 수신",
+  "version": "버전 정보",
+  "section_account": "계정",
+  "sign_out": "로그아웃",
+  "delete_account": "회원탈퇴",
+  "footer": "© 2026 인디언밥 · TEAM UP. All rights reserved.",
+  "delete_modal_title": "회원탈퇴",
+  "delete_modal_body": "탈퇴 시 모든 데이터(포인트, KYK 결과, 팀 정보)가 영구 삭제되며 복구가 불가합니다.",
+  "cancel": "취소",
+  "confirm_delete": "탈퇴하기"
+}

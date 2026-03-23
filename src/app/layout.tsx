@@ -64,20 +64,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale()
   
   // Load common dictionaries required by Layout/Client components
-  const [navbarDict, coachDict, teamDict, newsDict, commonDict] = await Promise.all([
+  const [navbarDict, coachDict, teamDict, newsDict, commonDict, mypageDict, pointsDict] = await Promise.all([
     getDictionary('navbar'),
     getDictionary('coach'),
     getDictionary('team'),
     getDictionary('news'),
     getDictionary('common'),
+    getDictionary('mypage'),
+    getDictionary('points'),
   ])
-  
+
   const dictionaries = {
     navbar: navbarDict,
     coach: coachDict,
     team: teamDict,
     news: newsDict,
     common: commonDict,
+    mypage: mypageDict,
+    points: pointsDict,
   }
 
   // Determine font variable based on locale

@@ -1,0 +1,22 @@
+{
+  "default_user": "Pengguna",
+  "my_points": "Poin Saya",
+  "view_history": "Lihat Riwayat",
+  "section_service": "Layanan",
+  "notices": "Pengumuman",
+  "notices_sub": "Pembaruan layanan dan pengumuman",
+  "support": "Dukungan",
+  "support_sub": "Bantuan & pertanyaan",
+  "section_settings": "Pengaturan",
+  "notifications": "Notifikasi",
+  "notifications_sub": "Notifikasi push & preferensi pemasaran",
+  "version": "Info Versi",
+  "section_account": "Akun",
+  "sign_out": "Keluar",
+  "delete_account": "Hapus Akun",
+  "footer": "© 2026 TEAM UP. All rights reserved.",
+  "delete_modal_title": "Hapus Akun",
+  "delete_modal_body": "Semua data Anda (poin, hasil KYK, info tim) akan dihapus secara permanen dan tidak dapat dipulihkan.",
+  "cancel": "Batal",
+  "confirm_delete": "Hapus"
+}

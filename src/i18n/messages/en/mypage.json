@@ -1,0 +1,22 @@
+{
+  "default_user": "User",
+  "my_points": "My Points",
+  "view_history": "View History",
+  "section_service": "Services",
+  "notices": "Notices",
+  "notices_sub": "Service updates and announcements",
+  "support": "Support",
+  "support_sub": "Help & inquiries",
+  "section_settings": "Settings",
+  "notifications": "Notifications",
+  "notifications_sub": "Push alerts & marketing preferences",
+  "version": "Version Info",
+  "section_account": "Account",
+  "sign_out": "Sign out",
+  "delete_account": "Delete Account",
+  "footer": "© 2026 TEAM UP. All rights reserved.",
+  "delete_modal_title": "Delete Account",
+  "delete_modal_body": "All your data (points, KYK results, team info) will be permanently deleted and cannot be recovered.",
+  "cancel": "Cancel",
+  "confirm_delete": "Delete"
+}
