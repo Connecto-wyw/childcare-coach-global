@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
-import { useTranslation } from '@/i18n/I18nProvider'
+import { useTranslation, useI18n } from '@/i18n/I18nProvider'
 
 // ── 유틸 ─────────────────────────────────────────────────────
 function format(n: number) {
@@ -124,6 +124,7 @@ export default function NavBar() {
   const supabase   = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
   const t          = useTranslation('navbar')
+  const { locale } = useI18n()
   const pathname   = usePathname()
 
   const [nickname, setNickname]         = useState('')
@@ -329,8 +330,9 @@ export default function NavBar() {
       {/* ── 모바일: 상단 미니 헤더 ──────────────────────────── */}
       <header className="md:hidden w-full bg-white border-b border-[#eeeeee] sticky top-0 z-40">
         <div className="px-4 py-3 flex items-center justify-between">
-          <Link href="/coach" className="text-[15px] font-bold text-[#0e0e0e]">
-            AI Parenting Coach
+          <Link href="/coach" className="flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/nav-icon.png" alt="logo" className="h-8 w-8 object-contain" />
           </Link>
           <UserSection compact />
         </div>
