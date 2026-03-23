@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthUser, useSupabase } from '@/app/providers'
-import { useTranslation } from '@/i18n/I18nProvider'
+import { useTranslation, useI18n } from '@/i18n/I18nProvider'
 
 // ── 유틸 ─────────────────────────────────────────────────────
 function format(n: number) {
@@ -124,6 +124,7 @@ export default function NavBar() {
   const supabase   = useSupabase()
   const { user, loading: authLoading } = useAuthUser()
   const t          = useTranslation('navbar')
+  const { locale } = useI18n()
   const pathname   = usePathname()
 
   const [nickname, setNickname]         = useState('')
@@ -329,8 +330,23 @@ export default function NavBar() {
       {/* ── 모바일: 상단 미니 헤더 ──────────────────────────── */}
       <header className="md:hidden w-full bg-white border-b border-[#eeeeee] sticky top-0 z-40">
         <div className="px-4 py-3 flex items-center justify-between">
-          <Link href="/coach" className="text-[15px] font-bold text-[#0e0e0e]">
-            AI Parenting Coach
+          <Link href="/coach" className="flex items-center gap-1.5">
+            {locale === 'ko' ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/logo.png" alt="인디언밥" className="h-8 w-auto object-contain" />
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <svg viewBox="0 0 36 36" className="w-7 h-7" fill="none" aria-hidden="true">
+                  <circle cx="18" cy="18" r="18" fill="#0e0e0e" />
+                  <circle cx="12" cy="14" r="4" fill="white" />
+                  <circle cx="24" cy="14" r="4" fill="white" />
+                  <path d="M5 28c0-4.418 3.134-8 7-8h12c3.866 0 7 3.582 7 8" stroke="white" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+                </svg>
+                <span className="text-[16px] font-extrabold tracking-tight text-[#0e0e0e] leading-none">
+                  TEAM<span className="text-[#3497f3]"> UP</span>
+                </span>
+              </span>
+            )}
           </Link>
           <UserSection compact />
         </div>
