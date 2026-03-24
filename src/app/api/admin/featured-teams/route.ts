@@ -18,7 +18,7 @@ async function createSupabase() {
   })
 }
 
-// GET: 전체 팀 목록 + is_featured 상태
+// GET: community_teams 전체 목록 + is_featured 상태
 export async function GET() {
   try {
     const supabase = await createSupabase()
@@ -26,8 +26,8 @@ export async function GET() {
     if (!user) return NextResponse.json({ ok: false, error: 'not_authenticated' }, { status: 401 })
 
     const { data, error } = await (supabase as any)
-      .from('teams')
-      .select('id, name, image_url, tag1, tag2, is_active, is_featured')
+      .from('community_teams')
+      .select('id, name, purposes, locale, visibility, is_featured')
       .order('created_at', { ascending: false })
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
@@ -51,15 +51,15 @@ export async function POST(req: NextRequest) {
 
     // 전체 false 처리 후 선택된 것만 true
     const { error: clearErr } = await (supabase as any)
-      .from('teams')
+      .from('community_teams')
       .update({ is_featured: false })
-      .neq('id', '00000000-0000-0000-0000-000000000000') // all rows
+      .neq('id', '00000000-0000-0000-0000-000000000000')
 
     if (clearErr) return NextResponse.json({ ok: false, error: clearErr.message }, { status: 500 })
 
     if (featuredIds.length > 0) {
       const { error: setErr } = await (supabase as any)
-        .from('teams')
+        .from('community_teams')
         .update({ is_featured: true })
         .in('id', featuredIds)
       if (setErr) return NextResponse.json({ ok: false, error: setErr.message }, { status: 500 })

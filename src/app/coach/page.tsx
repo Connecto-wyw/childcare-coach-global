@@ -133,15 +133,20 @@ async function getPopularKeywords(locale: string) {
 
 async function getFeaturedTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {
   const { data, error } = await (supabase as any)
-    .from('teams')
-    .select('id, name, image_url, tag1, tag2, created_at, is_active')
+    .from('community_teams')
+    .select('id, name, purposes')
     .eq('is_featured', true)
-    .eq('is_active', true)
+    .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .limit(10)
 
   if (error || !data) return []
-  return (data as TeamRow[]).map(mapTeamRowToCard)
+  return (data as { id: string; name: string; purposes: string[] }[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    imageUrl: null,
+    tags: row.purposes ?? [],
+  }))
 }
 
 async function getOngoingTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {

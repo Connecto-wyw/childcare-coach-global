@@ -7,10 +7,9 @@ import Link from 'next/link'
 type TeamRow = {
   id: string
   name: string
-  image_url: string | null
-  tag1: string | null
-  tag2: string | null
-  is_active: boolean
+  purposes: string[]
+  locale: string
+  visibility: string
   is_featured: boolean
 }
 
@@ -162,25 +161,15 @@ export default function FeaturedTeamsAdminPage() {
                       )}
                     </div>
 
-                    {/* 이미지 */}
-                    <div className="w-12 h-12 rounded-lg bg-[#444] overflow-hidden shrink-0">
-                      {team.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={team.image_url} alt={team.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-[#555]" />
-                      )}
-                    </div>
-
                     {/* 팀 정보 */}
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-white truncate">{team.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[11px] px-1.5 py-0.5 rounded ${team.is_active ? 'bg-emerald-900 text-emerald-300' : 'bg-gray-700 text-gray-400'}`}>
-                          {team.is_active ? 'active' : 'inactive'}
-                        </span>
-                        {team.tag1 && <span className="text-[11px] text-gray-400">{team.tag1}</span>}
-                        {team.tag2 && <span className="text-[11px] text-gray-400">{team.tag2}</span>}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300">{team.locale}</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300">{team.visibility}</span>
+                        {(team.purposes ?? []).slice(0, 2).map((p) => (
+                          <span key={p} className="text-[11px] text-gray-400">{p}</span>
+                        ))}
                       </div>
                     </div>
 
