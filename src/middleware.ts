@@ -48,6 +48,9 @@ export function middleware(request: NextRequest) {
       } else if (lang.startsWith('id')) {
         detectedLocale = 'id'
         break
+      } else if (lang.startsWith('vi')) {
+        detectedLocale = 'vi'
+        break
       } else if (lang.startsWith('en')) {
         detectedLocale = 'en'
         break
