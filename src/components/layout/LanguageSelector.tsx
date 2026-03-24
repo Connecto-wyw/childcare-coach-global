@@ -10,6 +10,7 @@ const LANGUAGES = [
   { code: 'th', label: 'ภาษาไทย' },
   { code: 'ms', label: 'Bahasa Melayu' },
   { code: 'id', label: 'Bahasa Indonesia' },
+  { code: 'vi', label: 'Tiếng Việt' },
 ]
 
 export default function LanguageSelector() {
