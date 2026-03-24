@@ -85,6 +85,7 @@ export default function PointsPage() {
   const { user, loading } = useAuthUser()
   const [tab, setTab] = useState<Tab>('all')
   const [points, setPoints] = useState(0)
+  const [monthlyEarned, setMonthlyEarned] = useState(0)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const t = useTranslation('points')
@@ -100,16 +101,25 @@ export default function PointsPage() {
   const loadData = useCallback(async () => {
     if (!user) return
     setLoadingData(true)
-    const [profileRes, histRes] = await Promise.all([
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+    const [profileRes, histRes, monthlyRes] = await Promise.all([
       supabase.from('profiles').select('points').eq('id', user.id).maybeSingle(),
       (supabase as any).from('points_history')
         .select('id, type, amount, reason, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100),
+      (supabase as any).from('points_history')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('type', 'earn')
+        .gte('created_at', monthStart.toISOString()),
     ])
     setPoints(Number((profileRes.data as any)?.points ?? 0))
     setHistory(histRes.data ?? [])
+    setMonthlyEarned((monthlyRes.data ?? []).reduce((s: number, r: any) => s + r.amount, 0))
     setLoadingData(false)
   }, [supabase, user])
 
@@ -128,6 +138,9 @@ export default function PointsPage() {
       }, (payload: any) => {
         setHistory((prev) => [payload.new, ...prev])
         setPoints((prev) => prev + payload.new.amount)
+        if (payload.new.type === 'earn') {
+          setMonthlyEarned((prev) => prev + payload.new.amount)
+        }
       })
       .subscribe()
 
@@ -197,28 +210,28 @@ export default function PointsPage() {
           )}
         </div>
 
-        {/* 무료 포인트 한도 프로그레스 */}
+        {/* 이번 달 무료 포인트 한도 프로그레스 */}
         <div>
           <p className="text-[11px] font-bold text-[#8a8a8a] px-1 mb-2 tracking-widest uppercase">{t('free_status')}</p>
           <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
             <div className="flex items-end justify-between mb-2">
               <div>
-                <span className="text-[20px] font-extrabold text-[#9F1D23]">{format(points)}</span>
+                <span className="text-[20px] font-extrabold text-[#9F1D23]">{format(monthlyEarned)}</span>
                 <span className="text-[13px] text-[#8a8a8a] ml-1">/ {format(MAX_FREE_POINTS)}P {t('free_limit')}</span>
               </div>
               <span className="text-[12px] font-semibold text-[#9F1D23]">
-                {Math.min(100, Math.round((points / MAX_FREE_POINTS) * 100))}%
+                {Math.min(100, Math.round((monthlyEarned / MAX_FREE_POINTS) * 100))}%
               </span>
             </div>
             <div className="w-full h-2.5 bg-[#F0F0F0] rounded-full overflow-hidden">
               <div
                 className="h-full bg-[#9F1D23] rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(100, (points / MAX_FREE_POINTS) * 100)}%` }}
+                style={{ width: `${Math.min(100, (monthlyEarned / MAX_FREE_POINTS) * 100)}%` }}
               />
             </div>
             <div className="flex items-center justify-between mt-2">
               <p className="text-[11px] text-[#b4b4b4]">{t('conversion_note')}</p>
-              <p className="text-[11px] text-[#b4b4b4]">{t('remaining').replace('{n}', format(Math.max(0, MAX_FREE_POINTS - points)))}</p>
+              <p className="text-[11px] text-[#b4b4b4]">{t('remaining').replace('{n}', format(Math.max(0, MAX_FREE_POINTS - monthlyEarned)))}</p>
             </div>
           </div>
         </div>
