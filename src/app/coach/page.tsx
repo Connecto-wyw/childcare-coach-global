@@ -11,6 +11,7 @@ import { cookies, headers } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/lib/database.types'
 import ActiveTeamsGrid, { type TeamCard } from '@/components/team/ActiveTeamsGrid'
+import FeaturedTeamsRow from '@/components/coach/FeaturedTeamsRow'
 import { getDictionary, getLocale } from '@/i18n'
 import { resolveI18n } from '@/lib/i18nFallback'
 
@@ -130,6 +131,19 @@ async function getPopularKeywords(locale: string) {
   }
 }
 
+async function getFeaturedTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {
+  const { data, error } = await (supabase as any)
+    .from('teams')
+    .select('id, name, image_url, tag1, tag2, created_at, is_active')
+    .eq('is_featured', true)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  if (error || !data) return []
+  return (data as TeamRow[]).map(mapTeamRowToCard)
+}
+
 async function getOngoingTeams(supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {
   const { data, error } = await supabase
     .from('teams')
@@ -185,7 +199,10 @@ export default async function CoachPage({
     title: resolveI18n(n.title, n.title_i18n, locale),
   }))
 
-  const ongoingTeams = await getOngoingTeams(supabase)
+  const [featuredTeams, ongoingTeams] = await Promise.all([
+    getFeaturedTeams(supabase),
+    getOngoingTeams(supabase),
+  ])
 
   return (
     <main className="min-h-screen bg-white text-[#0e0e0e] pb-[160px]">
@@ -210,6 +227,13 @@ export default async function CoachPage({
           {/* ✅ 게스트/로그인 모두 가능. ChatBox 내부에서 로그인 강제하면 안 됨 */}
           <ChatBox initialPrefill={initialPrefill} hasKYK={hasKYK} />
         </section>
+
+        {featuredTeams.length > 0 && (
+          <section className="mb-8">
+            <div className="mb-3 text-[15px] font-bold text-[#0e0e0e]">{t.featured_teams}</div>
+            <FeaturedTeamsRow teams={featuredTeams} />
+          </section>
+        )}
 
         <section className="mb-8">
           <div className="mb-3 text-[15px] font-bold text-[#0e0e0e]">{t.ongoing_teams}</div>

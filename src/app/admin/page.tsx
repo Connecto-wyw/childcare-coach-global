@@ -38,6 +38,12 @@ export default function AdminDashboardPage() {
       href: '/admin/programs',
       color: 'bg-teal-600',
     },
+    {
+      title: 'Featured Teams',
+      description: "Select this week's featured teams shown on the Home page.",
+      href: '/admin/featured-teams',
+      color: 'bg-orange-500',
+    },
   ]
 
   return (
