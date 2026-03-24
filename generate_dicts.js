@@ -109,18 +109,18 @@ const dicts = {
         "4": "Strongly Agree"
       },
       questions: {
-        "q2": "My child finds it easy to make new friends.",
-        "q3": "My child plays quietly by themselves well.",
-        "q4": "My child naturally speaks to people they meet for the first time.",
-        "q5": "When listening to a story, my child is curious about the background or reasons.",
-        "q6": "My child likes to draw things realistically.",
-        "q7": "My child tends to create imaginary worlds or rules during play.",
-        "q8": "When a friend cries, my child tries to empathize with them.",
+        "q2": "My child makes new friends easily.",
+        "q3": "My child is perfectly happy playing quietly by themselves.",
+        "q4": "My child speaks comfortably, even with people they've just met.",
+        "q5": "My child is curious about the \"why\" or the background behind a story.",
+        "q6": "My child likes to draw things realistically (exactly as they look).",
+        "q7": "During playtime, my child tends to invent imaginary worlds or their own rules.",
+        "q8": "My child shows empathy and tries to comfort a crying friend.",
         "q9": "My child tries to explain situations logically.",
-        "q10": "My child considers it important to know what is right and wrong.",
-        "q11": "My child tends to plan ahead for what they need to do.",
-        "q12": "My child gets flustered or dislikes it when the schedule changes.",
-        "q13": "My child tends to do what they want first and put off what they dislike."
+        "q10": "My child cares deeply about what is right and wrong.",
+        "q11": "My child tends to plan ahead before starting a task.",
+        "q12": "My child gets flustered or upset when plans change suddenly.",
+        "q13": "My child prefers to do the fun things first and puts off tasks they dislike."
       },
       gate: {
         "title": "KYK",

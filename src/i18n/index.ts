@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers'
 
-export type Locale = 'en' | 'ko' | 'th' | 'ms' | 'id'
+export type Locale = 'en' | 'ko' | 'th' | 'ms' | 'id' | 'vi'
 
 export const defaultLocale: Locale = 'en'
-export const locales: Locale[] = ['en', 'ko', 'th', 'ms', 'id']
+export const locales: Locale[] = ['en', 'ko', 'th', 'ms', 'id', 'vi']
 
 export const COOKIE_NAME = 'NEXT_LOCALE'
 
@@ -17,6 +17,8 @@ function getDictionaryLoader(locale: Locale) {
       return () => import('./messages/ms/index')
     case 'id':
       return () => import('./messages/id/index')
+    case 'vi':
+      return () => import('./messages/vi/index')
     case 'en':
     default:
       return () => import('./messages/en/index')

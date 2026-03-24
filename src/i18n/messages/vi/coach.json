@@ -1,0 +1,81 @@
+{
+  "hello": "XIN CHÀO",
+  "subtitle": "TÔI LÀ HUẤN LUYỆN VIÊN NUÔI DẠY CON AI CỦA BẠN",
+  "people_asking": "Mọi người cũng đang hỏi",
+  "ongoing_teams": "Ưu đãi nóng trong tuần",
+  "k_parenting_news": "Tin tức nuôi dạy con Hàn Quốc",
+  "no_news": "Không có tin tức nào.",
+  "todays_tips": "Mẹo nuôi dạy con hôm nay",
+  "chat_thinking": "Đang suy nghĩ",
+  "chat_placeholder": "Bạn đang nghĩ gì?",
+  "chat_send": "Gửi",
+  "chat_error_delayed": "Phản hồi bị trễ. Vui lòng thử lại.",
+  "chat_error_empty": "Câu trả lời trống từ máy chủ",
+  "kyk_modal_desc": "Hiểu tính cách con qua KYK giúp chúng tôi đưa ra lời khuyên nuôi dạy con phù hợp hơn. 🌱",
+  "kyk_modal_limit": "Không có KYK, bạn có thể đặt tối đa {limit} câu hỏi mỗi ngày.",
+  "kyk_modal_btn_kyk": "Làm KYK ngay (1–2 phút)",
+  "kyk_modal_btn_skip": "Hỏi thôi ({limit}/ngày)",
+  "kyk_limit_reached": "Hoàn thành KYK để đặt câu hỏi không giới hạn! [Làm KYK ngay](/kyk)",
+  "tips": [
+    {
+      "title": "✅ Khen ngợi cụ thể",
+      "body": "Khen hành động, không phải kết quả. \"Con dọn đồ chơi gọn gàng, mẹ thích lắm.\" giúp duy trì động lực bền vững."
+    },
+    {
+      "title": "🧠 Gọi tên cảm xúc trước",
+      "body": "Thử nói \"Con có vẻ đang bực bội.\" Gọi tên cảm xúc giúp giảm cường độ và mở ra sự hợp tác."
+    },
+    {
+      "title": "🎯 Một hướng dẫn mỗi lần",
+      "body": "Chỉ dẫn ngắn gọn, từng bước một hiệu quả hơn nhiều so với nhiều bước cùng lúc."
+    },
+    {
+      "title": "🟦 Cho hai lựa chọn tốt",
+      "body": "\"Cốc đỏ hay cốc xanh?\" trao quyền tự chủ trong khi vẫn duy trì ranh giới."
+    },
+    {
+      "title": "🤝 Kết nối trước khi uốn nắn",
+      "body": "Một kết nối ngắn gọn (\"Mẹ/ba ở đây.\") giúp lời hướng dẫn dễ tiếp nhận hơn."
+    },
+    {
+      "title": "⏳ Đếm ngược bình tĩnh",
+      "body": "Đếm ngược nhẹ nhàng từ 10→0 khi chuyển hoạt động thay vì lặp đi lặp lại."
+    },
+    {
+      "title": "🩹 Hàn gắn sau xung đột",
+      "body": "Sau mâu thuẫn: \"Cả hai đều bực rồi. Thử lại nhé.\" Hàn gắn xây dựng niềm tin."
+    },
+    {
+      "title": "🧩 Thói quen nhỏ thắng lớn",
+      "body": "Thói quen nhỏ, lặp đi lặp lại hiệu quả hơn kế hoạch lớn. Giữ cho dễ thực hiện hàng ngày."
+    },
+    {
+      "title": "🍎 Ăn uống trước",
+      "body": "Ăn nhẹ + uống nước thường giải quyết những cơn giận dỗi \"bí ẩn\" nhanh hơn nói chuyện."
+    },
+    {
+      "title": "🌙 Buổi sáng tốt bắt đầu từ đêm hôm trước",
+      "body": "Chuẩn bị quần áo và túi từ đêm hôm trước để giảm căng thẳng buổi sáng."
+    },
+    {
+      "title": "💛 Dành sự chú ý từ sớm",
+      "body": "10 phút chú ý tập trung giúp giảm hành vi tìm kiếm sự chú ý về sau."
+    },
+    {
+      "title": "🛑 Thừa nhận + Ranh giới",
+      "body": "\"Con đang tức. Được phép tức. Nhưng không được phép đánh.\""
+    },
+    {
+      "title": "🔁 Thực hành \"Làm lại\"",
+      "body": "\"Thử nói lại với giọng bình tĩnh hơn nhé.\" Dạy kỹ năng mà không trừng phạt."
+    },
+    {
+      "title": "🎉 Ăn mừng tiến bộ nhỏ",
+      "body": "Tiến bộ mới là mục tiêu. Chú ý sự thay đổi 5% và gọi tên nó."
+    },
+    {
+      "title": "🧡 Giữ ranh giới, giữ sự ấm áp",
+      "body": "Kiên định + nhân ái là được. \"Mẹ/ba không để con ném. Mẹ/ba ở đây.\""
+    }
+  ]
+}

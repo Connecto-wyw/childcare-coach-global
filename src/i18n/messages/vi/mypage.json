@@ -1,0 +1,22 @@
+{
+  "default_user": "Người dùng",
+  "my_points": "Điểm của tôi",
+  "view_history": "Xem lịch sử",
+  "section_service": "Dịch vụ",
+  "notices": "Thông báo",
+  "notices_sub": "Cập nhật và thông báo dịch vụ",
+  "support": "Hỗ trợ",
+  "support_sub": "Trợ giúp & liên hệ",
+  "section_settings": "Cài đặt",
+  "notifications": "Thông báo đẩy",
+  "notifications_sub": "Cảnh báo đẩy & tùy chọn tiếp thị",
+  "version": "Thông tin phiên bản",
+  "section_account": "Tài khoản",
+  "sign_out": "Đăng xuất",
+  "delete_account": "Xóa tài khoản",
+  "footer": "© 2026 TEAM UP. Bảo lưu mọi quyền.",
+  "delete_modal_title": "Xóa tài khoản",
+  "delete_modal_body": "Tất cả dữ liệu của bạn (điểm, kết quả KYK, thông tin nhóm) sẽ bị xóa vĩnh viễn và không thể khôi phục.",
+  "cancel": "Hủy",
+  "confirm_delete": "Xóa"
+}
